@@ -1094,9 +1094,23 @@
         delay.connect(waveform);
         delay.toDestination();
 
-        // Setup oscilloscope
-        const canvas = document.getElementById('oscilloscope');
+// Setup oscilloscope
+const canvas = document.getElementById('oscilloscope');
         const ctx = canvas.getContext('2d');
+        
+        // Define color schemes for oscilloscope
+        const colorSchemes = [
+            { bg: 'rgba(18, 18, 18, 0.3)', wave: '#00e5ff', name: 'Cyan' },
+            { bg: 'rgba(20, 20, 30, 0.3)', wave: '#9d46ff', name: 'Purple' },
+            { bg: 'rgba(10, 30, 15, 0.3)', wave: '#00c853', name: 'Green' },
+            { bg: 'rgba(30, 15, 10, 0.3)', wave: '#ff6d00', name: 'Orange' },
+            { bg: 'rgba(30, 10, 15, 0.3)', wave: '#ff1744', name: 'Red' },
+            { bg: 'rgba(25, 25, 10, 0.3)', wave: '#ffab00', name: 'Amber' },
+            { bg: 'rgba(10, 25, 25, 0.3)', wave: '#18ffff', name: 'Teal' },
+            { bg: 'rgba(30, 10, 30, 0.3)', wave: '#d500f9', name: 'Pink' }
+        ];
+        
+        let currentColorSchemeIndex = 0;
 
         function resizeCanvas() {
             canvas.width = canvas.offsetWidth;
@@ -1112,12 +1126,13 @@
             const width = canvas.width;
             const height = canvas.height;
             const values = waveform.getValue();
+            const currentScheme = colorSchemes[currentColorSchemeIndex];
 
-            ctx.fillStyle = 'rgba(18, 18, 18, 0.3)';
+            ctx.fillStyle = currentScheme.bg;
             ctx.fillRect(0, 0, width, height);
 
             ctx.beginPath();
-            ctx.strokeStyle = '#00e5ff';
+            ctx.strokeStyle = currentScheme.wave;
             ctx.lineWidth = 2;
 
             for (let i = 0; i < values.length; i++) {
@@ -1133,6 +1148,36 @@
 
             ctx.stroke();
         }
+        
+        // Add click event to change color scheme
+        document.querySelector('.oscilloscope').addEventListener('click', () => {
+            currentColorSchemeIndex = (currentColorSchemeIndex + 1) % colorSchemes.length;
+            
+            // Show color scheme name
+            const schemeName = colorSchemes[currentColorSchemeIndex].name;
+            const notification = document.createElement('div');
+            notification.textContent = `${schemeName} Theme`;
+            notification.style.position = 'absolute';
+            notification.style.top = '50%';
+            notification.style.left = '50%';
+            notification.style.transform = 'translate(-50%, -50%)';
+            notification.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            notification.style.color = colorSchemes[currentColorSchemeIndex].wave;
+            notification.style.padding = '8px 16px';
+            notification.style.borderRadius = '4px';
+            notification.style.fontSize = '14px';
+            notification.style.fontWeight = 'bold';
+            notification.style.zIndex = '10';
+            
+            document.querySelector('.oscilloscope').appendChild(notification);
+            
+            // Remove notification after a short delay
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transition = 'opacity 0.5s';
+                setTimeout(() => notification.remove(), 500);
+            }, 1500);
+        });
 
         drawOscilloscope();
 
