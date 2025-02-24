@@ -823,7 +823,7 @@
     <div class="synth-container">
         <div class="brand">
             <div class="brand-name">Synth XR</div>
-            <div class="version">v2.0</div>
+            <div class="version">v2.3</div>
         </div>
         
         <div class="master-controls">
@@ -880,6 +880,13 @@
                         </div>
                         <input type="range" id="tempo" min="60" max="200" value="120">
                         <span class="knob-value" id="tempoValue">120 BPM</span>
+                    </div>
+                    <div class="select-container">
+                        <label class="select-label">Voice Mode</label>
+                        <select id="voiceMode">
+                            <option value="poly">Polyphonic</option>
+                            <option value="mono">Monophonic</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -1072,30 +1079,115 @@
     </div>
 
     <script>
-        // Initialize Tone.js
-        const synth = new Tone.Synth({
+        // Initialize audio processing components first
+        const filter = new Tone.Filter(2000, "lowpass");
+        const reverb = new Tone.Reverb(2);
+        const delay = new Tone.FeedbackDelay("8n", 0.5);
+        const waveform = new Tone.Waveform(1024);
+
+        // Connect effects chain
+        filter.connect(reverb);
+        reverb.connect(delay);
+        delay.connect(waveform);
+        delay.toDestination();
+
+        // Initialize synth variables
+        let synth;
+        let currentMode = "poly";
+        
+        const activeNotes = new Set();
+        const activeComputerKeys = new Set();
+
+
+        // Create envelope settings to reuse
+        const synthSettings = {
             envelope: {
                 attack: 0.1,
                 decay: 0.2,
                 sustain: 0.5,
                 release: 0.5
             }
-        }).toDestination();
+        };
         
-        const filter = new Tone.Filter(2000, "lowpass");
-        const reverb = new Tone.Reverb(2);
-        const delay = new Tone.FeedbackDelay("8n", 0.5);
-        const waveform = new Tone.Waveform(1024);
-
-        // Connect effects chain and waveform analyzer
-        synth.connect(filter);
-        filter.connect(reverb);
-        reverb.connect(delay);
-        delay.connect(waveform);
-        delay.toDestination();
-
-// Setup oscilloscope
-const canvas = document.getElementById('oscilloscope');
+        // Helper function to consistently handle mono note changes
+        function handleMonoNoteChange(newNote) {
+            if (currentMode !== "mono") return;
+            
+            // Release any currently playing note
+            if (activeNotes.size > 0) {
+                const oldNote = Array.from(activeNotes)[0];
+                
+                // Update UI for the old note
+                const oldKeyElement = document.querySelector(`.key[data-note="${oldNote}"]`) ||
+                                   document.querySelector(`.black-key[data-note="${oldNote}"]`);
+                if (oldKeyElement) {
+                    oldKeyElement.classList.remove('active');
+                }
+                
+                // Important: Release the previous note sound
+                synth.triggerRelease();
+            }
+            
+            // Clear all active notes in mono mode
+            activeNotes.clear();
+            
+            // Add and play the new note
+            if (newNote) {
+                activeNotes.add(newNote);
+                synth.triggerAttack(newNote);
+                updateVUMeter(0.8);
+            }
+        }
+        
+        // Function to create the appropriate synth type
+        function createSynth(mode) {
+            // Dispose of old synth if it exists
+            if (synth) {
+                // Release all notes to prevent hanging notes when switching modes
+                if (currentMode === "poly") {
+                    synth.releaseAll();
+                } else {
+                    // For mono synth, trigger release without arguments to release any active note
+                    synth.triggerRelease();
+                }
+                synth.disconnect();
+                synth.dispose();
+            }
+            
+            // Clear all active notes when switching synth types
+            activeNotes.clear();
+            activeComputerKeys.clear();
+            
+            // Remove active class from all keys
+            document.querySelectorAll('.key.active, .black-key.active').forEach(key => {
+                key.classList.remove('active');
+            });
+            
+            // Create new synth based on mode
+            if (mode === "poly") {
+                synth = new Tone.PolySynth(Tone.Synth, synthSettings);
+            } else {
+                synth = new Tone.Synth(synthSettings);
+            }
+            
+            // Connect to effects chain
+            synth.connect(filter);
+            
+            // Apply current waveform
+            const waveformType = document.getElementById('waveform').value;
+            if (mode === "poly") {
+                synth.set({ oscillator: { type: waveformType } });
+            } else {
+                synth.oscillator.type = waveformType;
+            }
+            
+            return synth;
+        }
+        
+        // Create initial synth (polyphonic by default)
+        synth = createSynth("poly");
+        // Setup oscilloscope
+        const canvas = document.getElementById('oscilloscope');
         const ctx = canvas.getContext('2d');
         
         // Define color schemes for oscilloscope
@@ -1241,7 +1333,7 @@ const canvas = document.getElementById('oscilloscope');
             }
         };
 
-        // Create keyboard
+        // Create keyboard with polyphonic support
         const createKeyboard = () => {
             const keyboardElement = document.getElementById('keyboard');
             const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
@@ -1263,22 +1355,59 @@ const canvas = document.getElementById('oscilloscope');
                     key.setAttribute('data-note', `${octaveNotes[i]}${octave}`);
                     keyboardElement.appendChild(key);
                     
-                    // Add click event
+                    // Add click event with support for both modes
                     key.addEventListener('mousedown', () => {
+                        const note = `${octaveNotes[i]}${octave}`;
                         key.classList.add('active');
-                        synth.triggerAttack(`${octaveNotes[i]}${octave}`);
-                        updateVUMeter(0.8);
+                        
+                        if (currentMode === "poly") {
+                            // For polyphonic mode, only trigger if not already playing
+                            if (!activeNotes.has(note)) {
+                                activeNotes.add(note);
+                                synth.triggerAttack(note);
+                                updateVUMeter(0.8);
+                            }
+                        } else {
+                            // Use our helper function for mono mode
+                            handleMonoNoteChange(note);
+                        }
                     });
                     
                     key.addEventListener('mouseup', () => {
+                        const note = `${octaveNotes[i]}${octave}`;
                         key.classList.remove('active');
-                        synth.triggerRelease();
+                        
+                        if (currentMode === "poly") {
+                            if (activeNotes.has(note)) {
+                                activeNotes.delete(note);
+                                synth.triggerRelease(note);
+                            }
+                        } else {
+                            // For mono mode, clean up active note and release
+                            if (activeNotes.has(note)) {
+                                activeNotes.delete(note);
+                                synth.triggerRelease(); // No parameter needed for mono synth
+                            }
+                        }
                     });
                     
                     key.addEventListener('mouseleave', () => {
+                        const note = `${octaveNotes[i]}${octave}`;
                         if (key.classList.contains('active')) {
                             key.classList.remove('active');
-                            synth.triggerRelease();
+                            
+                            if (currentMode === "poly") {
+                                if (activeNotes.has(note)) {
+                                    activeNotes.delete(note);
+                                    synth.triggerRelease(note);
+                                }
+                            } else {
+                                // For mono mode
+                                if (activeNotes.has(note)) {
+                                    activeNotes.delete(note);
+                                    synth.triggerRelease(); // No parameter needed for mono synth
+                                }
+                            }
                         }
                     });
                 }
@@ -1299,22 +1428,58 @@ const canvas = document.getElementById('oscilloscope');
                         blackKey.setAttribute('data-note', `${notes[pos]}#${octave}`);
                         keyboardElement.appendChild(blackKey);
                         
-                        // Add click event
+                        // Add click event with polyphony support
                         blackKey.addEventListener('mousedown', () => {
+                            const note = `${notes[pos]}#${octave}`;
                             blackKey.classList.add('active');
-                            synth.triggerAttack(`${notes[pos]}#${octave}`);
-                            updateVUMeter(0.8);
+                            
+                            if (currentMode === "poly") {
+                                if (!activeNotes.has(note)) {
+                                    activeNotes.add(note);
+                                    synth.triggerAttack(note);
+                                    updateVUMeter(0.8);
+                                }
+                            } else {
+                                // Use our helper function for mono mode
+                                handleMonoNoteChange(note);
+                            }
                         });
                         
                         blackKey.addEventListener('mouseup', () => {
+                            const note = `${notes[pos]}#${octave}`;
                             blackKey.classList.remove('active');
-                            synth.triggerRelease();
+                            
+                            if (currentMode === "poly") {
+                                if (activeNotes.has(note)) {
+                                    activeNotes.delete(note);
+                                    synth.triggerRelease(note);
+                                }
+                            } else {
+                                // For mono mode
+                                if (activeNotes.has(note)) {
+                                    activeNotes.delete(note);
+                                    synth.triggerRelease(); // No parameter needed for mono synth
+                                }
+                            }
                         });
                         
                         blackKey.addEventListener('mouseleave', () => {
+                            const note = `${notes[pos]}#${octave}`;
                             if (blackKey.classList.contains('active')) {
                                 blackKey.classList.remove('active');
-                                synth.triggerRelease();
+                                
+                                if (currentMode === "poly") {
+                                    if (activeNotes.has(note)) {
+                                        activeNotes.delete(note);
+                                        synth.triggerRelease(note);
+                                    }
+                                } else {
+                                    // For mono mode
+                                    if (activeNotes.has(note)) {
+                                        activeNotes.delete(note);
+                                        synth.triggerRelease(); // No parameter needed for mono synth
+                                    }
+                                }
                             }
                         });
                     }
@@ -1474,7 +1639,28 @@ const canvas = document.getElementById('oscilloscope');
 
         // Connect UI controls to synth parameters
         document.getElementById('waveform').addEventListener('change', e => {
-            synth.oscillator.type = e.target.value;
+            if (currentMode === "poly") {
+                synth.set({ oscillator: { type: e.target.value } });
+            } else {
+                synth.oscillator.type = e.target.value;
+            }
+        });
+        
+        // Voice mode change handler
+        document.getElementById('voiceMode').addEventListener('change', e => {
+            const newMode = e.target.value;
+            
+            // Only switch if mode actually changed
+            if (newMode !== currentMode) {
+                // Create new synth with selected mode
+                currentMode = newMode;
+                createSynth(currentMode);
+                
+                // If switching to mono, update VU meter to show the change
+                if (newMode === "mono") {
+                    updateVUMeter(0.3);
+                }
+            }
         });
 
         document.getElementById('filterCutoff').addEventListener('input', e => {
@@ -1504,23 +1690,51 @@ const canvas = document.getElementById('oscilloscope');
 
         // ADSR controls
         document.getElementById('attack').addEventListener('input', e => {
-            synth.envelope.attack = parseFloat(e.target.value);
-            document.getElementById('attackValue').textContent = `${parseFloat(e.target.value).toFixed(2)}s`;
+            const value = parseFloat(e.target.value);
+            if (currentMode === "poly") {
+                synth.set({ envelope: { attack: value } });
+            } else {
+                synth.envelope.attack = value;
+            }
+            // Update common settings for recreating synths
+            synthSettings.envelope.attack = value;
+            document.getElementById('attackValue').textContent = `${value.toFixed(2)}s`;
         });
 
         document.getElementById('decay').addEventListener('input', e => {
-            synth.envelope.decay = parseFloat(e.target.value);
-            document.getElementById('decayValue').textContent = `${parseFloat(e.target.value).toFixed(2)}s`;
+            const value = parseFloat(e.target.value);
+            if (currentMode === "poly") {
+                synth.set({ envelope: { decay: value } });
+            } else {
+                synth.envelope.decay = value;
+            }
+            // Update common settings for recreating synths
+            synthSettings.envelope.decay = value;
+            document.getElementById('decayValue').textContent = `${value.toFixed(2)}s`;
         });
 
         document.getElementById('sustain').addEventListener('input', e => {
-            synth.envelope.sustain = parseFloat(e.target.value);
-            document.getElementById('sustainValue').textContent = parseFloat(e.target.value).toFixed(2);
+            const value = parseFloat(e.target.value);
+            if (currentMode === "poly") {
+                synth.set({ envelope: { sustain: value } });
+            } else {
+                synth.envelope.sustain = value;
+            }
+            // Update common settings for recreating synths
+            synthSettings.envelope.sustain = value;
+            document.getElementById('sustainValue').textContent = value.toFixed(2);
         });
 
         document.getElementById('release').addEventListener('input', e => {
-            synth.envelope.release = parseFloat(e.target.value);
-            document.getElementById('releaseValue').textContent = `${parseFloat(e.target.value).toFixed(2)}s`;
+            const value = parseFloat(e.target.value);
+            if (currentMode === "poly") {
+                synth.set({ envelope: { release: value } });
+            } else {
+                synth.envelope.release = value;
+            }
+            // Update common settings for recreating synths
+            synthSettings.envelope.release = value;
+            document.getElementById('releaseValue').textContent = `${value.toFixed(2)}s`;
         });
 
         document.getElementById('startSequencer').addEventListener('click', async function() {
@@ -1541,6 +1755,7 @@ const canvas = document.getElementById('oscilloscope');
         // Save and Load functionality
         document.getElementById('saveSetup').addEventListener('click', () => {
             const setup = {
+                voiceMode: document.getElementById('voiceMode').value,
                 waveform: document.getElementById('waveform').value,
                 filterCutoff: document.getElementById('filterCutoff').value,
                 filterRes: document.getElementById('filterRes').value,
@@ -1583,6 +1798,12 @@ const canvas = document.getElementById('oscilloscope');
                     if (input) {
                         input.value = value;
                         input.dispatchEvent(new Event('input'));
+                        
+                        // Special handling for voice mode
+                        if (key === 'voiceMode' && value !== currentMode) {
+                            currentMode = value;
+                            createSynth(currentMode);
+                        }
                     }
                 }
             });
@@ -1737,7 +1958,9 @@ const canvas = document.getElementById('oscilloscope');
             const toggle = step.querySelector('.step-toggle');
             
             if (toggle.classList.contains('active')) {
-                synth.triggerAttackRelease(select.value, '8n', time);
+                // Both mono and poly synths can use triggerAttackRelease in the same way for sequencer notes
+                const note = select.value;
+                synth.triggerAttackRelease(note, '8n', time);
                 updateVUMeter(0.8);
                 
                 // Visual feedback
@@ -1763,7 +1986,6 @@ const canvas = document.getElementById('oscilloscope');
         // Set initial tempo
         Tone.Transport.bpm.value = 120;
 
-
         // Preset list items behavior
         document.querySelectorAll('.preset-item').forEach(item => {
             item.addEventListener('click', () => {
@@ -1774,7 +1996,7 @@ const canvas = document.getElementById('oscilloscope');
             });
         });
 
-        // Add octave control
+        // Add octave control with polyphony support
         let currentOctave = 4;
 
         document.addEventListener('keydown', e => {
@@ -1802,20 +2024,47 @@ const canvas = document.getElementById('oscilloscope');
                 'y': `G#${currentOctave}`, 
                 'h': `A${currentOctave}`,
                 'u': `A#${currentOctave}`, 
-                'j': `B${currentOctave}`
+                'j': `B${currentOctave}`,
+                'k': `C${currentOctave+1}`, 
+                'l': `D${currentOctave+1}`                
             };
             
             if (keyMap[e.key]) {
                 const note = keyMap[e.key];
-                synth.triggerAttack(note);
-                updateVUMeter(0.8);
                 
-                // Update visual keyboard
-                const keyElement = document.querySelector(`.key[data-note="${note}"]`) ||
-                                 document.querySelector(`.black-key[data-note="${note}"]`);
-                                 
-                if (keyElement) {
-                    keyElement.classList.add('active');
+                if (currentMode === "poly") {
+                    // Polyphonic mode - add new note if not already active
+                    if (!activeComputerKeys.has(e.key)) {
+                        activeComputerKeys.add(e.key);
+                        activeNotes.add(note);
+                        synth.triggerAttack(note);
+                        updateVUMeter(0.8);
+                        
+                        // Update visual keyboard
+                        const keyElement = document.querySelector(`.key[data-note="${note}"]`) ||
+                                        document.querySelector(`.black-key[data-note="${note}"]`);
+                                        
+                        if (keyElement) {
+                            keyElement.classList.add('active');
+                        }
+                    }
+                } else {
+                    // Monophonic mode - use our consistent helper function
+                    if (!activeComputerKeys.has(e.key)) {
+                        // Clear all active computer keys in mono mode
+                        activeComputerKeys.clear();
+                        activeComputerKeys.add(e.key);
+                        
+                        // Use our helper function for consistent handling
+                        handleMonoNoteChange(note);
+                        
+                        // Update visual keyboard for new note
+                        const keyElement = document.querySelector(`.key[data-note="${note}"]`) ||
+                                        document.querySelector(`.black-key[data-note="${note}"]`);
+                        if (keyElement) {
+                            keyElement.classList.add('active');
+                        }
+                    }
                 }
             }
         });
@@ -1833,19 +2082,33 @@ const canvas = document.getElementById('oscilloscope');
                 'y': `G#${currentOctave}`, 
                 'h': `A${currentOctave}`,
                 'u': `A#${currentOctave}`, 
-                'j': `B${currentOctave}`
+                'j': `B${currentOctave}`,
+                'k': `C${currentOctave+1}`, 
+                'l': `D${currentOctave+1}`
             };
             
             if (keyMap[e.key]) {
                 const note = keyMap[e.key];
-                synth.triggerRelease();
                 
-                // Update visual keyboard
-                const keyElement = document.querySelector(`.key[data-note="${note}"]`) ||
-                                 document.querySelector(`.black-key[data-note="${note}"]`);
-                                 
-                if (keyElement) {
-                    keyElement.classList.remove('active');
+                if (activeComputerKeys.has(e.key)) {
+                    activeComputerKeys.delete(e.key);
+                    
+                    if (currentMode === "poly") {
+                        activeNotes.delete(note);
+                        synth.triggerRelease(note);
+                    } else {
+                        // For mono mode
+                        activeNotes.delete(note);
+                        synth.triggerRelease(); // No parameter for mono
+                    }
+                    
+                    // Update visual keyboard
+                    const keyElement = document.querySelector(`.key[data-note="${note}"]`) ||
+                                    document.querySelector(`.black-key[data-note="${note}"]`);
+                                    
+                    if (keyElement) {
+                        keyElement.classList.remove('active');
+                    }
                 }
             }
         });
