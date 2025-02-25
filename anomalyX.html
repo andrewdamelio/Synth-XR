@@ -1,0 +1,2090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANOMALY X - Advanced Experimental Synthesizer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        :root {
+            --bg-color: #0a0e17;
+            --panel-color: #111823;
+            --panel-dark: #080b12;
+            --text-color: #e0e4eb;
+            --accent1: #ff3e7f;
+            --accent1-dark: #b71b52;
+            --accent1-glow: rgba(255, 62, 127, 0.5);
+            --accent2: #0aefff;
+            --accent2-dark: #0587a0;
+            --accent2-glow: rgba(10, 239, 255, 0.5);
+            --accent3: #faff00;
+            --accent3-dark: #9fa000;
+            --accent3-glow: rgba(250, 255, 0, 0.5);
+            --accent4: #00ff88;
+            --accent4-dark: #00a354;
+            --accent4-glow: rgba(0, 255, 136, 0.5);
+            --grid-lines: rgba(255, 255, 255, 0.05);
+            --grid-lines-strong: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', 'Roboto', sans-serif;
+            height: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-image: 
+                linear-gradient(to right, var(--grid-lines) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--grid-lines) 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow-y: auto;
+        }
+
+        .header-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 15px 0;
+            z-index: 10;
+        }
+
+        header {
+            font-size: 36px;
+            font-weight: 800;
+            letter-spacing: 8px;
+            position: relative;
+            margin: 0;
+            padding: 5px 20px;
+            background: linear-gradient(90deg, var(--accent1) 0%, var(--accent2) 50%, var(--accent4) 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 10px var(--accent1-glow));
+            text-transform: uppercase;
+        }
+
+        header::after {
+            content: 'EXPERIMENTAL SYNTHESIZER';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            letter-spacing: 3px;
+            color: var(--text-color);
+            opacity: 0.7;
+            width: 100%;
+            text-align: center;
+        }
+
+        .power-button {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #420, var(--panel-dark));
+            border: 2px solid #500;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .power-icon {
+            color: #700;
+            font-size: 22px;
+            text-shadow: 0 0 5px rgba(255, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .power-button.on {
+            background: radial-gradient(circle at 30% 30%, #f00, #900);
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.7);
+        }
+
+        .power-button.on .power-icon {
+            color: white;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+        }
+
+        .synth-container {
+            width: 95%;
+            max-width: 1400px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto auto;
+            gap: 20px;
+            position: relative;
+            z-index: 5;
+        }
+
+        .panel {
+            background: linear-gradient(135deg, var(--panel-color), var(--panel-dark));
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 
+                        inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 15px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .panel-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* Control styles */
+        .controls-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-gap: 25px;
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-label {
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Chaos Knob */
+        .chaos-knob-container {
+            width: 130px;
+            height: 130px;
+            position: relative;
+            margin-bottom: 5px;
+        }
+
+        .chaos-knob-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(var(--accent1) 0%, transparent 20%, transparent 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 20px var(--accent1-glow);
+            clip-path: circle(50%);
+            transition: background 0.3s ease;
+        }
+
+        .chaos-knob-bg {
+            width: 90%;
+            height: 90%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(200, 40, 80, 0.3), var(--panel-dark));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .chaos-knob-inner {
+            width: 70%;
+            height: 70%;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, var(--accent1), var(--accent1-dark));
+            box-shadow: 0 5px 15px rgba(0,0,0,0.7);
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chaos-knob-inner:active {
+            transform: scale(0.95);
+        }
+
+        .chaos-knob-inner::after {
+            content: '';
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            width: 3px;
+            height: 25%;
+            background: white;
+            transform-origin: bottom center;
+            border-radius: 3px;
+        }
+
+        .chaos-display {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 24px;
+            background: var(--panel-dark);
+            border: 1px solid var(--accent1);
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 0 10px var(--accent1-glow);
+        }
+
+        /* Drone Slider */
+        .drone-slider-container {
+            width: 100%;
+            padding: 30px 10px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .drone-slider-bg {
+            width: calc(100% - 20px);
+            height: 40px;
+            background: linear-gradient(to bottom, var(--panel-dark), var(--panel-color));
+            border-radius: 20px;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+
+        .drone-slider-track {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 4px;
+            width: calc(100% - 20px);
+            background: linear-gradient(to right, var(--accent2-dark), var(--accent2));
+            border-radius: 2px;
+            z-index: 1;
+        }
+
+        .drone-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 40px;
+            background: transparent;
+            margin: 0;
+            position: relative;
+            z-index: 2;
+            cursor: pointer;
+        }
+
+        .drone-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, var(--accent2), var(--accent2-dark));
+            box-shadow: 0 0 15px var(--accent2-glow);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+        }
+
+        .drone-slider::-moz-range-thumb {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, var(--accent2), var(--accent2-dark));
+            box-shadow: 0 0 15px var(--accent2-glow);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+        }
+
+        .drone-mode-indicator {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 12px;
+            margin-top: 10px;
+            padding: 0 10px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Harmonic Shift Button */
+        .harmonic-shift-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 140px;
+        }
+
+        .harmonic-button {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--accent3), var(--accent3-dark));
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            color: rgba(0, 0, 0, 0.7);
+            font-weight: bold;
+            font-size: 16px;
+            letter-spacing: 1px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3), 0 0 20px var(--accent3-glow);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .harmonic-button::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .harmonic-button:hover::before {
+            opacity: 1;
+        }
+
+        .harmonic-button:active {
+            transform: translateY(5px);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3), 0 0 30px var(--accent3-glow);
+        }
+
+        .harmonic-display {
+            margin-top: 15px;
+            padding: 5px 10px;
+            background: var(--panel-dark);
+            border: 1px solid var(--accent3);
+            border-radius: 4px;
+            font-size: 12px;
+            letter-spacing: 1px;
+            box-shadow: 0 0 10px var(--accent3-glow);
+            min-width: 100px;
+            text-align: center;
+        }
+
+        /* Glitch Pad */
+        .glitch-pad-container {
+            width: 180px;
+            height: 180px;
+            position: relative;
+            perspective: 500px;
+        }
+
+        .glitch-pad-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: var(--panel-dark);
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transform: translateZ(-10px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .glitch-pad-surface {
+            width: 160px;
+            height: 160px;
+            background: repeating-linear-gradient(
+                45deg,
+                var(--accent4-dark),
+                var(--accent4-dark) 10px,
+                rgba(0, 120, 60, 0.5) 10px,
+                rgba(0, 120, 60, 0.5) 20px
+            );
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            border-radius: 5px;
+            box-shadow: 
+                0 0 20px var(--accent4-glow),
+                inset 0 0 20px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .glitch-pad-surface::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent 25%, rgba(0, 255, 136, 0.3) 50%, transparent 75%);
+            background-size: 200% 200%;
+            animation: glitchBg 5s infinite linear;
+            opacity: 0.3;
+            transition: opacity 0.3s ease;
+        }
+
+        .glitch-pad-surface.active {
+            transform: scale(0.95);
+            box-shadow: 
+                0 0 40px var(--accent4-glow),
+                inset 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+
+        .glitch-pad-surface.active::before {
+            opacity: 0.7;
+            animation: glitchBgActive 0.5s infinite linear;
+        }
+
+        @keyframes glitchBg {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 200% 200%; }
+        }
+
+        @keyframes glitchBgActive {
+            0% { background-position: 0% 0%; }
+            25% { background-position: 100% 0%; }
+            50% { background-position: 200% 100%; }
+            75% { background-position: 100% 200%; }
+            100% { background-position: 0% 0%; }
+        }
+
+        .glitch-effect {
+            position: absolute;
+            background: var(--accent4);
+            opacity: 0.7;
+            filter: blur(1px);
+            pointer-events: none;
+            box-shadow: 0 0 10px var(--accent4-glow);
+        }
+
+        /* Matrix panel */
+        .matrix-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .matrix-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* Cellular Automaton Canvas */
+        .generative-canvas-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 15px;
+        }
+
+        #cellular-canvas {
+            width: 300px;
+            height: 300px;
+            background-color: black;
+            border: 1px solid #333;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+        }
+
+        /* Visualization */
+        .visualization-panel {
+            grid-column: 1 / 3;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .visualization-container {
+            height: 200px;
+            position: relative;
+            margin-top: 10px;
+            overflow: hidden;
+            border-radius: 10px;
+            background: var(--panel-dark);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #visualization-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Presets Panel */
+        .presets-panel {
+            grid-column: 1 / 3;
+            margin-top: 20px;
+        }
+
+        .presets-grid {
+            margin-top: 10px;
+        }
+
+        .preset-button {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: linear-gradient(135deg, rgba(80, 80, 80, 0.4), rgba(40, 40, 40, 0.4));
+            color: var(--text-color);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .preset-button:hover {
+            background: linear-gradient(135deg, rgba(100, 100, 100, 0.5), rgba(60, 60, 60, 0.5));
+            transform: translateY(-2px);
+        }
+
+        .preset-button:active {
+            transform: translateY(1px);
+        }
+
+        .preset-button.save {
+            background: linear-gradient(135deg, var(--accent1-dark), rgba(80, 20, 60, 0.7));
+            color: white;
+        }
+
+        .preset-button.save:hover {
+            background: linear-gradient(135deg, var(--accent1), var(--accent1-dark));
+            box-shadow: 0 5px 15px var(--accent1-glow);
+        }
+
+        /* Mobile styles */
+        @media (max-width: 1200px) {
+            .synth-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: repeat(5, auto);
+                height: auto;
+                gap: 15px;
+                padding-bottom: 20px;
+            }
+
+            .matrix-panel, .visualization-panel, .presets-panel {
+                grid-column: 1;
+            }
+
+            header {
+                font-size: 28px;
+            }
+
+            .panel-content {
+                padding: 10px 0;
+            }
+
+            .controls-container {
+                grid-template-columns: repeat(2, 1fr);
+                grid-gap: 15px;
+            }
+
+            .chaos-knob-container {
+                width: 100px;
+                height: 100px;
+            }
+
+            .harmonic-button {
+                width: 100px;
+                height: 100px;
+            }
+
+            .glitch-pad-container {
+                width: 150px;
+                height: 150px;
+            }
+
+            .glitch-pad-surface {
+                width: 130px;
+                height: 130px;
+            }
+
+            .matrix-panel {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .cellular-frame {
+                height: 250px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-container {
+                padding: 10px 0;
+            }
+
+            header {
+                font-size: 24px;
+                letter-spacing: 4px;
+            }
+
+            header::after {
+                font-size: 10px;
+                bottom: -8px;
+            }
+
+            .power-button {
+                width: 40px;
+                height: 40px;
+                right: 15px;
+            }
+
+            .panel {
+                padding: 15px;
+            }
+
+            .panel-header {
+                padding-bottom: 10px;
+                margin-bottom: 10px;
+            }
+
+            .panel-title {
+                font-size: 14px;
+                letter-spacing: 2px;
+            }
+
+            .controls-container {
+                grid-template-columns: 1fr;
+                justify-items: center;
+            }
+
+            .control-group {
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-container">
+        <header>ANOMALY X</header>
+        <div class="power-button" id="power-button">
+            <div class="power-icon">⏻</div>
+        </div>
+    </div>
+
+    <div class="synth-container">
+        <!-- Main Controls Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2 class="panel-title">MAIN CONTROLS</h2>
+            </div>
+            <div class="panel-content">
+                <div class="controls-container">
+                    <!-- Chaos Knob -->
+                    <div class="control-group">
+                        <div class="control-label">CHAOS</div>
+                        <div class="chaos-knob-container">
+                            <div class="chaos-knob-ring" id="chaos-ring">
+                                <div class="chaos-knob-bg">
+                                    <div class="chaos-knob-inner" id="chaos-knob"></div>
+                                </div>
+                            </div>
+                            <div class="chaos-display" id="chaos-display">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Harmonic Shift Button -->
+                    <div class="control-group">
+                        <div class="control-label">HARMONIC SHIFT</div>
+                        <div class="harmonic-shift-container">
+                            <button class="harmonic-button" id="harmonic-button">SHIFT</button>
+                            <div class="harmonic-display" id="harmonic-display">STANDARD</div>
+                        </div>
+                    </div>
+
+                    <!-- Drone Slider -->
+                    <div class="control-group">
+                        <div class="control-label">DRONE/PERCUSSIVE</div>
+                        <div class="drone-slider-container">
+                            <div class="drone-slider-bg">
+                                <div class="drone-slider-track"></div>
+                                <input type="range" min="0" max="100" value="50" class="drone-slider" id="drone-slider">
+                            </div>
+                            <div class="drone-mode-indicator">
+                                <span>PERCUSSIVE</span>
+                                <span>DRONE</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Glitch Pad -->
+                    <div class="control-group">
+                        <div class="control-label">GLITCH PAD</div>
+                        <div class="glitch-pad-container">
+                            <div class="glitch-pad-bg">
+                                <div class="glitch-pad-surface" id="glitch-pad"></div>
+                            </div>
+                        </div>
+                    </div>                    
+                </div>
+            </div>
+        </div>
+
+                
+        <!-- Matrix Panel -->
+        <div class="panel matrix-panel">
+            <div class="matrix-controls">
+                <div class="panel-content">
+                    <div class="generative-canvas-container">
+                        <div class="control-label">PATTERN MATRIX</div>
+                        <canvas id="cellular-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Visualization Panel -->
+        <div class="panel visualization-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">VISUALIZATION</h2>
+            </div>
+            <div class="visualization-container">
+                <canvas id="visualization-canvas"></canvas>
+            </div>
+        </div>
+        
+        <!-- Presets Panel -->
+        <div class="panel presets-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">PRESETS</h2>
+            </div>
+            <div class="panel-content">
+                <div class="presets-grid">
+                    <button class="preset-button" data-preset="1">VOID</button>
+                    <button class="preset-button" data-preset="2">PULSE</button>
+                    <button class="preset-button" data-preset="3">NEBULA</button>
+                    <button class="preset-button" data-preset="4">GLITCH</button>
+                    <button class="preset-button" data-preset="5">CUSTOM 1</button>
+                    <button class="preset-button" data-preset="6">CUSTOM 2</button>
+                    <button class="preset-button save" id="save-preset">SAVE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Main synth engine variables
+        let powerOn = false;
+        let chaosValue = 0;
+        let droneValue = 50;
+        let currentHarmonic = 0;
+        let glitchActive = false;
+        let cellularPattern = [];
+        let activeNotes = [];
+        let lastNoteTime = 0;
+        let analyzer;
+        let cellularInterval;
+        let glitchInterval;
+        
+        // Tone.js instruments and effects
+        let synth, synthDrone, noise, reverb, bitCrusher, autoFilter, pingPong, grainPlayer;
+        let lfo1, lfo2, lfo3;
+        
+        // Microtonal scales
+        const scales = [
+            [0, 2, 4, 5, 7, 9, 11], // Standard scale
+            [0, 1, 4, 6, 8, 10, 11], // Custom microtonal scale 1
+            [0, 2, 3, 6, 7, 9, 10], // Custom microtonal scale 2
+            [0, 2.5, 4, 6.5, 7, 9.5, 11], // Just intonation approximation
+            [0, 1, 2, 3, 4, 5, 6]  // Chromatic segment
+        ];
+        
+        const harmonicLabels = ["STANDARD", "MICRO 1", "MICRO 2", "JUST INT", "CHROMATIC"];
+        
+        // Base notes for the sequencer
+        const baseNotes = ['C3', 'D3', 'E3', 'G3', 'A3', 'C4', 'D4', 'E4', 'G4', 'A4'];
+        
+        // Markov chain for melodic generation
+        const markovChain = {
+            'C3': ['C3', 'E3', 'G3'],
+            'D3': ['D3', 'A3', 'E3'],
+            'E3': ['E3', 'G3', 'C4'],
+            'G3': ['G3', 'D3', 'C4'],
+            'A3': ['A3', 'E3', 'D4'],
+            'C4': ['C4', 'G3', 'E4'],
+            'D4': ['D4', 'A3', 'G4'],
+            'E4': ['E4', 'C4', 'A4'],
+            'G4': ['G4', 'D4', 'C4'],
+            'A4': ['A4', 'E4', 'G4']
+        };
+        
+        // DOM elements
+        const chaosKnob = document.getElementById('chaos-knob');
+        const chaosRing = document.getElementById('chaos-ring');
+        const chaosDisplay = document.getElementById('chaos-display');
+        const droneSlider = document.getElementById('drone-slider');
+        const harmonicButton = document.getElementById('harmonic-button');
+        const harmonicDisplay = document.getElementById('harmonic-display');
+        const glitchPad = document.getElementById('glitch-pad');
+        const cellularCanvas = document.getElementById('cellular-canvas');
+        const visualizationCanvas = document.getElementById('visualization-canvas');
+        const powerButton = document.getElementById('power-button');
+        const savePresetButton = document.getElementById('save-preset');
+        const presetButtons = document.querySelectorAll('.preset-button:not(.save)');
+        
+        // Canvas contexts
+        const cellCtx = cellularCanvas.getContext('2d');
+        const visCtx = visualizationCanvas.getContext('2d');
+        
+        // Initialize cellular automaton
+        function initCellularAutomaton() {
+            cellularCanvas.width = 30;
+            cellularCanvas.height = 30;
+            
+            cellularPattern = Array(30).fill().map(() => Array(30).fill(0));
+            
+            // Initialize with random cells
+            for (let i = 0; i < 30; i++) {
+                for (let j = 0; j < 30; j++) {
+                    cellularPattern[i][j] = Math.random() < 0.3 ? 1 : 0;
+                }
+            }
+            
+            renderCellularAutomaton();
+        }
+        
+        // Render cellular automaton
+        function renderCellularAutomaton() {
+            cellCtx.clearRect(0, 0, cellularCanvas.width, cellularCanvas.height);
+            
+            const cellSize = cellularCanvas.width / 30;
+            
+            for (let i = 0; i < 30; i++) {
+                for (let j = 0; j < 30; j++) {
+                    if (cellularPattern[i][j] === 1) {
+                        cellCtx.fillStyle = `hsl(${(i * j) % 360}, 100%, 50%)`;
+                        cellCtx.fillRect(i * cellSize, j * cellSize, cellSize, cellSize);
+                    }
+                }
+            }
+        }
+        
+        // Update cellular automaton using Conway's Game of Life rules
+        function updateCellularAutomaton() {
+            const gridSize = cellularPattern.length;
+            const newPattern = Array(gridSize).fill().map(() => Array(gridSize).fill(0));
+            
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const neighbors = countNeighbors(i, j);
+                    
+                    if (cellularPattern[i][j] === 1) {
+                        // Live cell
+                        if (neighbors < 2 || neighbors > 3) {
+                            newPattern[i][j] = 0; // Die
+                        } else {
+                            newPattern[i][j] = 1; // Live
+                        }
+                    } else {
+                        // Dead cell
+                        if (neighbors === 3) {
+                            newPattern[i][j] = 1; // Born
+                        } else {
+                            newPattern[i][j] = 0; // Stay dead
+                        }
+                    }
+                }
+            }
+            
+            cellularPattern = newPattern;
+            renderCellularAutomaton();
+            
+            // Use cellular automaton to trigger sounds
+            triggerSoundsFromCellular();
+        }
+        
+        // Count neighbors for cellular automaton
+        function countNeighbors(x, y) {
+            let count = 0;
+            const gridSize = cellularPattern.length;
+            
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    if (i === 0 && j === 0) continue;
+                    
+                    const nx = (x + i + gridSize) % gridSize;
+                    const ny = (y + j + gridSize) % gridSize;
+                    
+                    count += cellularPattern[nx][ny];
+                }
+            }
+            
+            return count;
+        }
+        
+        // Trigger sounds based on cellular automaton
+        function triggerSoundsFromCellular() {
+            if (!powerOn) return;
+            
+            const now = Tone.now();
+            const cellsActive = countActiveCells();
+            const gridSize = cellularPattern.length;
+            
+            // Only trigger if enough time has passed and there are active cells
+            if (now - lastNoteTime > 0.2 && cellsActive > 0) {
+                const randomRow = Math.floor(Math.random() * gridSize);
+                let activeCellsInRow = 0;
+                
+                for (let i = 0; i < gridSize; i++) {
+                    if (cellularPattern[i][randomRow] === 1) {
+                        activeCellsInRow++;
+                        
+                        if (Math.random() < 0.3) {
+                            const noteIndex = Math.floor((i / gridSize) * scales[currentHarmonic].length);
+                            const octave = 2 + Math.floor(randomRow / 10);
+                            const baseNote = 60 + scales[currentHarmonic][noteIndex]; // MIDI note for C4 is 60
+                            
+                            // Convert MIDI note to frequency
+                            const freq = 440 * Math.pow(2, (baseNote - 69) / 12);
+                            
+                            if (droneValue < 30) {
+                                // More percussive
+                                synth.triggerAttackRelease(freq, 0.1, now + Math.random() * 0.1);
+                            } else if (droneValue < 70) {
+                                // Mixed
+                                if (Math.random() < 0.5) {
+                                    synth.triggerAttackRelease(freq, 0.2 + Math.random() * 0.2);
+                                } else {
+                                    synthDrone.triggerAttackRelease(freq, 0.5 + Math.random() * 0.5);
+                                }
+                            } else {
+                                // More drone
+                                synthDrone.triggerAttackRelease(freq, 1 + Math.random() * 2);
+                            }
+                            
+                            lastNoteTime = now;
+                        }
+                    }
+                }
+                
+                // Add occasional noise burst based on chaos
+                if (Math.random() < chaosValue / 200 && chaosValue > 20) {
+                    noise.triggerAttackRelease(0.1);
+                }
+            }
+        }
+        
+        // Count active cells in cellular automaton
+        function countActiveCells() {
+            let count = 0;
+            const gridSize = cellularPattern.length;
+            
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    count += cellularPattern[i][j];
+                }
+            }
+            
+            return count;
+        }
+        
+        // Initialize visualization
+        function initVisualization() {
+            visualizationCanvas.width = visualizationCanvas.offsetWidth;
+            visualizationCanvas.height = visualizationCanvas.offsetHeight;
+            
+            // Set up analyzer
+            analyzer = new Tone.Analyser('waveform', 512);
+            Tone.Destination.connect(analyzer);
+            
+            // Start visualization loop
+            visualize();
+        }
+        
+        // Visualization loop with enhanced visuals
+        function visualize() {
+            requestAnimationFrame(visualize);
+            
+            const width = visualizationCanvas.width;
+            const height = visualizationCanvas.height;
+            
+            // Clear canvas with gradient background
+            const bgGradient = visCtx.createLinearGradient(0, 0, 0, height);
+            bgGradient.addColorStop(0, 'rgba(10, 14, 23, 1)');
+            bgGradient.addColorStop(1, 'rgba(5, 7, 12, 1)');
+            
+            visCtx.fillStyle = bgGradient;
+            visCtx.fillRect(0, 0, width, height);
+            
+            if (!powerOn) {
+                // Draw "STANDBY" text when powered off
+                visCtx.font = '20px monospace';
+                visCtx.fillStyle = 'rgba(255, 62, 127, 0.3)';
+                visCtx.textAlign = 'center';
+                visCtx.textBaseline = 'middle';
+                visCtx.fillText('STANDBY', width / 2, height / 2);
+                return;
+            }
+            
+            // Get waveform data
+            const bufferLength = analyzer.size;
+            const dataArray = analyzer.getValue();
+            
+            // Draw grid
+            visCtx.lineWidth = 0.5;
+            visCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            
+            // Horizontal grid lines
+            for (let i = 0; i < height; i += 20) {
+                visCtx.beginPath();
+                visCtx.moveTo(0, i);
+                visCtx.lineTo(width, i);
+                visCtx.stroke();
+            }
+            
+            // Vertical grid lines
+            for (let i = 0; i < width; i += 20) {
+                visCtx.beginPath();
+                visCtx.moveTo(i, 0);
+                visCtx.lineTo(i, height);
+                visCtx.stroke();
+            }
+            
+            // Center line
+            visCtx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            visCtx.beginPath();
+            visCtx.moveTo(0, height / 2);
+            visCtx.lineTo(width, height / 2);
+            visCtx.stroke();
+            
+            // Draw frequency domain visualization (bars)
+            if (chaosValue > 50) {
+                // More chaos = more complex visualization
+                const barWidth = width / bufferLength * 2;
+                const barSpacing = 1;
+                
+                for (let i = 0; i < bufferLength / 2; i++) {
+                    const barHeight = Math.abs(dataArray[i]) * height * 1.5;
+                    
+                    // Calculate hue based on frequency and chaos
+                    const hue = (i / bufferLength * 360 + chaosValue * 2) % 360;
+                    
+                    visCtx.fillStyle = `hsla(${hue}, 100%, 60%, 0.7)`;
+                    
+                    const x = i * (barWidth + barSpacing);
+                    const y = height / 2 - barHeight / 2;
+                    
+                    visCtx.fillRect(x, y, barWidth, barHeight);
+                }
+            }
+            
+            // Draw waveform
+            visCtx.lineWidth = 2;
+            visCtx.lineCap = 'round';
+            visCtx.lineJoin = 'round';
+            
+            // Use gradient for line
+            const hue = (currentHarmonic * 60 + chaosValue * 2) % 360;
+            const lineGradient = visCtx.createLinearGradient(0, 0, width, 0);
+            lineGradient.addColorStop(0, `hsla(${hue}, 100%, 60%, 0.8)`);
+            lineGradient.addColorStop(0.5, `hsla(${(hue + 60) % 360}, 100%, 60%, 0.8)`);
+            lineGradient.addColorStop(1, `hsla(${(hue + 120) % 360}, 100%, 60%, 0.8)`);
+            
+            visCtx.strokeStyle = lineGradient;
+            visCtx.beginPath();
+            
+            const sliceWidth = width / bufferLength;
+            let x = 0;
+            
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i];
+                const y = v * height / 2 + height / 2;
+                
+                if (i === 0) {
+                    visCtx.moveTo(x, y);
+                } else {
+                    visCtx.lineTo(x, y);
+                }
+                
+                x += sliceWidth;
+            }
+            
+            // Add glow effect
+            visCtx.shadowColor = `hsla(${hue}, 100%, 60%, 0.8)`;
+            visCtx.shadowBlur = 10;
+            visCtx.stroke();
+            visCtx.shadowBlur = 0;
+            
+            // Add noise effect for chaos
+            if (chaosValue > 70) {
+                for (let i = 0; i < chaosValue / 5; i++) {
+                    const glitchX = Math.random() * width;
+                    const glitchY = Math.random() * height;
+                    const glitchW = Math.random() * 100 + 50;
+                    const glitchH = Math.random() * 2 + 1;
+                    
+                    visCtx.fillStyle = `hsla(${Math.random() * 360}, 100%, 70%, 0.1)`;
+                    visCtx.fillRect(glitchX, glitchY, glitchW, glitchH);
+                }
+            }
+            
+            // Add cellular pattern overlay
+            if (Math.random() < chaosValue / 100) {
+                const gridSize = cellularPattern.length;
+                const cellSize = Math.max(width, height) / gridSize;
+                
+                for (let i = 0; i < gridSize; i++) {
+                    for (let j = 0; j < gridSize; j++) {
+                        if (cellularPattern[i][j] === 1) {
+                            const x = (i / gridSize) * width;
+                            const y = (j / gridSize) * height;
+                            
+                            visCtx.fillStyle = `hsla(${(hue + 180) % 360}, 100%, 70%, 0.1)`;
+                            visCtx.beginPath();
+                            visCtx.arc(x, y, cellSize * 0.4, 0, Math.PI * 2);
+                            visCtx.fill();
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Initialize synth engine
+        function initSynth() {
+            // Create effects chain
+            reverb = new Tone.Reverb({
+                decay: 5,
+                wet: 0.5
+            }).toDestination();
+            
+            bitCrusher = new Tone.BitCrusher({
+                bits: 8
+            }).connect(reverb);
+            
+            pingPong = new Tone.PingPongDelay({
+                delayTime: 0.25,
+                feedback: 0.3,
+                wet: 0.2
+            }).connect(reverb);
+            
+            autoFilter = new Tone.AutoFilter({
+                frequency: 1,
+                depth: 0.5,
+                type: "sine",
+                wet: 0.5
+            }).connect(pingPong);
+            
+            // Create LFOs with correct ranges and connections
+            lfo1 = new Tone.LFO({
+                frequency: 0.1,
+                min: 0.1,
+                max: 10
+            }).start();
+            
+            lfo2 = new Tone.LFO({
+                frequency: 0.05,
+                min: 0.5,
+                max: 5
+            }).start();
+            
+            lfo3 = new Tone.LFO({
+                frequency: 0.02,
+                min: 0.1,
+                max: 1
+            }).start();
+            
+            // Create instruments
+            synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: {
+                    type: "sine4"
+                },
+                envelope: {
+                    attack: 0.01,
+                    decay: 0.2,
+                    sustain: 0.2,
+                    release: 0.4
+                }
+            }).connect(autoFilter);
+            
+            synthDrone = new Tone.PolySynth(Tone.FMSynth, {
+                harmonicity: 1.5,
+                modulationIndex: 5,
+                oscillator: {
+                    type: "triangle"
+                },
+                envelope: {
+                    attack: 0.5,
+                    decay: 0.5,
+                    sustain: 0.7,
+                    release: 2
+                },
+                modulation: {
+                    type: "square"
+                },
+                modulationEnvelope: {
+                    attack: 1,
+                    decay: 0.5,
+                    sustain: 0.5,
+                    release: 2
+                }
+            }).connect(autoFilter);
+            
+            noise = new Tone.NoiseSynth({
+                noise: {
+                    type: "pink"
+                },
+                envelope: {
+                    attack: 0.01,
+                    decay: 0.2,
+                    sustain: 0
+                }
+            }).connect(bitCrusher);
+            
+            // Connect LFOs to parameters that accept signal inputs
+            lfo1.connect(autoFilter.frequency);
+            lfo2.connect(synthDrone.volume);
+            lfo3.connect(bitCrusher.wet);
+            
+            // Start Tone.js
+            Tone.start();
+        }
+        
+        // Update synth parameters based on UI controls
+        function updateSynthParams() {
+            if (!powerOn) return;
+            
+            // Update based on chaos value
+            const chaosNormalized = chaosValue / 100;
+            
+            // Update chaos knob ring visualization (conic gradient)
+            chaosRing.style.background = `conic-gradient(var(--accent1) 0%, var(--accent1) ${chaosValue}%, transparent ${chaosValue}%, transparent 100%)`;
+            
+            lfo1.frequency.value = 0.1 + chaosNormalized * 5;
+            autoFilter.frequency.value = 1 + chaosNormalized * 5;
+            pingPong.feedback.value = 0.3 + chaosNormalized * 0.4;
+            
+            // Update based on drone value
+            const droneNormalized = droneValue / 100;
+            
+            synth.set({
+                envelope: {
+                    attack: 0.01 + droneNormalized * 0.5,
+                    release: 0.4 + droneNormalized * 2
+                }
+            });
+            
+            synthDrone.set({
+                envelope: {
+                    attack: 0.1 + droneNormalized * 1,
+                    release: 1 + droneNormalized * 5
+                }
+            });
+            
+            reverb.decay = 2 + droneNormalized * 8;
+        }
+        
+        // Apply glitch effect with enhanced visuals
+        function applyGlitchEffect() {
+            if (!powerOn) return;
+            
+            bitCrusher.set({
+                bits: Math.floor(Math.random() * 6) + 2,
+                wet: 1
+            });
+            
+            autoFilter.frequency.cancelScheduledValues(Tone.now());
+            autoFilter.frequency.linearRampTo(Math.max(0.1, Math.random() * 100), 0.1);
+            
+            // Create visual glitch effects
+            const container = document.querySelector('.visualization-container');
+            
+            for (let i = 0; i < 8; i++) {
+                const glitchElement = document.createElement('div');
+                glitchElement.className = 'glitch-effect';
+                
+                // Create more varied glitch elements
+                const glitchType = Math.floor(Math.random() * 3);
+                
+                if (glitchType === 0) {
+                    // Horizontal line
+                    const width = Math.random() * (container.offsetWidth * 0.8) + 50;
+                    const height = Math.random() * 5 + 2;
+                    const top = Math.random() * container.offsetHeight;
+                    const left = Math.random() * (container.offsetWidth - width);
+                    
+                    glitchElement.style.width = `${width}px`;
+                    glitchElement.style.height = `${height}px`;
+                    glitchElement.style.top = `${top}px`;
+                    glitchElement.style.left = `${left}px`;
+                } else if (glitchType === 1) {
+                    // Vertical line
+                    const width = Math.random() * 5 + 2;
+                    const height = Math.random() * (container.offsetHeight * 0.8) + 50;
+                    const top = Math.random() * (container.offsetHeight - height);
+                    const left = Math.random() * container.offsetWidth;
+                    
+                    glitchElement.style.width = `${width}px`;
+                    glitchElement.style.height = `${height}px`;
+                    glitchElement.style.top = `${top}px`;
+                    glitchElement.style.left = `${left}px`;
+                } else {
+                    // Block
+                    const size = Math.random() * 50 + 10;
+                    const top = Math.random() * (container.offsetHeight - size);
+                    const left = Math.random() * (container.offsetWidth - size);
+                    
+                    glitchElement.style.width = `${size}px`;
+                    glitchElement.style.height = `${size}px`;
+                    glitchElement.style.top = `${top}px`;
+                    glitchElement.style.left = `${left}px`;
+                    glitchElement.style.opacity = '0.3';
+                }
+                
+                container.appendChild(glitchElement);
+                
+                // Animate and remove after animation
+                setTimeout(() => {
+                    glitchElement.style.transform = 'translateX(20px)';
+                    glitchElement.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        glitchElement.remove();
+                    }, 300);
+                }, Math.random() * 500 + 100);
+            }
+            
+            // Trigger some random notes
+            if (Math.random() < 0.5) {
+                const note = baseNotes[Math.floor(Math.random() * baseNotes.length)];
+                const duration = Math.random() * 0.2 + 0.05;
+                
+                synth.triggerAttackRelease(note, duration);
+            }
+            
+            // Trigger noise burst
+            if (Math.random() < 0.3) {
+                noise.triggerAttackRelease(0.1);
+            }
+            
+            // Reset bit crusher after a short time
+            setTimeout(() => {
+                bitCrusher.wet.value = 0.5;
+            }, 300);
+        }
+        
+        // Toggle power with animation
+        function togglePower() {
+            powerOn = !powerOn;
+            
+            if (powerOn) {
+                powerButton.classList.add('on');
+                
+                // Animated startup sequence
+                document.body.style.transition = 'background-color 0.5s ease';
+                document.body.style.backgroundColor = 'rgba(20, 30, 50, 0.9)';
+                
+                setTimeout(() => {
+                    document.body.style.backgroundColor = '';
+                    document.body.style.transition = '';
+                }, 500);
+                
+                // Start Tone context if not started
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                
+                // Update parameters
+                updateSynthParams();
+                
+                // Start cellular automaton interval
+                cellularInterval = setInterval(updateCellularAutomaton, 400);
+            } else {
+                powerButton.classList.remove('on');
+                
+                // Animated shutdown sequence
+                document.body.style.transition = 'background-color 0.5s ease';
+                document.body.style.backgroundColor = 'rgba(10, 10, 20, 0.95)';
+                
+                setTimeout(() => {
+                    document.body.style.backgroundColor = '';
+                    document.body.style.transition = '';
+                }, 500);
+                
+                // Stop interval
+                clearInterval(cellularInterval);
+                
+                // Release all notes
+                synth.releaseAll();
+                synthDrone.releaseAll();
+            }
+        }
+        
+        // Save preset with improved UI
+        function savePreset() {
+            // Create a modal for saving preset
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            modal.style.zIndex = '1000';
+            
+            const modalContent = document.createElement('div');
+            modalContent.style.backgroundColor = 'var(--panel-dark)';
+            modalContent.style.padding = '30px';
+            modalContent.style.borderRadius = '10px';
+            modalContent.style.boxShadow = '0 0 30px var(--accent1-glow)';
+            modalContent.style.maxWidth = '400px';
+            modalContent.style.width = '90%';
+            
+            const title = document.createElement('h2');
+            title.textContent = 'SAVE PRESET';
+            title.style.color = 'var(--accent1)';
+            title.style.marginTop = '0';
+            title.style.marginBottom = '20px';
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'Preset name';
+            input.style.width = '100%';
+            input.style.padding = '10px';
+            input.style.marginBottom = '20px';
+            input.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+            input.style.border = '1px solid var(--accent1)';
+            input.style.borderRadius = '5px';
+            input.style.color = 'white';
+            
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.display = 'flex';
+            buttonContainer.style.justifyContent = 'space-between';
+            
+            const saveButton = document.createElement('button');
+            saveButton.textContent = 'SAVE';
+            saveButton.style.backgroundColor = 'var(--accent1)';
+            saveButton.style.color = 'white';
+            saveButton.style.border = 'none';
+            saveButton.style.padding = '10px 20px';
+            saveButton.style.borderRadius = '5px';
+            saveButton.style.cursor = 'pointer';
+            
+            const cancelButton = document.createElement('button');
+            cancelButton.textContent = 'CANCEL';
+            cancelButton.style.backgroundColor = 'rgba(100, 100, 100, 0.3)';
+            cancelButton.style.color = 'white';
+            cancelButton.style.border = 'none';
+            cancelButton.style.padding = '10px 20px';
+            cancelButton.style.borderRadius = '5px';
+            cancelButton.style.cursor = 'pointer';
+            
+            buttonContainer.appendChild(cancelButton);
+            buttonContainer.appendChild(saveButton);
+            
+            modalContent.appendChild(title);
+            modalContent.appendChild(input);
+            modalContent.appendChild(buttonContainer);
+            
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+            
+            // Focus input
+            setTimeout(() => input.focus(), 100);
+            
+            // Event handlers
+            cancelButton.addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+            
+            saveButton.addEventListener('click', () => {
+                const presetName = input.value || 'CUSTOM';
+                
+                const presetData = {
+                    chaosValue,
+                    droneValue,
+                    currentHarmonic,
+                    cellularPattern
+                };
+                
+                // Find an empty custom preset slot
+                let customPresetIndex = 5; // Default to CUSTOM 1
+                
+                if (localStorage.getItem('anomalyPreset5')) {
+                    customPresetIndex = 6; // Use CUSTOM 2
+                }
+                
+                // Save preset
+                localStorage.setItem(`anomalyPreset${customPresetIndex}`, JSON.stringify(presetData));
+                localStorage.setItem(`anomalyPresetName${customPresetIndex}`, presetName);
+                
+                // Update preset button label
+                document.querySelector(`.preset-button[data-preset="${customPresetIndex}"]`).textContent = presetName;
+                
+                // Show confirmation
+                const confirmMessage = document.createElement('div');
+                confirmMessage.textContent = `Preset saved as "${presetName}"!`;
+                confirmMessage.style.position = 'fixed';
+                confirmMessage.style.bottom = '30px';
+                confirmMessage.style.left = '50%';
+                confirmMessage.style.transform = 'translateX(-50%)';
+                confirmMessage.style.backgroundColor = 'var(--accent1)';
+                confirmMessage.style.color = 'white';
+                confirmMessage.style.padding = '10px 20px';
+                confirmMessage.style.borderRadius = '5px';
+                confirmMessage.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.3)';
+                confirmMessage.style.zIndex = '1001';
+                
+                document.body.appendChild(confirmMessage);
+                
+                setTimeout(() => {
+                    document.body.removeChild(confirmMessage);
+                }, 3000);
+                
+                document.body.removeChild(modal);
+            });
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            });
+            
+            // Close modal on Escape key
+            document.addEventListener('keydown', function escHandler(e) {
+                if (e.key === 'Escape') {
+                    document.body.removeChild(modal);
+                    document.removeEventListener('keydown', escHandler);
+                }
+            });
+        }
+        
+        // Load preset with animation
+        function loadPreset(presetNumber) {
+            let presetData;
+            
+            // Load factory presets
+            if (presetNumber <= 4) {
+                presetData = getFactoryPreset(presetNumber);
+            } else {
+                // Load custom preset
+                const savedPreset = localStorage.getItem(`anomalyPreset${presetNumber}`);
+                
+                if (!savedPreset) {
+                    // Show notification
+                    const notification = document.createElement('div');
+                    notification.textContent = 'No preset saved in this slot';
+                    notification.style.position = 'fixed';
+                    notification.style.bottom = '30px';
+                    notification.style.left = '50%';
+                    notification.style.transform = 'translateX(-50%)';
+                    notification.style.backgroundColor = '#444';
+                    notification.style.color = 'white';
+                    notification.style.padding = '10px 20px';
+                    notification.style.borderRadius = '5px';
+                    notification.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.3)';
+                    notification.style.zIndex = '1001';
+                    
+                    document.body.appendChild(notification);
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(notification);
+                    }, 3000);
+                    
+                    return;
+                }
+                
+                presetData = JSON.parse(savedPreset);
+            }
+            
+            // Visual feedback for preset loading
+            const button = document.querySelector(`.preset-button[data-preset="${presetNumber}"]`);
+            button.style.transform = 'scale(0.9)';
+            button.style.boxShadow = '0 0 20px var(--accent2-glow)';
+            
+            setTimeout(() => {
+                button.style.transform = '';
+                button.style.boxShadow = '';
+            }, 300);
+            
+            // Apply preset with transition
+            const oldChaosValue = chaosValue;
+            const oldDroneValue = droneValue;
+            
+            // Animate parameter changes
+            const steps = 20;
+            const duration = 500; // ms
+            const stepTime = duration / steps;
+            
+            let step = 0;
+            const transitionInterval = setInterval(() => {
+                step++;
+                const progress = step / steps;
+                
+                // Interpolate values
+                chaosValue = Math.round(oldChaosValue + (presetData.chaosValue - oldChaosValue) * progress);
+                droneValue = Math.round(oldDroneValue + (presetData.droneValue - oldDroneValue) * progress);
+                
+                // Update UI
+                chaosKnob.style.transform = `rotate(${chaosValue * 3.6}deg)`;
+                chaosRing.style.background = `conic-gradient(var(--accent1) 0%, var(--accent1) ${chaosValue}%, transparent ${chaosValue}%, transparent 100%)`;
+                chaosDisplay.textContent = chaosValue;
+                
+                droneSlider.value = droneValue;
+                
+                // Update synth parameters
+                updateSynthParams();
+                
+                if (step >= steps) {
+                    clearInterval(transitionInterval);
+                    
+                    // Set final values
+                    chaosValue = presetData.chaosValue;
+                    droneValue = presetData.droneValue;
+                    currentHarmonic = presetData.currentHarmonic;
+                    
+                    if (presetData.cellularPattern) {
+                        cellularPattern = presetData.cellularPattern;
+                        renderCellularAutomaton();
+                    }
+                    
+                    // Update UI for harmonic display
+                    harmonicDisplay.textContent = harmonicLabels[currentHarmonic];
+                }
+            }, stepTime);
+        }
+        
+        // Get factory preset
+        function getFactoryPreset(number) {
+            const gridSize = 30;
+            
+            switch (number) {
+                case 1: // VOID
+                    return {
+                        chaosValue: 10,
+                        droneValue: 80,
+                        currentHarmonic: 0,
+                        cellularPattern: Array(gridSize).fill().map(() => Array(gridSize).fill(0).map(() => Math.random() < 0.2 ? 1 : 0))
+                    };
+                case 2: // PULSE
+                    return {
+                        chaosValue: 40,
+                        droneValue: 30,
+                        currentHarmonic: 2,
+                        cellularPattern: Array(gridSize).fill().map(() => Array(gridSize).fill(0).map(() => Math.random() < 0.5 ? 1 : 0))
+                    };
+                case 3: // NEBULA
+                    return {
+                        chaosValue: 70,
+                        droneValue: 60,
+                        currentHarmonic: 3,
+                        cellularPattern: Array(gridSize).fill().map(() => Array(gridSize).fill(0).map(() => Math.random() < 0.4 ? 1 : 0))
+                    };
+                case 4: // GLITCH
+                    return {
+                        chaosValue: 90,
+                        droneValue: 20,
+                        currentHarmonic: 4,
+                        cellularPattern: Array(gridSize).fill().map(() => Array(gridSize).fill(0).map(() => Math.random() < 0.6 ? 1 : 0))
+                    };
+            }
+        }
+        
+        // Initialize UI controls
+        function initUI() {
+            // Load custom preset names if available
+            if (localStorage.getItem('anomalyPresetName5')) {
+                document.querySelector('.preset-button[data-preset="5"]').textContent = 
+                    localStorage.getItem('anomalyPresetName5');
+            }
+            
+            if (localStorage.getItem('anomalyPresetName6')) {
+                document.querySelector('.preset-button[data-preset="6"]').textContent = 
+                    localStorage.getItem('anomalyPresetName6');
+            }
+            
+            // Chaos knob rotation tracking
+            let knobRotation = 0;
+            let knobDragging = false;
+            let lastMouseY;
+            
+            chaosKnob.addEventListener('mousedown', (e) => {
+                knobDragging = true;
+                lastMouseY = e.clientY;
+                chaosKnob.style.cursor = 'grabbing';
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!knobDragging) return;
+                
+                const deltaY = lastMouseY - e.clientY;
+                lastMouseY = e.clientY;
+                
+                knobRotation += deltaY;
+                chaosValue = Math.min(100, Math.max(0, Math.round(knobRotation / 3.6)));
+                
+                chaosKnob.style.transform = `rotate(${chaosValue * 3.6}deg)`;
+                chaosRing.style.background = `conic-gradient(var(--accent1) 0%, var(--accent1) ${chaosValue}%, transparent ${chaosValue}%, transparent 100%)`;
+                chaosDisplay.textContent = chaosValue;
+                
+                updateSynthParams();
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mouseup', () => {
+                knobDragging = false;
+                chaosKnob.style.cursor = 'pointer';
+            });
+            
+            // Touch events for chaos knob
+            chaosKnob.addEventListener('touchstart', (e) => {
+                knobDragging = true;
+                lastMouseY = e.touches[0].clientY;
+                e.preventDefault();
+            });
+            
+            document.addEventListener('touchmove', (e) => {
+                if (!knobDragging) return;
+                
+                const deltaY = lastMouseY - e.touches[0].clientY;
+                lastMouseY = e.touches[0].clientY;
+                
+                knobRotation += deltaY;
+                chaosValue = Math.min(100, Math.max(0, Math.round(knobRotation / 3.6)));
+                
+                chaosKnob.style.transform = `rotate(${chaosValue * 3.6}deg)`;
+                chaosRing.style.background = `conic-gradient(var(--accent1) 0%, var(--accent1) ${chaosValue}%, transparent ${chaosValue}%, transparent 100%)`;
+                chaosDisplay.textContent = chaosValue;
+                
+                updateSynthParams();
+                e.preventDefault();
+            });
+            
+            document.addEventListener('touchend', () => {
+                knobDragging = false;
+            });
+            
+            // Drone slider
+            droneSlider.addEventListener('input', () => {
+                droneValue = parseInt(droneSlider.value);
+                updateSynthParams();
+            });
+            
+            // Harmonic shift button
+            harmonicButton.addEventListener('click', () => {
+                currentHarmonic = (currentHarmonic + 1) % scales.length;
+                harmonicDisplay.textContent = harmonicLabels[currentHarmonic];
+                
+                // Add visual feedback
+                harmonicButton.style.transform = 'translateY(5px)';
+                harmonicButton.style.boxShadow = '0 5px 10px rgba(0, 0, 0, 0.3), 0 0 30px var(--accent3-glow)';
+                
+                setTimeout(() => {
+                    harmonicButton.style.transform = '';
+                    harmonicButton.style.boxShadow = '';
+                }, 200);
+            });
+            
+            // Glitch pad
+            glitchPad.addEventListener('mousedown', () => {
+                glitchActive = true;
+                glitchPad.classList.add('active');
+                applyGlitchEffect();
+                
+                // Repeat glitch effect while held
+                glitchInterval = setInterval(applyGlitchEffect, 200);
+            });
+            
+            glitchPad.addEventListener('mouseup', () => {
+                glitchActive = false;
+                glitchPad.classList.remove('active');
+                clearInterval(glitchInterval);
+            });
+            
+            glitchPad.addEventListener('mouseleave', () => {
+                if (glitchActive) {
+                    glitchActive = false;
+                    glitchPad.classList.remove('active');
+                    clearInterval(glitchInterval);
+                }
+            });
+            
+            // Touch events for glitch pad
+            glitchPad.addEventListener('touchstart', (e) => {
+                glitchActive = true;
+                glitchPad.classList.add('active');
+                applyGlitchEffect();
+                
+                // Repeat glitch effect while held
+                glitchInterval = setInterval(applyGlitchEffect, 200);
+                e.preventDefault();
+            });
+            
+            glitchPad.addEventListener('touchend', () => {
+                glitchActive = false;
+                glitchPad.classList.remove('active');
+                clearInterval(glitchInterval);
+            });
+            
+            // Cellular automaton canvas
+            cellularCanvas.addEventListener('click', (e) => {
+                const rect = cellularCanvas.getBoundingClientRect();
+                const x = Math.floor((e.clientX - rect.left) / cellularCanvas.width * 30);
+                const y = Math.floor((e.clientY - rect.top) / cellularCanvas.height * 30);
+                
+                if (x >= 0 && x < 30 && y >= 0 && y < 30) {
+                    cellularPattern[x][y] = cellularPattern[x][y] === 0 ? 1 : 0;
+                    renderCellularAutomaton();
+                }
+            });
+            
+            // Power button
+            powerButton.addEventListener('click', togglePower);
+            
+            // Save preset button
+            savePresetButton.addEventListener('click', savePreset);
+            
+            // Preset buttons
+            presetButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    loadPreset(parseInt(button.dataset.preset));
+                });
+            });
+            
+            // Initialize cellular automaton
+            initCellularAutomaton();
+            
+            // Add ripple animation style
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes ripple {
+                    0% {
+                        width: 5px;
+                        height: 5px;
+                        opacity: 1;
+                    }
+                    100% {
+                        width: 100px;
+                        height: 100px;
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Initialize MIDI support
+        function initMIDI() {
+            if (navigator.requestMIDIAccess) {
+                navigator.requestMIDIAccess()
+                    .then(onMIDISuccess, onMIDIFailure);
+            }
+        }
+        
+        // MIDI success callback
+        function onMIDISuccess(midiAccess) {
+            const inputs = midiAccess.inputs.values();
+            
+            for (let input = inputs.next(); input && !input.done; input = inputs.next()) {
+                input.value.onmidimessage = onMIDIMessage;
+            }
+            
+            // Show MIDI connected notification
+            const midiNotification = document.createElement('div');
+            midiNotification.textContent = 'MIDI device connected';
+            midiNotification.style.position = 'fixed';
+            midiNotification.style.bottom = '30px';
+            midiNotification.style.left = '50%';
+            midiNotification.style.transform = 'translateX(-50%)';
+            midiNotification.style.backgroundColor = 'var(--accent2)';
+            midiNotification.style.color = 'black';
+            midiNotification.style.padding = '10px 20px';
+            midiNotification.style.borderRadius = '5px';
+            midiNotification.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.3)';
+            midiNotification.style.zIndex = '1001';
+            
+            document.body.appendChild(midiNotification);
+            
+            setTimeout(() => {
+                document.body.removeChild(midiNotification);
+            }, 3000);
+        }
+        
+        // MIDI failure callback
+        function onMIDIFailure() {
+            console.log('MIDI access failed');
+        }
+        
+        // MIDI message handler
+        function onMIDIMessage(message) {
+            const command = message.data[0];
+            const note = message.data[1];
+            const velocity = message.data[2];
+            
+            // Note on
+            if (command === 144 && velocity > 0) {
+                if (powerOn) {
+                    // Calculate frequency from MIDI note
+                    const freq = 440 * Math.pow(2, (note - 69) / 12);
+                    
+                    // Apply microtonal shifts if needed
+                    let adjustedFreq = freq;
+                    if (currentHarmonic > 0) {
+                        const noteInScale = note % 12;
+                        const scaleIndex = scales[currentHarmonic].indexOf(noteInScale);
+                        
+                        if (scaleIndex !== -1) {
+                            const adjustedNote = Math.floor(note / 12) * 12 + scales[currentHarmonic][scaleIndex];
+                            adjustedFreq = 440 * Math.pow(2, (adjustedNote - 69) / 12);
+                        }
+                    }
+                    
+                    // Play note based on drone value
+                    if (droneValue < 30) {
+                        // More percussive
+                        synth.triggerAttack(adjustedFreq);
+                    } else if (droneValue < 70) {
+                        // Mixed
+                        if (Math.random() < 0.5) {
+                            synth.triggerAttack(adjustedFreq);
+                        } else {
+                            synthDrone.triggerAttack(adjustedFreq);
+                        }
+                    } else {
+                        // More drone
+                        synthDrone.triggerAttack(adjustedFreq);
+                    }
+                    
+                    activeNotes.push(note);
+                }
+            }
+            // Note off
+            else if (command === 128 || (command === 144 && velocity === 0)) {
+                if (powerOn) {
+                    // Calculate frequency from MIDI note
+                    const freq = 440 * Math.pow(2, (note - 69) / 12);
+                    
+                    // Apply microtonal shifts if needed
+                    let adjustedFreq = freq;
+                    if (currentHarmonic > 0) {
+                        const noteInScale = note % 12;
+                        const scaleIndex = scales[currentHarmonic].indexOf(noteInScale);
+                        
+                        if (scaleIndex !== -1) {
+                            const adjustedNote = Math.floor(note / 12) * 12 + scales[currentHarmonic][scaleIndex];
+                            adjustedFreq = 440 * Math.pow(2, (adjustedNote - 69) / 12);
+                        }
+                    }
+                    
+                    // Release all synths
+                    synth.triggerRelease(adjustedFreq);
+                    synthDrone.triggerRelease(adjustedFreq);
+                    
+                    // Remove from active notes
+                    const index = activeNotes.indexOf(note);
+                    if (index !== -1) {
+                        activeNotes.splice(index, 1);
+                    }
+                }
+            }
+            // Control change
+            else if (command === 176) {
+                if (powerOn) {
+                    // MIDI CC handling
+                    switch (note) {
+                        case 1: // Modulation wheel
+                            chaosValue = Math.round(velocity / 127 * 100);
+                            chaosKnob.style.transform = `rotate(${chaosValue * 3.6}deg)`;
+                            chaosRing.style.background = `conic-gradient(var(--accent1) 0%, var(--accent1) ${chaosValue}%, transparent ${chaosValue}%, transparent 100%)`;
+                            chaosDisplay.textContent = chaosValue;
+                            updateSynthParams();
+                            break;
+                        case 7: // Volume
+                            droneValue = Math.round(velocity / 127 * 100);
+                            droneSlider.value = droneValue;
+                            updateSynthParams();
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+        }
+        
+        // Main initialization
+        window.addEventListener('load', () => {
+            initSynth();
+            initUI();
+            initVisualization();
+            initMIDI();
+            
+            // Resize handler
+            window.addEventListener('resize', () => {
+                visualizationCanvas.width = visualizationCanvas.offsetWidth;
+                visualizationCanvas.height = visualizationCanvas.offsetHeight;
+            });
+            
+            // Set initial chaos ring gradient
+            chaosRing.style.background = `conic-gradient(var(--accent1) 0%, var(--accent1) ${chaosValue}%, transparent ${chaosValue}%, transparent 100%)`;
+            
+            // Startup animation
+            document.body.style.opacity = '0';
+            document.body.style.transition = 'opacity 1s ease';
+            
+            setTimeout(() => {
+                document.body.style.opacity = '1';
+            }, 100);
+        });
+    </script>
+</body>
+</html>

@@ -842,7 +842,7 @@
     <div class="synth-container">
         <div class="brand">
             <div class="brand-name">Synth XR</div>
-            <div class="version">v2.4</div>
+            <div class="version">v2.5</div>
         </div>
         
         <div class="master-controls">
@@ -887,6 +887,11 @@
                             <option value="square">Square</option>
                             <option value="sawtooth">Sawtooth</option>
                             <option value="triangle">Triangle</option>
+                            <option value="pulse">Pulse</option>
+                            <option value="fmsine">FM Sine</option>
+                            <option value="amsine">AM Sine</option>
+                            <option value="fatsawtooth">Fat Saw</option>
+                            <option value="fatsquare" selected>Fat Square</option>
                         </select>
                     </div>
                 </div>
@@ -906,6 +911,36 @@
                             <option value="poly">Polyphonic</option>
                             <option value="mono">Monophonic</option>
                         </select>
+                    </div>
+                </div>
+                <!-- New control group for octave, semi, and level knobs -->
+                <div class="control-group">
+                    <div class="knob-container">
+                        <label class="knob-label">Octave</label>
+                        <div class="knob" id="oscillatorOctaveKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust octave</div>
+                        </div>
+                        <input type="range" id="oscillatorOctave" min="-2" max="2" step="1" value="0">
+                        <span class="knob-value" id="oscillatorOctaveValue">0</span>
+                    </div>
+                    <div class="knob-container">
+                        <label class="knob-label">Semi</label>
+                        <div class="knob" id="oscillatorSemiKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust detune in semitones</div>
+                        </div>
+                        <input type="range" id="oscillatorSemi" min="-12" max="12" step="1" value="0">
+                        <span class="knob-value" id="oscillatorSemiValue">0</span>
+                    </div>
+                    <div class="knob-container">
+                        <label class="knob-label">Level</label>
+                        <div class="knob" id="oscillatorLevelKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust oscillator volume</div>
+                        </div>
+                        <input type="range" id="oscillatorLevel" min="0" max="1" step="0.01" value="0.8">
+                        <span class="knob-value" id="oscillatorLevelValue">0.80</span>
                     </div>
                 </div>
             </div>
@@ -1159,6 +1194,19 @@
                 updateVUMeter(0.8);
             }
         }
+
+        // Function to update the detune value based on octave and semitone settings
+        function updateDetune() {
+            const octave = parseInt(document.getElementById('oscillatorOctave').value);
+            const semi = parseInt(document.getElementById('oscillatorSemi').value);
+            const detune = octave * 1200 + semi * 100; // Convert octaves and semitones to cents
+            
+            if (currentMode === "poly") {
+                synth.set({ detune: detune });
+            } else {
+                synth.detune.value = detune;
+            }
+        }
         
         // Function to create the appropriate synth type
         function createSynth(mode) {
@@ -1200,6 +1248,17 @@
                 synth.set({ oscillator: { type: waveformType } });
             } else {
                 synth.oscillator.type = waveformType;
+            }
+            
+            // Apply detune (octave and semitone)
+            updateDetune();
+            
+            // Apply level
+            const level = parseFloat(document.getElementById('oscillatorLevel').value);
+            if (mode === "poly") {
+                synth.set({ volume: Tone.gainToDb(level) });
+            } else {
+                synth.volume.value = Tone.gainToDb(level);
             }
             
             return synth;
@@ -1669,7 +1728,11 @@
             ['reverbMixKnob', 'reverbMix'],
             ['delayTimeKnob', 'delayTime'],
             ['delayFeedbackKnob', 'delayFeedback'],
-            ['tempoKnob', 'tempo']
+            ['tempoKnob', 'tempo'],
+            // Add new oscillator knobs
+            ['oscillatorOctaveKnob', 'oscillatorOctave'],
+            ['oscillatorSemiKnob', 'oscillatorSemi'],
+            ['oscillatorLevelKnob', 'oscillatorLevel']
         ];
 
         knobs.forEach(([knobId, inputId]) => {
@@ -1698,6 +1761,50 @@
                 synth.set({ oscillator: { type: e.target.value } });
             } else {
                 synth.oscillator.type = e.target.value;
+            }
+        });
+
+        document.addEventListener('keyup', e => {
+            const keyMap = {
+                'a': `C${currentOctave}`, 
+                'w': `C#${currentOctave}`, 
+                's': `D${currentOctave}`, 
+                'e': `D#${currentOctave}`, 
+                'd': `E${currentOctave}`,
+                'f': `F${currentOctave}`, 
+                't': `F#${currentOctave}`, 
+                'g': `G${currentOctave}`, 
+                'y': `G#${currentOctave}`, 
+                'h': `A${currentOctave}`,
+                'u': `A#${currentOctave}`, 
+                'j': `B${currentOctave}`,
+                'k': `C${currentOctave+1}`, 
+                'l': `D${currentOctave+1}`
+            };
+            
+            if (keyMap[e.key]) {
+                const note = keyMap[e.key];
+                
+                if (activeComputerKeys.has(e.key)) {
+                    activeComputerKeys.delete(e.key);
+                    
+                    if (currentMode === "poly") {
+                        activeNotes.delete(note);
+                        synth.triggerRelease(note);
+                    } else {
+                        // For mono mode
+                        activeNotes.delete(note);
+                        synth.triggerRelease(); // No parameter for mono
+                    }
+                    
+                    // Update visual keyboard
+                    const keyElement = document.querySelector(`.key[data-note="${note}"]`) ||
+                                    document.querySelector(`.black-key[data-note="${note}"]`);
+                                    
+                    if (keyElement) {
+                        keyElement.classList.remove('active');
+                    }
+                }
             }
         });
         
@@ -1741,6 +1848,29 @@
         document.getElementById('delayFeedback').addEventListener('input', e => {
             delay.feedback.value = e.target.value;
             document.getElementById('delayFeedbackValue').textContent = parseFloat(e.target.value).toFixed(2);
+        });
+
+        // New oscillator control event listeners
+        document.getElementById('oscillatorOctave').addEventListener('input', e => {
+            const value = parseInt(e.target.value);
+            document.getElementById('oscillatorOctaveValue').textContent = value;
+            updateDetune();
+        });
+
+        document.getElementById('oscillatorSemi').addEventListener('input', e => {
+            const value = parseInt(e.target.value);
+            document.getElementById('oscillatorSemiValue').textContent = value;
+            updateDetune();
+        });
+
+        document.getElementById('oscillatorLevel').addEventListener('input', e => {
+            const value = parseFloat(e.target.value);
+            if (currentMode === "poly") {
+                synth.set({ volume: Tone.gainToDb(value) });
+            } else {
+                synth.volume.value = Tone.gainToDb(value);
+            }
+            document.getElementById('oscillatorLevelValue').textContent = value.toFixed(2);
         });
 
         // ADSR controls
@@ -1824,6 +1954,10 @@
                 decay: document.getElementById('decay').value,
                 sustain: document.getElementById('sustain').value,
                 release: document.getElementById('release').value,
+                // Add new oscillator parameters
+                oscillatorOctave: document.getElementById('oscillatorOctave').value,
+                oscillatorSemi: document.getElementById('oscillatorSemi').value,
+                oscillatorLevel: document.getElementById('oscillatorLevel').value,
                 sequencer: Array.from(document.querySelectorAll('.step')).map(step => ({
                     note: step.querySelector('select').value,
                     active: step.querySelector('.step-toggle').classList.contains('active')
@@ -1891,10 +2025,10 @@
             document.getElementById('loadSetup').style.display = 'block';
         }
 
-        // Chaos button functionality
+        // Chaos button functionality - Updated to include new oscillator parameters
         document.getElementById('chaosButton').addEventListener('click', () => {
             // Randomize waveform
-            const waveforms = ['sine', 'square', 'sawtooth', 'triangle'];
+            const waveforms = ['sine', 'square', 'sawtooth', 'triangle', 'pulse', 'fmsine', 'amsine', 'fatsawtooth', 'fatsquare'];
             const randomWaveform = waveforms[Math.floor(Math.random() * waveforms.length)];
             const waveformInput = document.getElementById('waveform');
             waveformInput.value = randomWaveform;
@@ -1934,12 +2068,13 @@
             });
         });
 
-        // Nudge button functionality
+        // Nudge button functionality - Updated to include new oscillator parameters
         document.getElementById('nudgeButton').addEventListener('click', () => {
             const notes = generateNotes();
             const parameters = [
                 { type: 'filter', elements: ['filterCutoff', 'filterRes'] },
                 { type: 'effects', elements: ['reverbMix', 'delayTime', 'delayFeedback'] },
+                { type: 'oscillator', elements: ['oscillatorOctave', 'oscillatorSemi', 'oscillatorLevel'] }, // New parameter group
                 { type: 'notes', elements: Array.from(document.querySelectorAll('.step select')) }
             ];
 
@@ -2175,3 +2310,6 @@
     </script>
 </body>
 </html>
+                
+
+                
