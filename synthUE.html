@@ -1643,21 +1643,6 @@
                         <button class="chord-button" data-chord="dim">Dim</button>
                         <button class="chord-button" data-chord="aug">Aug</button>
                     </div>
-                    
-                    <!-- Chord memory slots -->
-                    <div class="chord-memory">
-                        <div class="submodule-title">Chord Memory</div>
-                        <div class="chord-memory-slots">
-                            <div class="chord-memory-slot" data-slot="1">1</div>
-                            <div class="chord-memory-slot" data-slot="2">2</div>
-                            <div class="chord-memory-slot" data-slot="3">3</div>
-                            <div class="chord-memory-slot" data-slot="4">4</div>
-                            <div class="chord-memory-slot" data-slot="5">5</div>
-                            <div class="chord-memory-slot" data-slot="6">6</div>
-                            <div class="chord-memory-slot" data-slot="7">7</div>
-                            <div class="chord-memory-slot" data-slot="8">8</div>
-                        </div>
-                    </div>
                 </div>
             </div>
             
@@ -1702,6 +1687,56 @@
                             </div>
                             <div class="preset-item">
                                 <i class="fas fa-music"></i>
+                                <span>Deep Submerged Bass</span>
+                                <span class="author">System</span>
+                            </div>
+                            <div class="preset-item">
+                                <i class="fas fa-music"></i>
+                                <span>Wobble Growl Bass</span>
+                                <span class="author">System</span>
+                            </div>
+                            <div class="preset-item">
+                                <i class="fas fa-music"></i>
+                                <span>Crystal Shimmer Lead</span>
+                                <span class="author">System</span>
+                            </div>
+                            <div class="preset-item">
+                                <i class="fas fa-music"></i>
+                                <span>Analog Razor Lead</span>
+                                <span class="author">System</span>
+                            </div>
+                            <div class="preset-item">
+                                <i class="fas fa-music"></i>
+                                <span>Quantum Drift Pad</span>
+                                <span class="author">System</span>
+                            </div>
+                            <div class="preset-item">
+                                <i class="fas fa-music"></i>
+                                <span>Ethereal Breath Pad</span>
+                                <span class="author">System</span>
+                            </div>
+                            <div class="preset-item">
+                                <i class="fas fa-music"></i>
+                                <span>Electric Memory Keys</span>
+                                <span class="author">System</span>
+                            </div>
+                            <div class="preset-item">
+                                <i class="fas fa-music"></i>
+                                <span>Glassy Pluck Keys</span>
+                                <span class="author">System</span>
+                            </div>
+                            <div class="preset-item">
+                                <i class="fas fa-music"></i>
+                                <span>Resonant Warp FX</span>
+                                <span class="author">System</span>
+                            </div>
+                            <div class="preset-item">
+                                <i class="fas fa-music"></i>
+                                <span>Sonic Disruptor FX</span>
+                                <span class="author">System</span>
+                            </div>
+                            <div class="preset-item">
+                                <i class="fas fa-music"></i>
                                 <span>Deep Bass</span>
                                 <span class="author">System</span>
                             </div>
@@ -1735,7 +1770,6 @@
                                 <span>Future Wobble</span>
                                 <span class="author">System</span>
                             </div>
-                            <!-- Additional presets -->
                             <div class="preset-item">
                                 <i class="fas fa-music"></i>
                                 <span>Synthwave Lead</span>
@@ -1760,7 +1794,7 @@
                                 <i class="fas fa-heart"></i>
                                 <span>Favorite Pluck</span>
                                 <span class="author">User</span>
-                            </div>
+                            </div>                            
                         </div>
                     </div>
                     
@@ -2549,7 +2583,6 @@
             loadUserPresets();
         });
         
-        // Fix 3: Setup Preset functionality
         function setupPresetFunctionality() {
             // Load presets
             document.querySelectorAll('.preset-item').forEach(preset => {
@@ -2607,6 +2640,9 @@
                     filterPresetsByCategory(categoryName);
                 });
             });
+
+            // Call updatePresetList to set up categories
+            updatePresetList();
         }
         
         function loadUserPresets() {
@@ -2740,48 +2776,107 @@
             }
         }
         
+
         function filterPresetsByCategory(category) {
             const presetItems = document.querySelectorAll('.preset-item');
             
-            if (category === 'All Presets') {
-                // Show all presets
-                presetItems.forEach(item => {
-                    item.style.display = '';
-                });
-            } else if (category === 'User') {
-                // Show only user presets
-                presetItems.forEach(item => {
-                    if (item.getAttribute('data-user') === 'true') {
+            // Normalize the category by removing the icon
+            const cleanCategory = category.replace(/^\s*\<i[^>]*\>[^<]*<\/i>\s*/, '').trim();
+            
+            switch(cleanCategory) {
+                case 'All Presets':
+                    // Show all presets
+                    presetItems.forEach(item => {
                         item.style.display = '';
-                    } else {
-                        item.style.display = 'none';
-                    }
-                });
-            } else if (category === 'Favorites') {
-                // Show only favorite presets
-                presetItems.forEach(item => {
-                    if (item.querySelector('.fas.fa-heart')) {
-                        item.style.display = '';
-                    } else {
-                        item.style.display = 'none';
-                    }
-                });
-            } else {
-                // Filter by specific category
-                const categoryName = category.replace(/^\s*\S+\s*/, ''); // Remove icon
+                    });
+                    break;
                 
-                presetItems.forEach(item => {
-                    const presetCategory = item.getAttribute('data-category');
-                    
-                    if (presetCategory === categoryName) {
-                        item.style.display = '';
-                    } else {
-                        item.style.display = 'none';
-                    }
-                });
+                case 'User':
+                    // Show only user presets
+                    presetItems.forEach(item => {
+                        if (item.getAttribute('data-user') === 'true') {
+                            item.style.display = '';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                    break;
+                
+                case 'Favorites':
+                    // Show only favorite presets
+                    presetItems.forEach(item => {
+                        if (item.querySelector('.fas.fa-heart')) {
+                            item.style.display = '';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                    break;
+                
+                default:
+                    // Filter by specific category (Bass, Lead, Pad, etc.)
+                    presetItems.forEach(item => {
+                        // Check if the item has a data-category matching the selected category
+                        const itemCategory = item.getAttribute('data-category');
+                        
+                        if (itemCategory === cleanCategory) {
+                            item.style.display = '';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                    break;
             }
         }
-        
+
+        // Modify preset list generation to add category attributes
+        function updatePresetList() {
+            const presetList = document.querySelector('.preset-list');
+            
+            // Clear any existing user presets
+            const userPresetItems = presetList.querySelectorAll('.preset-item[data-user="true"]');
+            userPresetItems.forEach(item => item.remove());
+            
+            // Add user presets
+            userPresets.forEach(preset => {
+                const presetItem = document.createElement('div');
+                presetItem.className = 'preset-item';
+                presetItem.setAttribute('data-user', 'true');
+                presetItem.setAttribute('data-category', preset.category || 'User');
+                
+                presetItem.innerHTML = `
+                    <i class="fas fa-user"></i>
+                    <span>${preset.name}</span>
+                    <span class="author">User</span>
+                `;
+                
+                presetItem.addEventListener('click', function() {
+                    // Remove active class from all presets
+                    document.querySelectorAll('.preset-item').forEach(p => {
+                        p.classList.remove('active');
+                    });
+                    
+                    // Add active class to this preset
+                    this.classList.add('active');
+                    
+                    // Load this preset
+                    loadPreset(preset.name);
+                });
+                
+                presetList.appendChild(presetItem);
+            });
+            
+            // Add category attribute to built-in presets
+            document.querySelectorAll('.preset-item:not([data-user])').forEach(item => {
+                const presetName = item.querySelector('span').textContent;
+                const preset = getBuiltInPreset(presetName);
+                
+                if (preset && preset.category) {
+                    item.setAttribute('data-category', preset.category);
+                }
+            });
+        }        
+
         function getCurrentSynthState() {
             // Similar to the exportSynthState function, but returns the data instead
             return {
@@ -2875,6 +2970,7 @@
         }
         
         function performApplyPreset(preset) {
+            
             // Apply oscillator settings
             if (preset.oscillators) {
                 const osc1 = preset.oscillators.osc1;
@@ -2994,9 +3090,181 @@
             }
         }
         
-        // Built-in presets
         function getBuiltInPreset(name) {
             const builtInPresets = {
+                'Deep Submerged Bass': {
+                    name: 'Deep Submerged Bass',
+                    category: 'Bass',
+                    oscillators: {
+                        osc1: { type: 'fatsawtooth', active: true, octave: -2, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'sine', active: true, octave: -2, semi: -12, detune: 5, level: 0.6 },
+                        osc3: { type: 'fmsine', active: true, octave: -3, semi: 0, detune: -5, level: 0.3 }
+                    },
+                    filter: { type: 'lowpass', cutoff: 400, resonance: 4, envAmount: 50 },
+                    envelopes: {
+                        amp: { attack: 0.01, decay: 0.3, sustain: 0.7, release: 0.3 },
+                        filter: { attack: 0.05, decay: 0.2, sustain: 0.4, release: 0.2 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.1, decay: 1 },
+                        delay: { mix: 0.2, time: 0.15, feedback: 0.4 }
+                    }
+                },
+                'Wobble Growl Bass': {
+                    name: 'Wobble Growl Bass',
+                    category: 'Bass',
+                    oscillators: {
+                        osc1: { type: 'fatsawtooth', active: true, octave: -1, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'pulse', active: true, octave: -2, semi: -12, detune: 10, level: 0.7 }
+                    },
+                    filter: { type: 'bandpass', cutoff: 800, resonance: 5, envAmount: 80 },
+                    envelopes: {
+                        amp: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.3 },
+                        filter: { attack: 0.05, decay: 0.3, sustain: 0.2, release: 0.2 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.1, decay: 0.5 },
+                        delay: { mix: 0.4, time: 0.1, feedback: 0.7 }
+                    }
+                },
+                'Crystal Shimmer Lead': {
+                    name: 'Crystal Shimmer Lead',
+                    category: 'Lead',
+                    oscillators: {
+                        osc1: { type: 'fmsine', active: true, octave: 0, semi: 0, detune: 0, level: 1, fmAmount: 50, fmRatio: 3 },
+                        osc2: { type: 'triangle', active: true, octave: 0, semi: 12, detune: 5, level: 0.6 }
+                    },
+                    filter: { type: 'highpass', cutoff: 2500, resonance: 2, envAmount: 40 },
+                    envelopes: {
+                        amp: { attack: 0.05, decay: 0.3, sustain: 0.6, release: 0.4 },
+                        filter: { attack: 0.1, decay: 0.3, sustain: 0.5, release: 0.2 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.4, decay: 2 },
+                        delay: { mix: 0.3, time: 0.25, feedback: 0.4 }
+                    }
+                },
+                'Analog Razor Lead': {
+                    name: 'Analog Razor Lead',
+                    category: 'Lead',
+                    oscillators: {
+                        osc1: { type: 'fatsquare', active: true, octave: 0, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'sawtooth', active: true, octave: 0, semi: 12, detune: 10, level: 0.6 }
+                    },
+                    filter: { type: 'lowpass', cutoff: 3000, resonance: 3, envAmount: 60 },
+                    envelopes: {
+                        amp: { attack: 0.02, decay: 0.2, sustain: 0.7, release: 0.3 },
+                        filter: { attack: 0.1, decay: 0.3, sustain: 0.4, release: 0.2 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.2, decay: 1.5 },
+                        delay: { mix: 0.3, time: 0.3, feedback: 0.3 }
+                    }
+                },
+                'Quantum Drift Pad': {
+                    name: 'Quantum Drift Pad',
+                    category: 'Pad',
+                    oscillators: {
+                        osc1: { type: 'sine', active: true, octave: 0, semi: 0, detune: 0, level: 0.8 },
+                        osc2: { type: 'triangle', active: true, octave: 1, semi: 7, detune: -10, level: 0.6 },
+                        osc3: { type: 'sine', active: true, octave: -1, semi: 12, detune: 5, level: 0.4 }
+                    },
+                    filter: { type: 'lowpass', cutoff: 1000, resonance: 1, envAmount: 30 },
+                    envelopes: {
+                        amp: { attack: 2, decay: 1, sustain: 0.8, release: 3 },
+                        filter: { attack: 2.5, decay: 2, sustain: 0.6, release: 4 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.9, decay: 12 },
+                        delay: { mix: 0.6, time: 0.8, feedback: 0.5 }
+                    }
+                },
+                'Ethereal Breath Pad': {
+                    name: 'Ethereal Breath Pad',
+                    category: 'Pad',
+                    oscillators: {
+                        osc1: { type: 'sine', active: true, octave: 0, semi: 0, detune: 0, level: 0.9 },
+                        osc2: { type: 'amsine', active: true, octave: 1, semi: 5, detune: -10, level: 0.5 },
+                        osc3: { type: 'fmsine', active: true, octave: -1, semi: 12, detune: 5, level: 0.3 }
+                    },
+                    filter: { type: 'lowpass', cutoff: 1200, resonance: 1, envAmount: 40 },
+                    envelopes: {
+                        amp: { attack: 3, decay: 2, sustain: 0.9, release: 4 },
+                        filter: { attack: 3.5, decay: 3, sustain: 0.7, release: 5 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.8, decay: 15 },
+                        delay: { mix: 0.5, time: 1.0, feedback: 0.6 }
+                    }
+                },
+                'Electric Memory Keys': {
+                    name: 'Electric Memory Keys',
+                    category: 'Keys',
+                    oscillators: {
+                        osc1: { type: 'fatsquare', active: true, octave: 0, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'triangle', active: true, octave: 0, semi: 12, detune: 5, level: 0.6 }
+                    },
+                    filter: { type: 'lowpass', cutoff: 2500, resonance: 2, envAmount: 40 },
+                    envelopes: {
+                        amp: { attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 },
+                        filter: { attack: 0.05, decay: 0.3, sustain: 0.5, release: 0.2 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.3, decay: 2 },
+                        delay: { mix: 0.4, time: 0.3, feedback: 0.3 }
+                    }
+                },
+                'Glassy Pluck Keys': {
+                    name: 'Glassy Pluck Keys',
+                    category: 'Keys',
+                    oscillators: {
+                        osc1: { type: 'sawtooth', active: true, octave: 0, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'pulse', active: true, octave: 0, semi: 12, detune: 7, level: 0.5 }
+                    },
+                    filter: { type: 'highpass', cutoff: 1500, resonance: 3, envAmount: 50 },
+                    envelopes: {
+                        amp: { attack: 0.01, decay: 0.1, sustain: 0.4, release: 0.2 },
+                        filter: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 0.1 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.2, decay: 1 },
+                        delay: { mix: 0.3, time: 0.2, feedback: 0.4 }
+                    }
+                },
+                'Resonant Warp FX': {
+                    name: 'Resonant Warp FX',
+                    category: 'FX',
+                    oscillators: {
+                        osc1: { type: 'fmsine', active: true, octave: 0, semi: 0, detune: 0, level: 1, fmAmount: 100, fmRatio: 5 },
+                        osc2: { type: 'sawtooth', active: true, octave: 1, semi: 12, detune: -10, level: 0.6 }
+                    },
+                    filter: { type: 'bandpass', cutoff: 800, resonance: 8, envAmount: 80 },
+                    envelopes: {
+                        amp: { attack: 0.01, decay: 0.3, sustain: 0.3, release: 0.4 },
+                        filter: { attack: 0.05, decay: 0.4, sustain: 0.2, release: 0.5 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.5, decay: 3 },
+                        delay: { mix: 0.6, time: 0.15, feedback: 0.7 }
+                    }
+                },
+                'Sonic Disruptor FX': {
+                    name: 'Sonic Disruptor FX',
+                    category: 'FX',
+                    oscillators: {
+                        osc1: { type: 'pulse', active: true, octave: 0, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'fatsawtooth', active: true, octave: 1, semi: 24, detune: 20, level: 0.6 }
+                    },
+                    filter: { type: 'notch', cutoff: 1200, resonance: 6, envAmount: 70 },
+                    envelopes: {
+                        amp: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.5 },
+                        filter: { attack: 0.05, decay: 0.3, sustain: 0.1, release: 0.4 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.4, decay: 2 },
+                        delay: { mix: 0.5, time: 0.1, feedback: 0.8 }
+                    }
+                },
                 'Analog Dream': {
                     name: 'Analog Dream',
                     category: 'Lead',
@@ -3048,8 +3316,179 @@
                         reverb: { mix: 0.7, decay: 8 },
                         delay: { mix: 0.3, time: 0.7, feedback: 0.5 }
                     }
+                },
+                'Techno Pluck': {
+                    name: 'Techno Pluck',
+                    category: 'Pluck',
+                    oscillators: {
+                        osc1: { type: 'square', active: true, octave: 0, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'sawtooth', active: true, octave: 0, semi: 7, detune: 5, level: 0.6 }
+                    },
+                    filter: { type: 'highpass', cutoff: 1000, resonance: 2, envAmount: 30 },
+                    envelopes: {
+                        amp: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.3 },
+                        filter: { attack: 0.05, decay: 0.2, sustain: 0.2, release: 0.2 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.2, decay: 1 },
+                        delay: { mix: 0.4, time: 0.15, feedback: 0.3 }
+                    }
+                },
+                'Retro Lead': {
+                    name: 'Retro Lead',
+                    category: 'Lead',
+                    oscillators: {
+                        osc1: { type: 'fatsquare', active: true, octave: 0, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'triangle', active: true, octave: 0, semi: 12, detune: 10, level: 0.5 }
+                    },
+                    filter: { type: 'lowpass', cutoff: 2500, resonance: 4, envAmount: 70 },
+                    envelopes: {
+                        amp: { attack: 0.02, decay: 0.3, sustain: 0.6, release: 0.4 },
+                        filter: { attack: 0.1, decay: 0.3, sustain: 0.4, release: 0.5 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.1, decay: 1.5 },
+                        delay: { mix: 0.3, time: 0.25, feedback: 0.4 }
+                    }
+                },
+                'Ambient Texture': {
+                    name: 'Ambient Texture',
+                    category: 'Pad',
+                    oscillators: {
+                        osc1: { type: 'sine', active: true, octave: 0, semi: 0, detune: 0, level: 0.7 },
+                        osc2: { type: 'triangle', active: true, octave: 1, semi: 5, detune: -5, level: 0.5 },
+                        osc3: { type: 'sine', active: true, octave: -1, semi: 7, detune: 3, level: 0.3 }
+                    },
+                    filter: { type: 'lowpass', cutoff: 1200, resonance: 1, envAmount: 40 },
+                    envelopes: {
+                        amp: { attack: 2, decay: 1, sustain: 0.9, release: 3 },
+                        filter: { attack: 2.5, decay: 2, sustain: 0.6, release: 4 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.8, decay: 10 },
+                        delay: { mix: 0.5, time: 0.6, feedback: 0.4 }
+                    }
+                },
+                'Acid Bass': {
+                    name: 'Acid Bass',
+                    category: 'Bass',
+                    oscillators: {
+                        osc1: { type: 'sawtooth', active: true, octave: -1, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'pulse', active: true, octave: -2, semi: 0, detune: 5, level: 0.6 }
+                    },
+                    filter: { type: 'highpass', cutoff: 400, resonance: 5, envAmount: 60 },
+                    envelopes: {
+                        amp: { attack: 0.01, decay: 0.2, sustain: 0.5, release: 0.3 },
+                        filter: { attack: 0.05, decay: 0.3, sustain: 0.4, release: 0.2 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.1, decay: 0.5 },
+                        delay: { mix: 0.3, time: 0.2, feedback: 0.5 }
+                    }
+                },
+                'Future Wobble': {
+                    name: 'Future Wobble',
+                    category: 'Bass',
+                    oscillators: {
+                        osc1: { type: 'fatsawtooth', active: true, octave: -1, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'fmsine', active: true, octave: -2, semi: 0, detune: 10, level: 0.7 }
+                    },
+                    filter: { type: 'bandpass', cutoff: 800, resonance: 3, envAmount: 50 },
+                    envelopes: {
+                        amp: { attack: 0.02, decay: 0.3, sustain: 0.4, release: 0.4 },
+                        filter: { attack: 0.1, decay: 0.4, sustain: 0.3, release: 0.3 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.2, decay: 1 },
+                        delay: { mix: 0.5, time: 0.15, feedback: 0.6 }
+                    }
+                },
+                'Synthwave Lead': {
+                    name: 'Synthwave Lead',
+                    category: 'Lead',
+                    oscillators: {
+                        osc1: { type: 'fatsquare', active: true, octave: 0, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'fatsawtooth', active: true, octave: 0, semi: 12, detune: 5, level: 0.6 }
+                    },
+                    filter: { type: 'lowpass', cutoff: 3000, resonance: 2, envAmount: 40 },
+                    envelopes: {
+                        amp: { attack: 0.05, decay: 0.2, sustain: 0.7, release: 0.3 },
+                        filter: { attack: 0.1, decay: 0.3, sustain: 0.5, release: 0.2 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.3, decay: 2 },
+                        delay: { mix: 0.4, time: 0.3, feedback: 0.3 }
+                    }
+                },
+                'Cosmic Pad': {
+                    name: 'Cosmic Pad',
+                    category: 'Pad',
+                    oscillators: {
+                        osc1: { type: 'sine', active: true, octave: 0, semi: 0, detune: 0, level: 0.8 },
+                        osc2: { type: 'triangle', active: true, octave: 1, semi: 7, detune: -7, level: 0.5 },
+                        osc3: { type: 'sine', active: true, octave: -1, semi: 12, detune: 3, level: 0.3 }
+                    },
+                    filter: { type: 'lowpass', cutoff: 1000, resonance: 1, envAmount: 30 },
+                    envelopes: {
+                        amp: { attack: 3, decay: 2, sustain: 0.8, release: 4 },
+                        filter: { attack: 3.5, decay: 3, sustain: 0.5, release: 5 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.9, decay: 12 },
+                        delay: { mix: 0.6, time: 0.8, feedback: 0.5 }
+                    }
+                },
+                'Dubstep Growl': {
+                    name: 'Dubstep Growl',
+                    category: 'Bass',
+                    oscillators: {
+                        osc1: { type: 'fatsawtooth', active: true, octave: -1, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'pulse', active: true, octave: -2, semi: -12, detune: 10, level: 0.7 }
+                    },
+                    filter: { type: 'bandpass', cutoff: 600, resonance: 4, envAmount: 80 },
+                    envelopes: {
+                        amp: { attack: 0.01, decay: 0.2, sustain: 0.3, release: 0.3 },
+                        filter: { attack: 0.05, decay: 0.3, sustain: 0.2, release: 0.2 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.1, decay: 0.5 },
+                        delay: { mix: 0.4, time: 0.1, feedback: 0.7 }
+                    }
+                },
+                '80s Keys': {
+                    name: '80s Keys',
+                    category: 'Keys',
+                    oscillators: {
+                        osc1: { type: 'fatsquare', active: true, octave: 0, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'triangle', active: true, octave: 0, semi: 12, detune: 5, level: 0.6 }
+                    },
+                    filter: { type: 'lowpass', cutoff: 2500, resonance: 2, envAmount: 40 },
+                    envelopes: {
+                        amp: { attack: 0.1, decay: 0.3, sustain: 0.7, release: 0.5 },
+                        filter: { attack: 0.2, decay: 0.4, sustain: 0.5, release: 0.3 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.4, decay: 3 },
+                        delay: { mix: 0.3, time: 0.4, feedback: 0.3 }
+                    }
+                },
+                'Favorite Pluck': {
+                    name: 'Favorite Pluck',
+                    category: 'Pluck',
+                    oscillators: {
+                        osc1: { type: 'sawtooth', active: true, octave: 0, semi: 0, detune: 0, level: 1 },
+                        osc2: { type: 'square', active: true, octave: 0, semi: 12, detune: 7, level: 0.5 }
+                    },
+                    filter: { type: 'highpass', cutoff: 1500, resonance: 3, envAmount: 50 },
+                    envelopes: {
+                        amp: { attack: 0.01, decay: 0.1, sustain: 0.4, release: 0.2 },
+                        filter: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 0.1 }
+                    },
+                    effects: {
+                        reverb: { mix: 0.2, decay: 1 },
+                        delay: { mix: 0.3, time: 0.2, feedback: 0.4 }
+                    }
                 }
-                // Add more built-in presets as needed
             };
             
             return builtInPresets[name];
@@ -5592,7 +6031,6 @@
             });
         }
         
-        // Fix 2: Improved randomizeParameters function with proper audio checks
         function randomizeParameters() {
             showNotification('info', 'Chaos Mode Activated!');
             
@@ -6077,51 +6515,6 @@
                     // Simulate clicking the mic record button
                     document.getElementById('micRecordButton').classList.add('active');
                 }
-            });
-            
-            // Initialize chord memory slots
-            document.querySelectorAll('.chord-memory-slot').forEach(slot => {
-                slot.addEventListener('click', function() {
-                    const slotNum = this.getAttribute('data-slot');
-                    
-                    if (this.classList.contains('active')) {
-                        // Trigger the stored chord
-                        const chordData = this.getAttribute('data-chord');
-                        if (chordData) {
-                            const [root, type] = chordData.split(':');
-                            
-                            // Initialize audio if needed
-                            if (!audioInitialized) {
-                                initAudio().then(() => {
-                                    playChord(root, type);
-                                });
-                            } else {
-                                playChord(root, type);
-                            }
-                        }
-                    } else {
-                        // Store the current chord
-                        const activeKeys = [...document.querySelectorAll('.key.active, .black-key.active')].map(k => k.getAttribute('data-note'));
-                        
-                        if (activeKeys.length >= 3) {
-                            const chordInfo = detectChord(activeKeys);
-                            const [root, type] = chordInfo.split(' ');
-                            
-                            // Store chord data
-                            this.setAttribute('data-chord', `${root}:${type}`);
-                            
-                            // Activate slot
-                            document.querySelectorAll('.chord-memory-slot').forEach(s => {
-                                s.classList.remove('active');
-                            });
-                            this.classList.add('active');
-                            
-                            showNotification('success', `Stored ${chordInfo} in slot ${slotNum}`);
-                        } else {
-                            showNotification('error', 'Play a chord to store in memory');
-                        }
-                    }
-                });
             });
         });
         
