@@ -262,10 +262,6 @@
             min-height: 200px;
         }
                 
-        .preset-module {
-            flex: 2;
-        }
-        
         .sequencer-container {
             grid-column: 1 / 13;
         }
@@ -1997,6 +1993,17 @@
             }
         };
         
+        // Initialize LFO setup early
+        const lfo = new Tone.LFO({
+            frequency: 1,
+            amplitude: 0.5,
+            type: "sine"
+        }).start();
+
+        // Initialize drone state
+        let isDroneActive = false;
+        let droneSynth = null;
+
         // Helper function to consistently handle mono note changes
         function handleMonoNoteChange(newNote) {
             if (currentMode !== "mono") return;
@@ -2186,6 +2193,19 @@
         document.querySelector('.oscilloscope').addEventListener('click', () => {
             currentColorSchemeIndex = (currentColorSchemeIndex + 1) % colorSchemes.length;
 
+            // Create a notification element (this wasn't properly defined in the original code)
+            const notification = document.createElement('div');
+            notification.style.position = 'absolute';
+            notification.style.top = '10px';
+            notification.style.left = '50%';
+            notification.style.transform = 'translateX(-50%)';
+            notification.style.background = 'rgba(0, 0, 0, 0.7)';
+            notification.style.color = 'white';
+            notification.style.padding = '5px 10px';
+            notification.style.borderRadius = '4px';
+            notification.style.fontSize = '12px';
+            notification.textContent = `Color: ${colorSchemes[currentColorSchemeIndex].name}`;
+            
             document.querySelector('.oscilloscope').appendChild(notification);
             
             // Remove notification after a short delay
@@ -2607,9 +2627,9 @@
             ['phaserMixKnob', 'phaserMix'],
             ['lfoRateKnob', 'lfoRate'],
             ['lfoAmountKnob', 'lfoAmount'],
-            ['droneOctaveKnob', 'droneOctave']
+            ['droneOctaveKnob', 'droneOctave'],
+            ['droneVolumeKnob', 'droneVolume']
         ];
-        knobs.push(['droneVolumeKnob', 'droneVolume']);
 
         // Apply knob setup to all knobs at once
         knobs.forEach(([knobId, inputId]) => {
@@ -3846,7 +3866,6 @@
                 }
             }
         ];
-
         // The currently active preset name
         let activePresetName = null;
 
@@ -4307,7 +4326,7 @@
         });
 
         // Set initial tempo
-        Tone.Transport.bpm.bpm.value = 120;
+        Tone.Transport.bpm.value = 120;
 
         // Add octave control with polyphony support
         let currentOctave = 4;
@@ -4436,15 +4455,6 @@
         // Add panic button functionality
         document.getElementById('panicButton').addEventListener('click', releaseAllNotes);
         
-        // Initialize the synth, effects chain and other components
-
-        // LFO setup - add this with the other initialization code
-        const lfo = new Tone.LFO({
-            frequency: 1,
-            amplitude: 0.5,
-            type: "sine"
-        }).start();
-        
         // Connect LFO controls
         // Waveform
         document.getElementById('lfoWaveform').addEventListener('change', (e) => {
@@ -4497,286 +4507,6 @@
                 document.getElementById('lfoSyncState').textContent = "Free";
             }
         });
-        
-        // Completely revamped LFO Scope visualization
-        function initLfoScope() {
-            const lfoScopeCanvas = document.getElementById('lfoScope');
-            if (!lfoScopeCanvas) {
-                console.error('LFO scope canvas not found');
-                return;
-            }
-            
-            const lfoScopeCtx = lfoScopeCanvas.getContext('2d');
-            
-            // Set canvas dimensions explicitly
-            lfoScopeCanvas.width = lfoScopeCanvas.parentElement.clientWidth;
-            lfoScopeCanvas.height = 80; // Fixed height
-            
-            function drawLfoScope() {
-                // Get current LFO settings
-                const waveform = document.getElementById('lfoWaveform').value;
-                const rate = parseFloat(document.getElementById('lfoRate').value);
-                const amount = parseInt(document.getElementById('lfoAmount').value) / 100;
-                
-                // Calculate dimensions
-                const width = lfoScopeCanvas.width;
-                const height = lfoScopeCanvas.height;
-                const centerY = height / 2;
-                
-                // Clear the canvas
-                lfoScopeCtx.clearRect(0, 0, width, height);
-                
-                // Draw background with gradient
-                const bgGradient = lfoScopeCtx.createLinearGradient(0, 0, 0, height);
-                bgGradient.addColorStop(0, 'rgba(15, 15, 20, 0.8)');
-                bgGradient.addColorStop(1, 'rgba(20, 20, 30, 0.8)');
-                lfoScopeCtx.fillStyle = bgGradient;
-                lfoScopeCtx.fillRect(0, 0, width, height);
-
-                // Horizontal center line (slightly brighter)
-                lfoScopeCtx.beginPath();
-                lfoScopeCtx.moveTo(0, centerY);
-                lfoScopeCtx.lineTo(width, centerY);
-                lfoScopeCtx.strokeStyle = 'rgba(150, 150, 200, 0.3)';
-                lfoScopeCtx.stroke();
-                
-                // Horizontal grid lines
-                lfoScopeCtx.strokeStyle = 'rgba(100, 100, 150, 0.1)';
-                for (let y = height/4; y < height; y += height/4) {
-                    if (Math.abs(y - centerY) < 2) continue; // Skip center line
-                    lfoScopeCtx.beginPath();
-                    lfoScopeCtx.moveTo(0, y);
-                    lfoScopeCtx.lineTo(width, y);
-                    lfoScopeCtx.stroke();
-                }
-                
-                // Vertical grid lines
-                for (let x = 0; x < width; x += width/8) {
-                    lfoScopeCtx.beginPath();
-                    lfoScopeCtx.moveTo(x, 0);
-                    lfoScopeCtx.lineTo(x, height);
-                    lfoScopeCtx.stroke();
-                }
-                
-                // Calculate how many cycles to show based on rate
-                const cyclesShown = 2; // Show 2 complete cycles
-
-                // Create colored gradient for the waveform
-                const waveGradient = lfoScopeCtx.createLinearGradient(0, width, 0, 0);
-                
-                // Different color schemes for different waveforms
-                switch (waveform) {
-                    case 'sine':
-                        waveGradient.addColorStop(0, '#00e5ff');
-                        waveGradient.addColorStop(0.5, '#18ffff');
-                        waveGradient.addColorStop(1, '#00e5ff');
-                        break;
-                    case 'square':
-                        waveGradient.addColorStop(0, '#ff1744');
-                        waveGradient.addColorStop(0.5, '#ff5252');
-                        waveGradient.addColorStop(1, '#ff1744');
-                        break;
-                    case 'triangle':
-                        waveGradient.addColorStop(0, '#00c853');
-                        waveGradient.addColorStop(0.5, '#69f0ae');
-                        waveGradient.addColorStop(1, '#00c853');
-                        break;
-                    case 'sawtooth':
-                        waveGradient.addColorStop(0, '#ffab00');
-                        waveGradient.addColorStop(0.5, '#ffd740');
-                        waveGradient.addColorStop(1, '#ffab00');
-                        break;
-                    case 'random':
-                        waveGradient.addColorStop(0, '#d500f9');
-                        waveGradient.addColorStop(0.5, '#ea80fc');
-                        waveGradient.addColorStop(1, '#d500f9');
-                        break;
-                    default:
-                        waveGradient.addColorStop(0, '#00e5ff');
-                        waveGradient.addColorStop(1, '#00e5ff');
-                }
-                
-                // Draw the waveform
-                lfoScopeCtx.beginPath();
-                
-                // Calculate amplitude (capped at 80% of half-height for visibility)
-                const amplitude = (height / 2) * 0.8 * amount;
-                
-                // Time is based on current time for animation
-                const now = Date.now() / 1000; // Current time in seconds
-                
-                // Starting position
-                let startX = 0;
-                let startY = 0;
-                
-                // Generate points for the waveform
-                for (let x = 0; x <= width; x++) {
-                    // The x-position determines where in the cycle we are
-                    const t = (x / width) * (cyclesShown * Math.PI * 2) + (now * rate * Math.PI * 2);
-                    let y;
-                    
-                    switch (waveform) {
-                        case 'sine':
-                            y = centerY - Math.sin(t) * amplitude;
-                            break;
-                        case 'square':
-                            y = centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude;
-                            break;
-                        case 'triangle':
-                            y = centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude;
-                            break;
-                        case 'sawtooth':
-                            y = centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude;
-                            break;
-                        case 'random':
-                            // For random, create stable random values at fixed intervals
-                            const segment = Math.floor(t / (Math.PI / 4)); // Change every 1/8th of cycle
-                            // Use sine of a large number to get pseudorandom value between -1 and 1
-                            const randValue = Math.sin(segment * 1000) * 2 - 1;
-                            y = centerY - randValue * amplitude;
-                            break;
-                        default:
-                            y = centerY - Math.sin(t) * amplitude;
-                    }
-                    
-                    if (x === 0) {
-                        startX = 0;
-                        startY = y;
-                        lfoScopeCtx.moveTo(x, y);
-                    } else {
-                        lfoScopeCtx.lineTo(x, y);
-                    }
-                }
-                
-                // Close the path for filling
-                lfoScopeCtx.lineTo(width, centerY);
-                lfoScopeCtx.lineTo(0, centerY);
-                lfoScopeCtx.closePath();
-                
-                // Fill with semi-transparent gradient
-                const fillGradient = lfoScopeCtx.createLinearGradient(0, 0, 0, height);
-                
-                switch (waveform) {
-                    case 'sine':
-                        fillGradient.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
-                        fillGradient.addColorStop(1, 'rgba(0, 229, 255, 0.05)');
-                        break;
-                    case 'square':
-                        fillGradient.addColorStop(0, 'rgba(255, 23, 68, 0.2)');
-                        fillGradient.addColorStop(1, 'rgba(255, 23, 68, 0.05)');
-                        break;
-                    case 'triangle':
-                        fillGradient.addColorStop(0, 'rgba(0, 200, 83, 0.2)');
-                        fillGradient.addColorStop(1, 'rgba(0, 200, 83, 0.05)');
-                        break;
-                    case 'sawtooth':
-                        fillGradient.addColorStop(0, 'rgba(255, 171, 0, 0.2)');
-                        fillGradient.addColorStop(1, 'rgba(255, 171, 0, 0.05)');
-                        break;
-                    case 'random':
-                        fillGradient.addColorStop(0, 'rgba(213, 0, 249, 0.2)');
-                        fillGradient.addColorStop(1, 'rgba(213, 0, 249, 0.05)');
-                        break;
-                    default:
-                        fillGradient.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
-                        fillGradient.addColorStop(1, 'rgba(0, 229, 255, 0.05)');
-                }
-                
-                lfoScopeCtx.fillStyle = fillGradient;
-                lfoScopeCtx.fill();
-                
-                // Redraw the path with line only for a sharp edge
-                lfoScopeCtx.beginPath();
-                lfoScopeCtx.moveTo(startX, startY);
-                
-                for (let x = 0; x <= width; x++) {
-                    const t = (x / width) * (cyclesShown * Math.PI * 2) + (now * rate * Math.PI * 2);
-                    let y;
-                    
-                    switch (waveform) {
-                        case 'sine':
-                            y = centerY - Math.sin(t) * amplitude;
-                            break;
-                        case 'square':
-                            y = centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude;
-                            break;
-                        case 'triangle':
-                            y = centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude;
-                            break;
-                        case 'sawtooth':
-                            y = centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude;
-                            break;
-                        case 'random':
-                            const segment = Math.floor(t / (Math.PI / 4));
-                            const randValue = Math.sin(segment * 1000) * 2 - 1;
-                            y = centerY - randValue * amplitude;
-                            break;
-                        default:
-                            y = centerY - Math.sin(t) * amplitude;
-                    }
-                    
-                    if (x === 0) {
-                        lfoScopeCtx.moveTo(x, y);
-                    } else {
-                        lfoScopeCtx.lineTo(x, y);
-                    }
-                }
-                
-                // Set line style with glow effect
-                lfoScopeCtx.strokeStyle = waveGradient;
-                lfoScopeCtx.lineWidth = 2;
-                lfoScopeCtx.shadowColor = waveform === 'sine' ? '#00e5ff' : 
-                                        waveform === 'square' ? '#ff1744' :
-                                        waveform === 'triangle' ? '#00c853' :
-                                        waveform === 'sawtooth' ? '#ffab00' : '#d500f9';
-                lfoScopeCtx.shadowBlur = 5;
-                lfoScopeCtx.shadowOffsetX = 0;
-                lfoScopeCtx.shadowOffsetY = 0;
-                lfoScopeCtx.stroke();
-                
-                // Draw current playhead position
-                const cyclePosition = (now * rate) % 1;
-                const playheadX = cyclePosition * (width / cyclesShown);
-                
-                lfoScopeCtx.beginPath();
-                lfoScopeCtx.moveTo(playheadX, 0);
-                lfoScopeCtx.lineTo(playheadX, height);
-                lfoScopeCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-                lfoScopeCtx.lineWidth = 1;
-                lfoScopeCtx.shadowBlur = 0;
-                lfoScopeCtx.stroke();
-                
-                // Annotate with frequency
-                lfoScopeCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-                lfoScopeCtx.font = '10px sans-serif';
-                lfoScopeCtx.textAlign = 'right';
-                lfoScopeCtx.fillText(`${rate.toFixed(1)} Hz`, width - 5, height - 5);
-                
-                // Continue animation
-                requestAnimationFrame(drawLfoScope);
-            }
-            
-            // Start the drawing loop
-            drawLfoScope();
-            
-            // Add event listeners to redraw when settings change
-            document.getElementById('lfoWaveform').addEventListener('change', () => {
-                // Simply let the animation frame handle updates
-            });
-            
-            document.getElementById('lfoRate').addEventListener('input', () => {
-                // Simply let the animation frame handle updates
-            });
-            
-            document.getElementById('lfoAmount').addEventListener('input', () => {
-                // Simply let the animation frame handle updates
-            });
-            
-            window.addEventListener('resize', () => {
-                lfoScopeCanvas.width = lfoScopeCanvas.parentElement.clientWidth;
-                // Height stays fixed
-            });
-        }
 
         document.getElementById('lfoDestination').addEventListener('change', (e) => {
             // Stop any current animation interval
@@ -5104,13 +4834,290 @@
             }
         });
 
+        // Completely revamped LFO Scope visualization
+        function initLfoScope() {
+            const lfoScopeCanvas = document.getElementById('lfoScope');
+            if (!lfoScopeCanvas) {
+                console.error('LFO scope canvas not found');
+                return;
+            }
+            
+            const lfoScopeCtx = lfoScopeCanvas.getContext('2d');
+            
+            // Set canvas dimensions explicitly
+            lfoScopeCanvas.width = lfoScopeCanvas.parentElement.clientWidth;
+            lfoScopeCanvas.height = 80; // Fixed height
+            
+            function drawLfoScope() {
+                // Get current LFO settings
+                const waveform = document.getElementById('lfoWaveform').value;
+                const rate = parseFloat(document.getElementById('lfoRate').value);
+                const amount = parseInt(document.getElementById('lfoAmount').value) / 100;
+                
+                // Calculate dimensions
+                const width = lfoScopeCanvas.width;
+                const height = lfoScopeCanvas.height;
+                const centerY = height / 2;
+                
+                // Clear the canvas
+                lfoScopeCtx.clearRect(0, 0, width, height);
+                
+                // Draw background with gradient
+                const bgGradient = lfoScopeCtx.createLinearGradient(0, 0, 0, height);
+                bgGradient.addColorStop(0, 'rgba(15, 15, 20, 0.8)');
+                bgGradient.addColorStop(1, 'rgba(20, 20, 30, 0.8)');
+                lfoScopeCtx.fillStyle = bgGradient;
+                lfoScopeCtx.fillRect(0, 0, width, height);
+
+                // Horizontal center line (slightly brighter)
+                lfoScopeCtx.beginPath();
+                lfoScopeCtx.moveTo(0, centerY);
+                lfoScopeCtx.lineTo(width, centerY);
+                lfoScopeCtx.strokeStyle = 'rgba(150, 150, 200, 0.3)';
+                lfoScopeCtx.stroke();
+                
+                // Horizontal grid lines
+                lfoScopeCtx.strokeStyle = 'rgba(100, 100, 150, 0.1)';
+                for (let y = height/4; y < height; y += height/4) {
+                    if (Math.abs(y - centerY) < 2) continue; // Skip center line
+                    lfoScopeCtx.beginPath();
+                    lfoScopeCtx.moveTo(0, y);
+                    lfoScopeCtx.lineTo(width, y);
+                    lfoScopeCtx.stroke();
+                }
+                
+                // Vertical grid lines
+                for (let x = 0; x < width; x += width/8) {
+                    lfoScopeCtx.beginPath();
+                    lfoScopeCtx.moveTo(x, 0);
+                    lfoScopeCtx.lineTo(x, height);
+                    lfoScopeCtx.stroke();
+                }
+                
+                // Calculate how many cycles to show based on rate
+                const cyclesShown = 2; // Show 2 complete cycles
+
+                // Create colored gradient for the waveform
+                const waveGradient = lfoScopeCtx.createLinearGradient(0, width, 0, 0);
+                
+                // Different color schemes for different waveforms
+                switch (waveform) {
+                    case 'sine':
+                        waveGradient.addColorStop(0, '#00e5ff');
+                        waveGradient.addColorStop(0.5, '#18ffff');
+                        waveGradient.addColorStop(1, '#00e5ff');
+                        break;
+                    case 'square':
+                        waveGradient.addColorStop(0, '#ff1744');
+                        waveGradient.addColorStop(0.5, '#ff5252');
+                        waveGradient.addColorStop(1, '#ff1744');
+                        break;
+                    case 'triangle':
+                        waveGradient.addColorStop(0, '#00c853');
+                        waveGradient.addColorStop(0.5, '#69f0ae');
+                        waveGradient.addColorStop(1, '#00c853');
+                        break;
+                    case 'sawtooth':
+                        waveGradient.addColorStop(0, '#ffab00');
+                        waveGradient.addColorStop(0.5, '#ffd740');
+                        waveGradient.addColorStop(1, '#ffab00');
+                        break;
+                    case 'random':
+                        waveGradient.addColorStop(0, '#d500f9');
+                        waveGradient.addColorStop(0.5, '#ea80fc');
+                        waveGradient.addColorStop(1, '#d500f9');
+                        break;
+                    default:
+                        waveGradient.addColorStop(0, '#00e5ff');
+                        waveGradient.addColorStop(1, '#00e5ff');
+                }
+                
+                // Draw the waveform
+                lfoScopeCtx.beginPath();
+                
+                // Calculate amplitude (capped at 80% of half-height for visibility)
+                const amplitude = (height / 2) * 0.8 * amount;
+                
+                // Time is based on current time for animation
+                const now = Date.now() / 1000; // Current time in seconds
+                
+                // Starting position
+                let startX = 0;
+                let startY = 0;
+                
+                // Generate points for the waveform
+                for (let x = 0; x <= width; x++) {
+                    // The x-position determines where in the cycle we are
+                    const t = (x / width) * (cyclesShown * Math.PI * 2) + (now * rate * Math.PI * 2);
+                    let y;
+                    
+                    switch (waveform) {
+                        case 'sine':
+                            y = centerY - Math.sin(t) * amplitude;
+                            break;
+                        case 'square':
+                            y = centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude;
+                            break;
+                        case 'triangle':
+                            y = centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude;
+                            break;
+                        case 'sawtooth':
+                            y = centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude;
+                            break;
+                        case 'random':
+                            // For random, create stable random values at fixed intervals
+                            const segment = Math.floor(t / (Math.PI / 4)); // Change every 1/8th of cycle
+                            // Use sine of a large number to get pseudorandom value between -1 and 1
+                            const randValue = Math.sin(segment * 1000) * 2 - 1;
+                            y = centerY - randValue * amplitude;
+                            break;
+                        default:
+                            y = centerY - Math.sin(t) * amplitude;
+                    }
+                    
+                    if (x === 0) {
+                        startX = 0;
+                        startY = y;
+                        lfoScopeCtx.moveTo(x, y);
+                    } else {
+                        lfoScopeCtx.lineTo(x, y);
+                    }
+                }
+                
+                // Close the path for filling
+                lfoScopeCtx.lineTo(width, centerY);
+                lfoScopeCtx.lineTo(0, centerY);
+                lfoScopeCtx.closePath();
+                
+                // Fill with semi-transparent gradient
+                const fillGradient = lfoScopeCtx.createLinearGradient(0, 0, 0, height);
+                
+                switch (waveform) {
+                    case 'sine':
+                        fillGradient.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
+                        fillGradient.addColorStop(1, 'rgba(0, 229, 255, 0.05)');
+                        break;
+                    case 'square':
+                        fillGradient.addColorStop(0, 'rgba(255, 23, 68, 0.2)');
+                        fillGradient.addColorStop(1, 'rgba(255, 23, 68, 0.05)');
+                        break;
+                    case 'triangle':
+                        fillGradient.addColorStop(0, 'rgba(0, 200, 83, 0.2)');
+                        fillGradient.addColorStop(1, 'rgba(0, 200, 83, 0.05)');
+                        break;
+                    case 'sawtooth':
+                        fillGradient.addColorStop(0, 'rgba(255, 171, 0, 0.2)');
+                        fillGradient.addColorStop(1, 'rgba(255, 171, 0, 0.05)');
+                        break;
+                    case 'random':
+                        fillGradient.addColorStop(0, 'rgba(213, 0, 249, 0.2)');
+                        fillGradient.addColorStop(1, 'rgba(213, 0, 249, 0.05)');
+                        break;
+                    default:
+                        fillGradient.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
+                        fillGradient.addColorStop(1, 'rgba(0, 229, 255, 0.05)');
+                }
+                
+                lfoScopeCtx.fillStyle = fillGradient;
+                lfoScopeCtx.fill();
+                
+                // Redraw the path with line only for a sharp edge
+                lfoScopeCtx.beginPath();
+                lfoScopeCtx.moveTo(startX, startY);
+                
+                for (let x = 0; x <= width; x++) {
+                    const t = (x / width) * (cyclesShown * Math.PI * 2) + (now * rate * Math.PI * 2);
+                    let y;
+                    
+                    switch (waveform) {
+                        case 'sine':
+                            y = centerY - Math.sin(t) * amplitude;
+                            break;
+                        case 'square':
+                            y = centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude;
+                            break;
+                        case 'triangle':
+                            y = centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude;
+                            break;
+                        case 'sawtooth':
+                            y = centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude;
+                            break;
+                        case 'random':
+                            const segment = Math.floor(t / (Math.PI / 4));
+                            const randValue = Math.sin(segment * 1000) * 2 - 1;
+                            y = centerY - randValue * amplitude;
+                            break;
+                        default:
+                            y = centerY - Math.sin(t) * amplitude;
+                    }
+                    
+                    if (x === 0) {
+                        lfoScopeCtx.moveTo(x, y);
+                    } else {
+                        lfoScopeCtx.lineTo(x, y);
+                    }
+                }
+                
+                // Set line style with glow effect
+                lfoScopeCtx.strokeStyle = waveGradient;
+                lfoScopeCtx.lineWidth = 2;
+                lfoScopeCtx.shadowColor = waveform === 'sine' ? '#00e5ff' : 
+                                        waveform === 'square' ? '#ff1744' :
+                                        waveform === 'triangle' ? '#00c853' :
+                                        waveform === 'sawtooth' ? '#ffab00' : '#d500f9';
+                lfoScopeCtx.shadowBlur = 5;
+                lfoScopeCtx.shadowOffsetX = 0;
+                lfoScopeCtx.shadowOffsetY = 0;
+                lfoScopeCtx.stroke();
+                
+                // Draw current playhead position
+                const cyclePosition = (now * rate) % 1;
+                const playheadX = cyclePosition * (width / cyclesShown);
+                
+                lfoScopeCtx.beginPath();
+                lfoScopeCtx.moveTo(playheadX, 0);
+                lfoScopeCtx.lineTo(playheadX, height);
+                lfoScopeCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                lfoScopeCtx.lineWidth = 1;
+                lfoScopeCtx.shadowBlur = 0;
+                lfoScopeCtx.stroke();
+                
+                // Annotate with frequency
+                lfoScopeCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                lfoScopeCtx.font = '10px sans-serif';
+                lfoScopeCtx.textAlign = 'right';
+                lfoScopeCtx.fillText(`${rate.toFixed(1)} Hz`, width - 5, height - 5);
+                
+                // Continue animation
+                requestAnimationFrame(drawLfoScope);
+            }
+            
+            // Start the drawing loop
+            drawLfoScope();
+            
+            // Add event listeners to redraw when settings change
+            document.getElementById('lfoWaveform').addEventListener('change', () => {
+                // Simply let the animation frame handle updates
+            });
+            
+            document.getElementById('lfoRate').addEventListener('input', () => {
+                // Simply let the animation frame handle updates
+            });
+            
+            document.getElementById('lfoAmount').addEventListener('input', () => {
+                // Simply let the animation frame handle updates
+            });
+            
+            window.addEventListener('resize', () => {
+                lfoScopeCanvas.width = lfoScopeCanvas.parentElement.clientWidth;
+                // Height stays fixed
+            });
+        }
 
         // Trigger initial LFO destination setup
-        document.getElementById('lfoDestination').dispatchEvent(new Event('change'));
-        
-        // Drone functionality
-        let droneSynth = null;
-        let isDroneActive = false;
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('lfoDestination').dispatchEvent(new Event('change'));
+        });
         
         // Drone button event listener
         document.getElementById('droneButton').addEventListener('click', toggleDrone);
@@ -5121,7 +5128,7 @@
             document.getElementById('droneOctaveValue').textContent = value.toString();
             
             // If drone is active, update its pitch
-            if (isDroneActive) {
+            if (isDroneActive && droneSynth) {
                 updateDronePitch();
             }
         });
@@ -5260,4 +5267,4 @@
 
     </script>
 </body>
-</html>                
+</html>                                        
