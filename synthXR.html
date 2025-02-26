@@ -18,6 +18,7 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -238,7 +239,7 @@
         
         .oscillator-module { grid-column: 1 / 2; }
         .filter-module { grid-column: 2 / 3; }
-        .effects-module { overflow: scroll; height: 570px; grid-column: 3 / 4; }
+        .effects-module { overflow: auto; height: 570px; grid-column: 3 / 4; }
         
         .adsr-module {
             grid-column: 1 / 4;
@@ -255,11 +256,7 @@
             height: 100%;
             flex: 2;
         }
-        
-        .preset-module {
-            flex: 1;
-        }
-        
+                
         .sequencer-container {
             grid-column: 1 / 13;
         }
@@ -944,6 +941,150 @@
             background: var(--primary-light);
             box-shadow: var(--glow-primary);
         }
+
+        /* New visualizations */
+        .adsr-visualizer {
+            height: 70px;
+            background: var(--background);
+            border-radius: 6px;
+            margin-top: 10px;
+            position: relative;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        .adsr-graph {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .adsr-path {
+            stroke: var(--secondary);
+            stroke-width: 2;
+            fill: none;
+            filter: drop-shadow(0 0 2px var(--secondary));
+        }
+
+        .adsr-marker {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--secondary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 5px var(--secondary);
+        }
+
+        .filter-response {
+            height: 70px;
+            background: var(--background);
+            border-radius: 6px;
+            margin-top: 10px;
+            position: relative;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        .filter-curve {
+            stroke: var(--secondary);
+            stroke-width: 2;
+            fill: none;
+            filter: drop-shadow(0 0 2px var(--secondary));
+        }
+
+        .filter-area {
+            fill: rgba(0, 229, 255, 0.1);
+        }
+
+        .advanced-visualizers {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            overflow: hidden;
+            transition: max-height 0.3s;
+        }
+        
+        .visualizer-toggle {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 8px;
+            background: var(--surface-dark);
+            border-radius: 6px;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .visualizer-toggle:hover {
+            background: var(--surface-light);
+        }
+        
+        .visualizer-toggle i {
+            margin-right: 8px;
+            color: var(--secondary);
+            transition: transform 0.3s;
+        }
+        
+        .visualizer-toggle.active i {
+            transform: rotate(180deg);
+        }
+
+        .spectrum-analyzer, 
+        .waveform-3d, 
+        .particle-system {
+            height: 150px;
+            background: var(--background);
+            border-radius: 6px;
+            position: relative;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            margin: auto;
+        }
+
+        .visualizer-title {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            z-index: 5;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            pointer-events: none;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--surface-dark);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-dark);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        /* Sequencer key highlight animation */
+        @keyframes keyHighlight {
+            0% { background: var(--surface-light); }
+            50% { background: var(--primary-light); }
+            100% { background: var(--surface-light); }
+        }
+
+        input[type="range"] {
+            display: none;
+        }
         
         /* Responsive design */
         @media (max-width: 1200px) {
@@ -974,6 +1115,10 @@
                 display: grid;
                 grid-template-columns: 2fr 1fr;
                 gap: 20px;
+            }
+            
+            .oscilloscope {
+                height: 120px;
             }
             
             .oscilloscope-module {
@@ -1071,44 +1216,13 @@
                 height: 40px;
             }
         }
-        
-        input[type="range"] {
-            display: none;
-        }
-        
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: var(--surface-dark);
-            border-radius: 3px;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary-dark);
-            border-radius: 3px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary);
-        }
-
-        /* Sequencer key highlight animation */
-        @keyframes keyHighlight {
-            0% { background: var(--surface-light); }
-            50% { background: var(--primary-light); }
-            100% { background: var(--surface-light); }
-        }
     </style>
 </head>
 <body>
     <div class="synth-container">
         <div class="brand">
             <div class="brand-name">Synth XR</div>
-            <div class="version">v3.0</div>
+            <div class="version">v4.0</div>
         </div>
         
         <div class="master-controls">
@@ -1127,13 +1241,9 @@
             
             <div class="spacer"></div>
             
-            <button class="master-button" id="saveSetup">
-                <i class="fas fa-save"></i>
-                <span>Save</span>
-            </button>
-            <button class="master-button" id="loadSetup">
-                <i class="fas fa-folder-open"></i>
-                <span>Load</span>
+            <button class="master-button" id="initPatchButton">
+                <i class="fas fa-undo"></i>
+                <span>Init Patch</span>
             </button>
         </div>
         
@@ -1249,6 +1359,20 @@
                         <span class="knob-value" id="filterResValue">1</span>
                     </div>
                 </div>
+                
+                <!-- Add Filter Response Curve -->
+                <div class="filter-response">
+                    <svg id="filterResponseSvg" width="100%" height="100%">
+                        <defs>
+                            <linearGradient id="filterGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="rgba(0, 229, 255, 0.3)" />
+                                <stop offset="100%" stop-color="rgba(0, 229, 255, 0)" />
+                            </linearGradient>
+                        </defs>
+                        <path id="filterCurve" class="filter-curve" d="M0,50 L400,50" />
+                        <path id="filterArea" class="filter-area" d="M0,70 L400,70 L400,50 L0,50 Z" fill="url(#filterGradient)" />
+                    </svg>
+                </div>
             </div>
             
             <div class="module effects-module">
@@ -1258,118 +1382,119 @@
                         Effects
                     </h3>
                 </div>
-                
-                <!-- Reverb group with dotted border -->
-                <div class="effect-group">
-                    <div class="effect-group-label">
-                        <i class="fas fa-mountain"></i>
-                        Reverb
-                    </div>
-                    <div class="control-group">
-                        <div class="knob-container">
-                            <label class="knob-label">Mix</label>
-                            <div class="knob" id="reverbMixKnob">
-                                <div class="knob-inner"></div>
-                                <div class="tooltip">Adjust reverb mix</div>
-                            </div>
-                            <input type="range" id="reverbMix" min="0" max="1" step="0.01" value="0.3">
-                            <span class="knob-value" id="reverbMixValue">0.30</span>
+                <div style="overflow: auto; max-height: 520px;">
+                    <!-- Reverb group with dotted border -->
+                    <div class="effect-group">
+                        <div class="effect-group-label">
+                            <i class="fas fa-mountain"></i>
+                            Reverb
                         </div>
-                        <!-- New reverb decay knob -->
-                        <div class="knob-container">
-                            <label class="knob-label">Decay</label>
-                            <div class="knob" id="reverbDecayKnob">
-                                <div class="knob-inner"></div>
-                                <div class="tooltip">Adjust reverb decay/tail</div>
+                        <div class="control-group">
+                            <div class="knob-container">
+                                <label class="knob-label">Mix</label>
+                                <div class="knob" id="reverbMixKnob">
+                                    <div class="knob-inner"></div>
+                                    <div class="tooltip">Adjust reverb mix</div>
+                                </div>
+                                <input type="range" id="reverbMix" min="0" max="1" step="0.01" value="0.3">
+                                <span class="knob-value" id="reverbMixValue">0.30</span>
                             </div>
-                            <input type="range" id="reverbDecay" min="0.1" max="10" step="0.1" value="2">
-                            <span class="knob-value" id="reverbDecayValue">2.0s</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Delay group with dotted border -->
-                <div class="effect-group">
-                    <div class="effect-group-label">
-                        <i class="fas fa-clock"></i>
-                        Delay
-                    </div>
-                    <div class="control-group">
-                        <div class="knob-container">
-                            <label class="knob-label">Time</label>
-                            <div class="knob" id="delayTimeKnob">
-                                <div class="knob-inner"></div>
-                                <div class="tooltip">Adjust delay time</div>
+                            <!-- New reverb decay knob -->
+                            <div class="knob-container">
+                                <label class="knob-label">Decay</label>
+                                <div class="knob" id="reverbDecayKnob">
+                                    <div class="knob-inner"></div>
+                                    <div class="tooltip">Adjust reverb decay/tail</div>
+                                </div>
+                                <input type="range" id="reverbDecay" min="0.1" max="10" step="0.1" value="2">
+                                <span class="knob-value" id="reverbDecayValue">2.0s</span>
                             </div>
-                            <input type="range" id="delayTime" min="0" max="1" step="0.01" value="0.3">
-                            <span class="knob-value" id="delayTimeValue">0.30</span>
-                        </div>
-                        <div class="knob-container">
-                            <label class="knob-label">Feedback</label>
-                            <div class="knob" id="delayFeedbackKnob">
-                                <div class="knob-inner"></div>
-                                <div class="tooltip">Adjust delay feedback</div>
-                            </div>
-                            <input type="range" id="delayFeedback" min="0" max="0.9" step="0.01" value="0.4">
-                            <span class="knob-value" id="delayFeedbackValue">0.40</span>
                         </div>
                     </div>
-                </div>
-                
-                <!-- New effects sections -->
-                <div class="effect-group">
-                    <div class="effect-group-label">
-                        <i class="fas fa-wave-square"></i>
-                        Modulation
-                    </div>
-                    <div class="control-group">
-                        <div class="knob-container">
-                            <label class="knob-label">Chorus</label>
-                            <div class="knob" id="chorusMixKnob">
-                                <div class="knob-inner"></div>
-                                <div class="tooltip">Adjust chorus mix</div>
-                            </div>
-                            <input type="range" id="chorusMix" min="0" max="1" step="0.01" value="0">
-                            <span class="knob-value" id="chorusMixValue">0.00</span>
+                    
+                    <!-- Delay group with dotted border -->
+                    <div class="effect-group">
+                        <div class="effect-group-label">
+                            <i class="fas fa-clock"></i>
+                            Delay
                         </div>
-                        <div class="knob-container">
-                            <label class="knob-label">Flanger</label>
-                            <div class="knob" id="flangerMixKnob">
-                                <div class="knob-inner"></div>
-                                <div class="tooltip">Adjust flanger mix</div>
+                        <div class="control-group">
+                            <div class="knob-container">
+                                <label class="knob-label">Time</label>
+                                <div class="knob" id="delayTimeKnob">
+                                    <div class="knob-inner"></div>
+                                    <div class="tooltip">Adjust delay time</div>
+                                </div>
+                                <input type="range" id="delayTime" min="0" max="1" step="0.01" value="0.3">
+                                <span class="knob-value" id="delayTimeValue">0.30</span>
                             </div>
-                            <input type="range" id="flangerMix" min="0" max="1" step="0.01" value="0">
-                            <span class="knob-value" id="flangerMixValue">0.00</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="effect-group">
-                    <div class="effect-group-label">
-                        <i class="fas fa-bolt"></i>
-                        Character
-                    </div>
-                    <div class="control-group">
-                        <div class="knob-container">
-                            <label class="knob-label">Distortion</label>
-                            <div class="knob" id="distortionMixKnob">
-                                <div class="knob-inner"></div>
-                                <div class="tooltip">Adjust distortion amount</div>
+                            <div class="knob-container">
+                                <label class="knob-label">Feedback</label>
+                                <div class="knob" id="delayFeedbackKnob">
+                                    <div class="knob-inner"></div>
+                                    <div class="tooltip">Adjust delay feedback</div>
+                                </div>
+                                <input type="range" id="delayFeedback" min="0" max="0.9" step="0.01" value="0.4">
+                                <span class="knob-value" id="delayFeedbackValue">0.40</span>
                             </div>
-                            <input type="range" id="distortionMix" min="0" max="1" step="0.01" value="0">
-                            <span class="knob-value" id="distortionMixValue">0.00</span>
-                        </div>
-                        <div class="knob-container">
-                            <label class="knob-label">Phaser</label>
-                            <div class="knob" id="phaserMixKnob">
-                                <div class="knob-inner"></div>
-                                <div class="tooltip">Adjust phaser mix</div>
-                            </div>
-                            <input type="range" id="phaserMix" min="0" max="1" step="0.01" value="0">
-                            <span class="knob-value" id="phaserMixValue">0.00</span>
                         </div>
                     </div>
-                </div>
+                    
+                    <!-- New effects sections -->
+                    <div class="effect-group">
+                        <div class="effect-group-label">
+                            <i class="fas fa-wave-square"></i>
+                            Modulation
+                        </div>
+                        <div class="control-group">
+                            <div class="knob-container">
+                                <label class="knob-label">Chorus</label>
+                                <div class="knob" id="chorusMixKnob">
+                                    <div class="knob-inner"></div>
+                                    <div class="tooltip">Adjust chorus mix</div>
+                                </div>
+                                <input type="range" id="chorusMix" min="0" max="1" step="0.01" value="0">
+                                <span class="knob-value" id="chorusMixValue">0.00</span>
+                            </div>
+                            <div class="knob-container">
+                                <label class="knob-label">Flanger</label>
+                                <div class="knob" id="flangerMixKnob">
+                                    <div class="knob-inner"></div>
+                                    <div class="tooltip">Adjust flanger mix</div>
+                                </div>
+                                <input type="range" id="flangerMix" min="0" max="1" step="0.01" value="0">
+                                <span class="knob-value" id="flangerMixValue">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="effect-group">
+                        <div class="effect-group-label">
+                            <i class="fas fa-bolt"></i>
+                            Character
+                        </div>
+                        <div class="control-group">
+                            <div class="knob-container">
+                                <label class="knob-label">Distortion</label>
+                                <div class="knob" id="distortionMixKnob">
+                                    <div class="knob-inner"></div>
+                                    <div class="tooltip">Adjust distortion amount</div>
+                                </div>
+                                <input type="range" id="distortionMix" min="0" max="1" step="0.01" value="0">
+                                <span class="knob-value" id="distortionMixValue">0.00</span>
+                            </div>
+                            <div class="knob-container">
+                                <label class="knob-label">Phaser</label>
+                                <div class="knob" id="phaserMixKnob">
+                                    <div class="knob-inner"></div>
+                                    <div class="tooltip">Adjust phaser mix</div>
+                                </div>
+                                <input type="range" id="phaserMix" min="0" max="1" step="0.01" value="0">
+                                <span class="knob-value" id="phaserMixValue">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>                
             </div>
             
             <div class="module adsr-module">
@@ -1416,6 +1541,14 @@
                         <input type="range" id="release" min="0" max="2" step="0.01" value="0.5">
                         <span class="knob-value" id="releaseValue">0.50s</span>
                     </div>
+                </div>
+                
+                <!-- Add ADSR Envelope Visualizer -->
+                <div class="adsr-visualizer">
+                    <svg id="adsrVisualizerSvg" width="100%" height="100%">
+                        <path id="adsrPath" class="adsr-path" d="M0,70 L0,70" />
+                    </svg>
+                    <div id="adsrMarker" class="adsr-marker" style="display: none;"></div>
                 </div>
             </div>
         </div>
@@ -1474,6 +1607,24 @@
                 <!-- Keys will be generated by JavaScript -->
             </div>
             
+            <!-- Toggle for advanced visualizers -->
+            <div class="visualizer-toggle" id="visualizerToggle">
+                <i class="fas fa-chevron-down"></i>
+                <span>Show Advanced Visualizations</span>
+            </div>
+            
+            <!-- Advanced visualizers (hidden by default) -->
+            <div class="advanced-visualizers" id="advancedVisualizers" style="max-height: 0;">
+                <div class="spectrum-analyzer">
+                    <div class="visualizer-title">Frequency Spectrum</div>
+                    <canvas id="spectrumAnalyzer"></canvas>
+                </div>
+                                
+                <div class="particle-system">
+                    <div class="visualizer-title">Particle System</div>
+                    <canvas id="particleSystem"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1528,6 +1679,7 @@
         phaser.wet.value = 0;
         
         const waveform = new Tone.Waveform(1024);
+        const fft = new Tone.FFT(1024);
 
         // Connect effects chain
         filter.connect(chorus);
@@ -1537,6 +1689,7 @@
         phaser.connect(reverb);
         reverb.connect(delay);
         delay.connect(waveform);
+        delay.connect(fft);
         delay.toDestination();
 
         // Initialize synth variables
@@ -1721,6 +1874,18 @@
             
             // Show color scheme name
             const schemeName = colorSchemes[currentColorSchemeIndex].name;
+            const notification = document.createElement('div');
+            notification.style.position = 'absolute';
+            notification.style.top = '50%';
+            notification.style.left = '50%';
+            notification.style.transform = 'translate(-50%, -50%)';
+            notification.style.background = 'rgba(0, 0, 0, 0.7)';
+            notification.style.color = colorSchemes[currentColorSchemeIndex].wave;
+            notification.style.padding = '10px 20px';
+            notification.style.borderRadius = '5px';
+            notification.style.fontWeight = 'bold';
+            notification.style.zIndex = '10';
+            notification.textContent = schemeName;
 
             document.querySelector('.oscilloscope').appendChild(notification);
             
@@ -1832,8 +1997,11 @@
         const createKeyboard = () => {
             const keyboardElement = document.getElementById('keyboard');
             const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+
+            // Make octave range responsive based on screen size
+            const isMobile = window.innerWidth <= 768;
             const startOctave = 3;
-            const endOctave = 5;
+            const endOctave = isMobile ? 4 : 7;
             
             // Clear keyboard
             keyboardElement.innerHTML = '';
@@ -1846,7 +2014,7 @@
                 for (let i = 0; i < octaveNotes.length; i++) {
                     const key = document.createElement('div');
                     key.className = 'key';
-                    key.textContent = `${octaveNotes[i]}${octave}`;
+                    key.textContent = isMobile ? '' : `${octaveNotes[i]}${octave}`;
                     key.setAttribute('data-note', `${octaveNotes[i]}${octave}`);
                     keyboardElement.appendChild(key);
                     
@@ -1925,7 +2093,7 @@
                         if (blackKeyInfo) {
                             const blackKey = document.createElement('div');
                             blackKey.className = 'black-key';
-                            blackKey.textContent = `${blackKeyInfo.note}${octave}`;
+                            blackKey.textContent = '';
                             blackKey.setAttribute('data-note', `${blackKeyInfo.note}${octave}`);
                             
                             // Position the black key
@@ -2127,15 +2295,13 @@
             ['sustainKnob', 'sustain'],
             ['releaseKnob', 'release'],
             ['reverbMixKnob', 'reverbMix'],
-            ['reverbDecayKnob', 'reverbDecay'], // New reverb decay knob
+            ['reverbDecayKnob', 'reverbDecay'],
             ['delayTimeKnob', 'delayTime'],
             ['delayFeedbackKnob', 'delayFeedback'],
             ['tempoKnob', 'tempo'],
-            // Add new oscillator knobs
             ['oscillatorOctaveKnob', 'oscillatorOctave'],
             ['oscillatorSemiKnob', 'oscillatorSemi'],
             ['oscillatorLevelKnob', 'oscillatorLevel'],
-            // New effect knobs
             ['chorusMixKnob', 'chorusMix'],
             ['distortionMixKnob', 'distortionMix'],
             ['flangerMixKnob', 'flangerMix'],
@@ -2146,6 +2312,290 @@
             knobUpdaters[inputId] = setupKnob(knobId, inputId);
         });
 
+        // ADSR Envelope Visualizer
+        function updateADSRVisualizer() {
+            const svg = document.getElementById('adsrVisualizerSvg');
+            const width = svg.clientWidth;
+            const height = svg.clientHeight;
+            
+            const attack = parseFloat(document.getElementById('attack').value);
+            const decay = parseFloat(document.getElementById('decay').value);
+            const sustain = parseFloat(document.getElementById('sustain').value);
+            const release = parseFloat(document.getElementById('release').value);
+            
+            // Calculate widths for each segment
+            const totalTime = attack + decay + 1 + release; // Add 1 for sustain display
+            const attackWidth = (attack / totalTime) * width;
+            const decayWidth = (decay / totalTime) * width;
+            const sustainWidth = (1 / totalTime) * width;
+            const releaseWidth = (release / totalTime) * width;
+            
+            // Calculate y positions (inverted, as 0,0 is top-left)
+            const startY = height - 10; // Start near bottom
+            const peakY = 10; // Attack peak near top
+            const sustainY = height - 10 - (sustain * (height - 20)); // Sustain level
+            
+            // Create path
+            const path = [
+                `M0,${startY}`, // Start
+                `L${attackWidth},${peakY}`, // Attack
+                `L${attackWidth + decayWidth},${sustainY}`, // Decay
+                `L${attackWidth + decayWidth + sustainWidth},${sustainY}`, // Sustain
+                `L${attackWidth + decayWidth + sustainWidth + releaseWidth},${startY}` // Release
+            ].join(' ');
+            
+            document.getElementById('adsrPath').setAttribute('d', path);
+        }
+
+        // Filter Response Curve
+        function updateFilterResponse() {
+            const svg = document.getElementById('filterResponseSvg');
+            const width = svg.clientWidth;
+            const height = svg.clientHeight;
+            
+            const filterType = document.getElementById('filterTypeToggle').checked ? "highpass" : "lowpass";
+            const cutoff = parseFloat(document.getElementById('filterCutoff').value);
+            const resonance = parseFloat(document.getElementById('filterRes').value);
+            
+            // Calculate log scale for x-axis (frequency)
+            const frequencyToX = (freq) => {
+                const minLog = Math.log10(20);
+                const maxLog = Math.log10(20000);
+                const logPos = (Math.log10(freq) - minLog) / (maxLog - minLog);
+                return logPos * width;
+            };
+            
+            // Generate points for the filter curve
+            const points = [];
+            for (let freq = 20; freq <= 20000; freq = freq * 1.1) {
+                const x = frequencyToX(freq);
+                
+                // Calculate filter response at this frequency
+                let response = 0;
+                if (filterType === "lowpass") {
+                    if (freq < cutoff) {
+                        response = 1;
+                    } else {
+                        // Simple rolloff model with resonance peak
+                        const ratio = cutoff / freq;
+                        response = ratio;
+                        if (Math.abs(freq - cutoff) < cutoff * 0.2) {
+                            response += (resonance / 10) * (1 - Math.abs((freq - cutoff) / (cutoff * 0.2)));
+                        }
+                    }
+                } else { // highpass
+                    if (freq > cutoff) {
+                        response = 1;
+                    } else {
+                        // Simple rolloff model with resonance peak
+                        const ratio = freq / cutoff;
+                        response = ratio;
+                        if (Math.abs(freq - cutoff) < cutoff * 0.2) {
+                            response += (resonance / 10) * (1 - Math.abs((freq - cutoff) / (cutoff * 0.2)));
+                        }
+                    }
+                }
+                
+                // Clamp response between 0 and 1.5 (for resonance peaks)
+                response = Math.max(0, Math.min(1.5, response));
+                
+                // Convert to y coordinate (inverted, as 0,0 is top-left)
+                const y = height - (response * (height * 0.8));
+                points.push(`${x},${y}`);
+            }
+            
+            // Create the filter curve path
+            const path = `M0,${height} L${points.join(' L')} L${width},${height}`;
+            document.getElementById('filterCurve').setAttribute('d', `M${points.join(' L')}`);
+            
+            // Create the filled area for the filter curve
+            document.getElementById('filterArea').setAttribute('d', `M0,${height} L${points.join(' L')} L${width},${height} Z`);
+        }
+
+        // Spectrum Analyzer
+        function setupSpectrumAnalyzer() {
+            const canvas = document.getElementById('spectrumAnalyzer');
+            const ctx = canvas.getContext('2d');
+            
+            function resizeSpectrumCanvas() {
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+            }
+            
+            resizeSpectrumCanvas();
+            window.addEventListener('resize', resizeSpectrumCanvas);
+            
+            function drawSpectrumAnalyzer() {
+                requestAnimationFrame(drawSpectrumAnalyzer);
+                
+                if (!canvas.width || !fft) return; // Skip if canvas not visible or fft not available
+                
+                const width = canvas.width;
+                const height = canvas.height;
+                const spectrumValues = fft.getValue();
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, width, height);
+                ctx.fillStyle = 'rgba(18, 18, 18, 0.2)';
+                ctx.fillRect(0, 0, width, height);
+                        
+                // Draw frequency bins
+                const binWidth = width / (spectrumValues.length / 2);
+                
+                // Create gradient for bars
+                const gradient = ctx.createLinearGradient(0, height, 0, 0);
+                gradient.addColorStop(0, 'rgba(98, 0, 234, 0.8)');
+                gradient.addColorStop(0.5, 'rgba(0, 229, 255, 0.8)');
+                gradient.addColorStop(1, 'rgba(255, 23, 68, 0.8)');
+                
+                ctx.fillStyle = gradient;
+                
+                // Draw only the first half of FFT data (up to Nyquist frequency)
+                for (let i = 0; i < spectrumValues.length / 2; i++) {
+                    // Convert dB value to height
+                    // FFT values are typically in dB scale (-100 to 0)
+                    const value = spectrumValues[i];
+                    const dbValue = 20 * Math.log10(Math.abs(value) + 0.00001); // Avoid log(0)
+                    const normalizedValue = (dbValue + 100) / 100; // Normalize -100dB..0dB to 0..1
+                    
+                    const barHeight = normalizedValue * height;
+                    
+                    // Draw bar
+                    ctx.fillRect(i * binWidth, height - barHeight, binWidth * 0.8, barHeight);
+                }
+                
+                // Add frequency markers
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.font = '10px sans-serif';
+                
+                const freqMarkers = [100, 1000, 10000];
+                freqMarkers.forEach(freq => {
+                    // Convert frequency to bin index
+                    const binIndex = Math.floor((freq / (Tone.context.sampleRate / 2)) * (spectrumValues.length / 2));
+                    const x = binIndex * binWidth;
+                    
+                    // Draw marker line
+                    ctx.fillRect(x, 0, 1, height);
+                    
+                    // Draw label
+                    let label;
+                    if (freq >= 1000) {
+                        label = `${freq/1000}kHz`;
+                    } else {
+                        label = `${freq}Hz`;
+                    }
+                    ctx.fillText(label, x + 3, 12);
+                });
+            }
+            
+            drawSpectrumAnalyzer();
+        }
+
+        // Particle System
+        function setupParticleSystem() {
+            const canvas = document.getElementById('particleSystem');
+            const ctx = canvas.getContext('2d');
+            
+            function resizeParticleCanvas() {
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+            }
+            
+            resizeParticleCanvas();
+            window.addEventListener('resize', resizeParticleCanvas);
+            
+            // Create particles
+            const particles = [];
+            const particleCount = 100;
+            
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 4 + 1,
+                    speedX: Math.random() * 2 - 1,
+                    speedY: Math.random() * 2 - 1,
+                    hue: Math.random() * 60 + 200, // Blue to purple range
+                    opacity: Math.random() * 0.5 + 0.2
+                });
+            }
+            
+            function updateParticles() {
+                requestAnimationFrame(updateParticles);
+                
+                if (!canvas.width) return; // Skip if canvas not visible
+                
+                // Get audio data for reactivity
+                const waveformData = waveform.getValue();
+                const fftData = fft.getValue();
+                
+                // Calculate overall amplitude
+                let sum = 0;
+                for (let i = 0; i < waveformData.length; i++) {
+                    sum += Math.abs(waveformData[i]);
+                }
+                const averageAmplitude = sum / waveformData.length;
+                
+                // Get bass and treble energy
+                const bassEnergy = Math.abs(fftData[5]) + Math.abs(fftData[10]) + Math.abs(fftData[15]);
+                const trebleEnergy = Math.abs(fftData[100]) + Math.abs(fftData[150]) + Math.abs(fftData[200]);
+                
+                // Clear canvas with fade effect
+                ctx.fillStyle = 'rgba(18, 18, 18, 0.1)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Update and draw particles
+                particles.forEach(p => {
+                    // Apply audio reactivity
+                    p.size = p.size * 0.95 + (p.size * averageAmplitude * 5) * 0.05;
+                    p.speedX += (Math.random() * 2 - 1) * bassEnergy * 0.02;
+                    p.speedY += (Math.random() * 2 - 1) * trebleEnergy * 0.02;
+                    
+                    // Update position
+                    p.x += p.speedX;
+                    p.y += p.speedY;
+                    
+                    // Apply damping
+                    p.speedX *= 0.99;
+                    p.speedY *= 0.99;
+                    
+                    // Wrap around edges
+                    if (p.x < 0) p.x = canvas.width;
+                    if (p.x > canvas.width) p.x = 0;
+                    if (p.y < 0) p.y = canvas.height;
+                    if (p.y > canvas.height) p.y = 0;
+                    
+                    // Draw particle
+                    ctx.globalAlpha = p.opacity;
+                    ctx.fillStyle = `hsla(${p.hue}, 100%, 60%, ${p.opacity})`;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Draw connections between nearby particles
+                    particles.forEach(p2 => {
+                        const dx = p.x - p2.x;
+                        const dy = p.y - p2.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < 50) {
+                            ctx.globalAlpha = (1 - distance / 50) * 0.2;
+                            ctx.strokeStyle = `hsla(${(p.hue + p2.hue) / 2}, 100%, 60%, ${ctx.globalAlpha})`;
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.stroke();
+                        }
+                    });
+                });
+                
+                ctx.globalAlpha = 1; // Reset alpha
+            }
+            
+            updateParticles();
+        }
+
         createSequencer();
         
         // Create keyboard after DOM is fully loaded
@@ -2153,6 +2603,35 @@
             createKeyboard();
             // Initialize presets
             initializePresets();
+            
+            // Initialize ADSR Visualizer
+            updateADSRVisualizer();
+            
+            // Initialize Filter Response Curve
+            updateFilterResponse();
+            
+            // Set up visualizers toggle
+            document.getElementById('visualizerToggle').addEventListener('click', function() {
+                const advancedVisualizers = document.getElementById('advancedVisualizers');
+                const isExpanded = this.classList.toggle('active');
+                
+                if (isExpanded) {
+                    // Show visualizers
+                    advancedVisualizers.style.maxHeight = '500px';
+                    this.querySelector('span').textContent = 'Hide Advanced Visualizations';
+                    
+                    // Short delay to ensure the container is visible before initializing
+                    setTimeout(() => {
+                        // Initialize visualizers when shown
+                        setupSpectrumAnalyzer();
+                        setupParticleSystem();
+                    }, 100);
+                } else {
+                    // Hide visualizers
+                    advancedVisualizers.style.maxHeight = '0';
+                    this.querySelector('span').textContent = 'Show Advanced Visualizations';
+                }
+            });
         });
         
         // Recalculate keyboard positions on window resize
@@ -2178,77 +2657,19 @@
             const filterType = e.target.checked ? "highpass" : "lowpass";
             filter.type = filterType;
             document.getElementById('filterTypeState').textContent = e.target.checked ? "HP" : "LP";
-        });
-
-        document.addEventListener('keyup', e => {
-            const keyMap = {
-                'a': `C${currentOctave}`, 
-                'w': `C#${currentOctave}`, 
-                's': `D${currentOctave}`, 
-                'e': `D#${currentOctave}`, 
-                'd': `E${currentOctave}`,
-                'f': `F${currentOctave}`, 
-                't': `F#${currentOctave}`, 
-                'g': `G${currentOctave}`, 
-                'y': `G#${currentOctave}`, 
-                'h': `A${currentOctave}`,
-                'u': `A#${currentOctave}`, 
-                'j': `B${currentOctave}`,
-                'k': `C${currentOctave+1}`, 
-                'l': `D${currentOctave+1}`
-            };
-            
-            if (keyMap[e.key]) {
-                const note = keyMap[e.key];
-                
-                if (activeComputerKeys.has(e.key)) {
-                    activeComputerKeys.delete(e.key);
-                    
-                    if (currentMode === "poly") {
-                        activeNotes.delete(note);
-                        synth.triggerRelease(note);
-                    } else {
-                        // For mono mode
-                        activeNotes.delete(note);
-                        synth.triggerRelease(); // No parameter for mono
-                    }
-                    
-                    // Update visual keyboard
-                    const keyElement = document.querySelector(`.key[data-note="${note}"]`) ||
-                                    document.querySelector(`.black-key[data-note="${note}"]`);
-                                    
-                    if (keyElement) {
-                        keyElement.classList.remove('active');
-                    }
-                }
-            }
-        });
-        
-        // Voice mode change handler
-        document.getElementById('voiceMode').addEventListener('change', e => {
-            const newMode = e.target.value;
-            
-            // Only switch if mode actually changed
-            if (newMode !== currentMode) {
-                // Create new synth with selected mode
-                currentMode = newMode;
-                createSynth(currentMode);
-                
-                // If switching to mono, update VU meter to show the change
-                if (newMode === "mono") {
-                    updateVUMeter(0.3);
-                }
-            }
+            updateFilterResponse();
         });
 
         document.getElementById('filterCutoff').addEventListener('input', e => {
             filter.frequency.value = e.target.value;
             document.getElementById('filterCutoffValue').textContent = `${Math.round(e.target.value)} Hz`;
+            updateFilterResponse();
         });
 
         document.getElementById('filterRes').addEventListener('input', e => {
             filter.Q.value = e.target.value;
             document.getElementById('filterResValue').textContent = parseFloat(e.target.value).toFixed(1);
+            updateFilterResponse();
         });
 
         document.getElementById('reverbMix').addEventListener('input', e => {
@@ -2367,6 +2788,7 @@
             // Update common settings for recreating synths
             synthSettings.envelope.attack = value;
             document.getElementById('attackValue').textContent = `${value.toFixed(2)}s`;
+            updateADSRVisualizer();
         });
 
         document.getElementById('decay').addEventListener('input', e => {
@@ -2379,6 +2801,7 @@
             // Update common settings for recreating synths
             synthSettings.envelope.decay = value;
             document.getElementById('decayValue').textContent = `${value.toFixed(2)}s`;
+            updateADSRVisualizer();
         });
 
         document.getElementById('sustain').addEventListener('input', e => {
@@ -2391,6 +2814,7 @@
             // Update common settings for recreating synths
             synthSettings.envelope.sustain = value;
             document.getElementById('sustainValue').textContent = value.toFixed(2);
+            updateADSRVisualizer();
         });
 
         document.getElementById('release').addEventListener('input', e => {
@@ -2403,6 +2827,7 @@
             // Update common settings for recreating synths
             synthSettings.envelope.release = value;
             document.getElementById('releaseValue').textContent = `${value.toFixed(2)}s`;
+            updateADSRVisualizer();
         });
 
         document.getElementById('startSequencer').addEventListener('click', async function() {
@@ -2422,8 +2847,107 @@
             }
         });
 
+        // The init patch with basic settings
+        const initPatch = {
+            voiceMode: "poly",
+            waveform: "sine",
+            filterCutoff: "8000",
+            filterRes: "1",
+            filterType: false,
+            reverbMix: "0.1",
+            reverbDecay: "1.5",
+            delayTime: "0.1",
+            delayFeedback: "0.1",
+            tempo: "120",
+            attack: "0.01",
+            decay: "0.1",
+            sustain: "0.5",
+            release: "0.5",
+            oscillatorOctave: "0",
+            oscillatorSemi: "0",
+            oscillatorLevel: "0.8",
+            chorusMix: "0",
+            distortionMix: "0",
+            flangerMix: "0",
+            phaserMix: "0",
+            sequencer: [
+                {"note": "C4", "active": true},
+                {"note": "C4", "active": false},
+                {"note": "C4", "active": true},
+                {"note": "C4", "active": false},
+                {"note": "C4", "active": true},
+                {"note": "C4", "active": false},
+                {"note": "C4", "active": true},
+                {"note": "C4", "active": false},
+                {"note": "C4", "active": true},
+                {"note": "C4", "active": false},
+                {"note": "C4", "active": true},
+                {"note": "C4", "active": false},
+                {"note": "C4", "active": true},
+                {"note": "C4", "active": false},
+                {"note": "C4", "active": true},
+                {"note": "C4", "active": false}
+            ]
+        };
+
+        // Init Patch button
+        document.getElementById('initPatchButton').addEventListener('click', function() {
+            applyPreset(initPatch);
+            
+            // Visual feedback
+            this.classList.add('success');
+            setTimeout(() => {
+                this.classList.remove('success');
+            }, 1000);
+        });
+
         // Preset management functionality
         const builtInPresets = [
+            {
+                name: "Default",
+                category: "pad", // Using 'pad' category like the other ambient presets
+                settings: {
+                    voiceMode: "poly",
+                    waveform: "triangle",
+                    filterCutoff: "900",
+                    filterRes: "5",
+                    filterType: false,
+                    reverbMix: "0.6",
+                    reverbDecay: "3.5", // Adding this since it's in our new synthesizer
+                    delayTime: "0.33",
+                    delayFeedback: "0.55",
+                    tempo: "96",
+                    attack: "0.02",
+                    decay: "0.18",
+                    sustain: "0.35",
+                    release: "1.4",
+                    oscillatorOctave: "0", // Adding new synth parameters
+                    oscillatorSemi: "0",
+                    oscillatorLevel: "0.8",
+                    chorusMix: "0.1",
+                    distortionMix: "0",
+                    flangerMix: "0",
+                    phaserMix: "0",
+                    sequencer: [
+                        {"note": "E3", "active": true},
+                        {"note": "B3", "active": true},
+                        {"note": "G3", "active": true},
+                        {"note": "B3", "active": false},
+                        {"note": "A3", "active": true},
+                        {"note": "E4", "active": true},
+                        {"note": "B3", "active": true},
+                        {"note": "C4", "active": false},
+                        {"note": "G3", "active": true},
+                        {"note": "D4", "active": true},
+                        {"note": "B3", "active": true},
+                        {"note": "D4", "active": false},
+                        {"note": "F#3", "active": true},
+                        {"note": "A3", "active": true},
+                        {"note": "E3", "active": true},
+                        {"note": "B3", "active": true}
+                    ]
+                }
+            },            
             {
                 name: "Default Ambient",
                 category: "pad",
@@ -3016,56 +3540,9 @@
 
         // Initialize presets
         function initializePresets() {
-            // First, create a custom presets array in localStorage if it doesn't exist
-            if (!localStorage.getItem('customPresets')) {
-                localStorage.setItem('customPresets', JSON.stringify([]));
-            }
-            
-            // Set up the default preset from the specified configuration
-            localStorage.setItem('defaultPreset', JSON.stringify({
-                voiceMode: "poly",
-                waveform: "triangle",
-                filterCutoff: "900",
-                filterRes: "5",
-                filterType: false,
-                reverbMix: "0.6",
-                reverbDecay: "3.5",
-                delayTime: "0.33",
-                delayFeedback: "0.55",
-                tempo: "96",
-                attack: "0.02",
-                decay: "0.18",
-                sustain: "0.35",
-                release: "1.4",
-                oscillatorOctave: "0",
-                oscillatorSemi: "0",
-                oscillatorLevel: "0.8",
-                chorusMix: "0.1",
-                distortionMix: "0",
-                flangerMix: "0",
-                phaserMix: "0",
-                sequencer: [
-                    {"note": "E3", "active": true},
-                    {"note": "B3", "active": true},
-                    {"note": "G3", "active": true},
-                    {"note": "B3", "active": false},
-                    {"note": "A3", "active": true},
-                    {"note": "E4", "active": true},
-                    {"note": "B3", "active": true},
-                    {"note": "C4", "active": false},
-                    {"note": "G3", "active": true},
-                    {"note": "D4", "active": true},
-                    {"note": "B3", "active": true},
-                    {"note": "D4", "active": false},
-                    {"note": "F#3", "active": true},
-                    {"note": "A3", "active": true},
-                    {"note": "E3", "active": true},
-                    {"note": "B3", "active": true}
-                ]
-            }));
-            
-            // Apply the default preset
-            applyPreset(JSON.parse(localStorage.getItem('defaultPreset')));
+            // Apply the default preset from builtInPresets
+            applyPreset(builtInPresets[0].settings);
+            activePresetName = builtInPresets[0].name;
             
             // Render the presets list
             renderPresetList();
@@ -3075,27 +3552,6 @@
         function renderPresetList() {
             const presetList = document.getElementById('presetList');
             presetList.innerHTML = '';
-            
-            // Add a Default preset
-            const defaultPresetItem = document.createElement('div');
-            defaultPresetItem.className = 'preset-item' + (activePresetName === 'Default' ? ' active' : '');
-            defaultPresetItem.innerHTML = `
-                <i class="fas fa-music"></i>
-                <span class="preset-name">Default</span>
-                <span class="preset-tag pad">Default</span>
-            `;
-            defaultPresetItem.addEventListener('click', () => {
-                // Set as active
-                document.querySelectorAll('.preset-item').forEach(item => {
-                    item.classList.remove('active');
-                });
-                defaultPresetItem.classList.add('active');
-                activePresetName = 'Default';
-                
-                // Apply the default preset
-                applyPreset(JSON.parse(localStorage.getItem('defaultPreset')));
-            });
-            presetList.appendChild(defaultPresetItem);
             
             // Add built-in presets
             builtInPresets.forEach(preset => {
@@ -3199,6 +3655,12 @@
             // Then recreate the synth to apply all settings consistently
             createSynth(currentMode);
             
+            // Update ADSR Visualizer
+            updateADSRVisualizer();
+            
+            // Update Filter Response Curve
+            updateFilterResponse();
+            
             // Update VU meter to provide visual feedback that preset was loaded
             updateVUMeter(0.6);
         }
@@ -3235,38 +3697,6 @@
                 }))
             };
         }
-
-        // Save and Load functionality
-        document.getElementById('saveSetup').addEventListener('click', () => {
-            localStorage.setItem('synthSetup', JSON.stringify(getCurrentSetup()));
-            
-            // Visual feedback
-            const saveButton = document.getElementById('saveSetup');
-            saveButton.classList.add('success');
-            saveButton.innerHTML = '<i class="fas fa-check"></i><span>Saved</span>';
-            
-            setTimeout(() => {
-                saveButton.classList.remove('success');
-                saveButton.innerHTML = '<i class="fas fa-save"></i><span>Save</span>';
-            }, 1500);
-        });
-
-        document.getElementById('loadSetup').addEventListener('click', () => {
-            const setup = JSON.parse(localStorage.getItem('synthSetup'));
-            if (!setup) return;
-
-            applyPreset(setup);
-            
-            // Visual feedback
-            const loadButton = document.getElementById('loadSetup');
-            loadButton.classList.add('success');
-            loadButton.innerHTML = '<i class="fas fa-check"></i><span>Loaded</span>';
-            
-            setTimeout(() => {
-                loadButton.classList.remove('success');
-                loadButton.innerHTML = '<i class="fas fa-folder-open"></i><span>Load</span>';
-            }, 1500);
-        });
 
         // Modal handling for new preset
         const presetModal = document.getElementById('presetModal');
@@ -3334,7 +3764,9 @@
         
         // Delete preset functionality
         document.getElementById('deletePresetBtn').addEventListener('click', () => {
-            if (!activePresetName || activePresetName === 'Default') {
+            // Check if a preset is selected and it's a custom preset (not built-in)
+            const isBuiltIn = builtInPresets.some(p => p.name === activePresetName);
+            if (!activePresetName || isBuiltIn) {
                 alert('Please select a custom preset to delete');
                 return;
             }
@@ -3349,11 +3781,11 @@
                 // Save back to localStorage
                 localStorage.setItem('customPresets', JSON.stringify(filteredPresets));
                 
-                // Reset active preset
-                activePresetName = 'Default';
+                // Reset active preset to first built-in preset
+                activePresetName = builtInPresets[0].name;
                 
-                // Apply default preset
-                applyPreset(JSON.parse(localStorage.getItem('defaultPreset')));
+                // Apply first built-in preset
+                applyPreset(builtInPresets[0].settings);
                 
                 // Refresh the preset list
                 renderPresetList();
@@ -3417,7 +3849,7 @@
         // Nudge button functionality - Updated to include new parameters
         document.getElementById('nudgeButton').addEventListener('click', () => {
             const notes = generateNotes();
-                            const parameters = [
+            const parameters = [
                 { type: 'filter', elements: ['filterCutoff', 'filterRes'] },
                 { type: 'reverb', elements: ['reverbMix', 'reverbDecay'] },
                 { type: 'delay', elements: ['delayTime', 'delayFeedback'] },
