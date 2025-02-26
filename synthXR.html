@@ -239,7 +239,7 @@
         
         .oscillator-module { grid-column: 1 / 2; }
         .filter-module { grid-column: 2 / 3; }
-        .effects-module { overflow: auto; height: 570px; grid-column: 3 / 4; }
+        .effects-module { grid-column: 3 / 4; }
         
         .adsr-module {
             grid-column: 1 / 4;
@@ -656,7 +656,6 @@
         }
         
         .key.active {
-            transform: rotateX(10deg);
             background: var(--primary-light);
             color: white;
         }
@@ -678,8 +677,8 @@
         }
         
         .black-key.active {
-            transform: translateY(2px);
-            background: var(--primary-dark);
+            background: var(--primary-light);
+            color: white;
         }
         
         .preset-list {
@@ -1226,10 +1225,6 @@
         </div>
         
         <div class="master-controls">
-            <button class="master-button" id="startSequencer">
-                <i class="fas fa-play"></i>
-                <span>Start</span>
-            </button>
             <button class="master-button" id="nudgeButton">
                 <i class="fas fa-random"></i>
                 <span>Nudge</span>
@@ -1598,6 +1593,12 @@
                 <h3 class="module-title">
                     <i class="fas fa-step-forward"></i>
                     Sequencer
+
+                    <button class="master-button" id="startSequencer">
+                        <i class="fas fa-play"></i>
+                        <span>Start</span>
+                    </button>
+        
                 </h3>
             </div>
             <div class="sequencer" id="sequencer">
@@ -1871,21 +1872,6 @@
         // Add click event to change color scheme
         document.querySelector('.oscilloscope').addEventListener('click', () => {
             currentColorSchemeIndex = (currentColorSchemeIndex + 1) % colorSchemes.length;
-            
-            // Show color scheme name
-            const schemeName = colorSchemes[currentColorSchemeIndex].name;
-            const notification = document.createElement('div');
-            notification.style.position = 'absolute';
-            notification.style.top = '50%';
-            notification.style.left = '50%';
-            notification.style.transform = 'translate(-50%, -50%)';
-            notification.style.background = 'rgba(0, 0, 0, 0.7)';
-            notification.style.color = colorSchemes[currentColorSchemeIndex].wave;
-            notification.style.padding = '10px 20px';
-            notification.style.borderRadius = '5px';
-            notification.style.fontWeight = 'bold';
-            notification.style.zIndex = '10';
-            notification.textContent = schemeName;
 
             document.querySelector('.oscilloscope').appendChild(notification);
             
@@ -2949,51 +2935,6 @@
                 }
             },            
             {
-                name: "Default Ambient",
-                category: "pad",
-                settings: {
-                    voiceMode: "poly",
-                    waveform: "triangle",
-                    filterCutoff: "900",
-                    filterRes: "5",
-                    filterType: false,
-                    reverbMix: "0.6",
-                    reverbDecay: "3.5",
-                    delayTime: "0.33",
-                    delayFeedback: "0.55",
-                    tempo: "96",
-                    attack: "0.02",
-                    decay: "0.18",
-                    sustain: "0.35",
-                    release: "1.4",
-                    oscillatorOctave: "0",
-                    oscillatorSemi: "0",
-                    oscillatorLevel: "0.8",
-                    chorusMix: "0.1",
-                    distortionMix: "0",
-                    flangerMix: "0",
-                    phaserMix: "0",
-                    sequencer: [
-                        {"note": "E3", "active": true},
-                        {"note": "B3", "active": true},
-                        {"note": "G3", "active": true},
-                        {"note": "B3", "active": false},
-                        {"note": "A3", "active": true},
-                        {"note": "E4", "active": true},
-                        {"note": "B3", "active": true},
-                        {"note": "C4", "active": false},
-                        {"note": "G3", "active": true},
-                        {"note": "D4", "active": true},
-                        {"note": "B3", "active": true},
-                        {"note": "D4", "active": false},
-                        {"note": "F#3", "active": true},
-                        {"note": "A3", "active": true},
-                        {"note": "E3", "active": true},
-                        {"note": "B3", "active": true}
-                    ]
-                }
-            },
-            {
                 name: "Deep Bass",
                 category: "bass",
                 settings: {
@@ -3983,6 +3924,13 @@
         let currentOctave = 4;
 
         document.addEventListener('keydown', e => {
+            // Toggle play/pause with spacebar
+            if (e.code === 'Space') {
+                e.preventDefault(); // Prevent page scrolling with spacebar
+                document.getElementById('startSequencer').click(); // Simulate clicking the play button
+                return;
+            }
+            
             if (e.repeat) return; // Prevent repeat triggers
             
             // Handle octave shifting
