@@ -253,10 +253,14 @@
         }
         
         .oscilloscope-module {
-            height: 100%;
-            flex: 2;
+            flex: 1;
+            min-height: 200px;
         }
                 
+        .preset-module {
+            flex: 2;
+        }
+        
         .sequencer-container {
             grid-column: 1 / 13;
         }
@@ -677,8 +681,7 @@
         }
         
         .black-key.active {
-            background: var(--primary-light);
-            color: white;
+            background: var(--primary-dark);
         }
         
         .preset-list {
@@ -686,7 +689,7 @@
             flex-direction: column;
             gap: 8px;
             overflow-y: auto;
-            max-height: 200px;
+            max-height: 300px;
             padding-right: 8px;
         }
         
@@ -1134,9 +1137,8 @@
         }
         
         @media (max-width: 768px) {
-            .synth-container {
-                padding: 15px;
-                grid-gap: 15px;
+            .brand {
+                margin-bottom: 15px;
             }
             
             .main-modules {
@@ -1155,8 +1157,14 @@
             }
             
             .oscilloscope-module,
-            .preset-module {
+            .preset-module,
+            .lfo-module {
                 grid-column: 1 / 7;
+            }
+            
+            .lfo-module .control-group {
+                flex-wrap: wrap;
+                justify-content: center;
             }
             
             .control-group {
@@ -1201,6 +1209,15 @@
                 font-size: 0.9rem;
             }
             
+            .lfo-module .control-group {
+                gap: 10px;
+            }
+            
+            .lfo-module .select-container {
+                min-width: 100%;
+                margin-bottom: 8px;
+            }
+            
             .sequencer {
                 grid-template-columns: repeat(4, 1fr);
                 grid-template-rows: repeat(4, auto);
@@ -1214,6 +1231,22 @@
                 width: 40px;
                 height: 40px;
             }
+        }
+
+        .lfo-scope {
+            height: 80px;
+            margin-top: 10px;
+            background: var(--background);
+            border-radius: 6px;
+            position: relative;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+        
+        #lfoScope {
+            width: 100%;
+            height: 100%;
+            display: block;
         }
     </style>
 </head>
@@ -1546,25 +1579,12 @@
                     <div id="adsrMarker" class="adsr-marker" style="display: none;"></div>
                 </div>
             </div>
+            
+            <!-- Removed the duplicate LFO Module here -->
+            
         </div>
         
         <div class="visualization">
-            <div class="module oscilloscope-module">
-                <div class="module-header">
-                    <h3 class="module-title">
-                        <i class="fas fa-chart-line"></i>
-                        Oscilloscope
-                    </h3>
-                </div>
-                <div class="oscilloscope">
-                    <div class="oscilloscope-grid"></div>
-                    <canvas id="oscilloscope"></canvas>
-                </div>
-                <div class="vu-meter">
-                    <div class="vu-meter-fill" id="vuMeter"></div>
-                </div>
-            </div>
-            
             <div class="module preset-module">
                 <div class="module-header">
                     <h3 class="module-title">
@@ -1584,6 +1604,109 @@
                         <i class="fas fa-trash-alt"></i>
                         <span>Delete</span>
                     </button>
+                </div>
+            </div>
+            
+            <div class="module lfo-module">
+                <div class="module-header">
+                    <h3 class="module-title">
+                        <i class="fas fa-sync-alt"></i>
+                        LFO
+                    </h3>
+                </div>
+                <div class="control-group">
+                    <div class="select-container">
+                        <label class="select-label">Waveform</label>
+                        <select id="lfoWaveform">
+                            <option value="sine">Sine</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="random">Random</option>
+                        </select>
+                    </div>
+                    <div class="select-container">
+                        <label class="select-label">Destination</label>
+                        <select id="lfoDestination">
+                            <!-- Oscillator Destinations -->
+                            <option value="pitch">Pitch</option>
+                            <option value="detune">Detune</option>
+                            <option value="oscillatorLevel">Oscillator Level</option>
+                            
+                            <!-- Filter Destinations -->
+                            <option value="filterCutoff">Filter Cutoff</option>
+                            <option value="filterRes">Filter Resonance</option>
+                            
+                            <!-- Effects Destinations -->
+                            <option value="reverbMix">Reverb Mix</option>
+                            <option value="reverbDecay">Reverb Decay</option>
+                            <option value="delayTime">Delay Time</option>
+                            <option value="delayFeedback">Delay Feedback</option>
+                            <option value="chorusMix">Chorus Mix</option>
+                            <option value="flangerMix">Flanger Mix</option>
+                            <option value="distortionMix">Distortion</option>
+                            <option value="phaserMix">Phaser Mix</option>
+                            
+                            <!-- ADSR Destinations -->
+                            <option value="attack">Attack Time</option>
+                            <option value="decay">Decay Time</option>
+                            <option value="sustain">Sustain Level</option>
+                            <option value="release">Release Time</option>
+                            
+                            <!-- Other Destinations -->
+                            <option value="amplitude">Main Volume</option>
+                            <option value="pan">Pan Position</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="knob-container">
+                        <label class="knob-label">Rate</label>
+                        <div class="knob" id="lfoRateKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust LFO speed</div>
+                        </div>
+                        <input type="range" id="lfoRate" min="0.1" max="20" step="0.1" value="1">
+                        <span class="knob-value" id="lfoRateValue">1.0 Hz</span>
+                    </div>
+                    <div class="knob-container">
+                        <label class="knob-label">Amount</label>
+                        <div class="knob" id="lfoAmountKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust modulation amount</div>
+                        </div>
+                        <input type="range" id="lfoAmount" min="0" max="100" value="50">
+                        <span class="knob-value" id="lfoAmountValue">50%</span>
+                    </div>
+                    <div class="toggle-container">
+                        <label class="toggle-label">Sync</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="lfoSyncToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-state" id="lfoSyncState">Free</span>
+                    </div>
+                </div>
+                
+                <!-- Add LFO Scope with clear height -->
+                <div class="lfo-scope">
+                    <canvas id="lfoScope" width="100%" height="80"></canvas>
+                </div>
+            </div>
+            
+            <div class="module oscilloscope-module">
+                <div class="module-header">
+                    <h3 class="module-title">
+                        <i class="fas fa-chart-line"></i>
+                        Oscilloscope
+                    </h3>
+                </div>
+                <div class="oscilloscope">
+                    <div class="oscilloscope-grid"></div>
+                    <canvas id="oscilloscope"></canvas>
+                </div>
+                <div class="vu-meter">
+                    <div class="vu-meter-fill" id="vuMeter"></div>
                 </div>
             </div>
         </div>
@@ -4043,6 +4166,717 @@
                 }
             }
         });
+
+        // Initialize the synth, effects chain and other components
+
+        // LFO setup - add this with the other initialization code
+        const lfo = new Tone.LFO({
+            frequency: 1,
+            amplitude: 0.5,
+            type: "sine"
+        }).start();
+        
+        // Connect LFO controls
+        // Waveform
+        document.getElementById('lfoWaveform').addEventListener('change', (e) => {
+            lfo.type = e.target.value;
+        });
+        
+        // Rate
+        document.getElementById('lfoRate').addEventListener('input', (e) => {
+            const rate = parseFloat(e.target.value);
+            lfo.frequency.value = rate;
+            document.getElementById('lfoRateValue').textContent = `${rate.toFixed(1)} Hz`;
+        });
+        
+        // Amount
+        document.getElementById('lfoAmount').addEventListener('input', (e) => {
+            const amount = parseInt(e.target.value);
+            // Scale 0-100 to 0-1 for Tone.js
+            lfo.amplitude.value = amount / 100;
+            document.getElementById('lfoAmountValue').textContent = `${amount}%`;
+        });
+        
+        // Sync toggle
+        document.getElementById('lfoSyncToggle').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                // When synced, use note values instead of frequency
+                // Save the current frequency for when we uncheck
+                lfo._savedFrequency = lfo.frequency.value;
+                
+                // Using 4n, 8n, etc. for note values
+                // Convert current frequency to rough note value
+                let noteValue = "4n"; // Default to quarter note
+                const freq = lfo.frequency.value;
+                
+                if (freq > 8) noteValue = "32n";
+                else if (freq > 4) noteValue = "16n";
+                else if (freq > 2) noteValue = "8n";
+                else if (freq > 1) noteValue = "4n";
+                else if (freq > 0.5) noteValue = "2n";
+                else noteValue = "1n";
+                
+                // Switch to transport sync
+                lfo.sync().frequency.value = noteValue;
+                document.getElementById('lfoSyncState').textContent = "Synced";
+            } else {
+                // When not synced, revert to frequency in Hz
+                lfo.unsync();
+                
+                // Restore saved frequency or use default
+                lfo.frequency.value = lfo._savedFrequency || 1;
+                document.getElementById('lfoSyncState').textContent = "Free";
+            }
+        });
+        
+        // Add LFO knobs to the global knobs array for the knob rotation animation
+        knobs.push(
+            ['lfoRateKnob', 'lfoRate'],
+            ['lfoAmountKnob', 'lfoAmount']
+        );
+        
+        // Add LFO controls to getCurrentSetup and applyPreset functions for preset saving
+        // Update getCurrentSetup function to include LFO settings
+        function getCurrentSetup() {
+            // Existing code to get current settings
+            
+            // Add LFO settings
+            return {
+                // ... existing settings
+                lfo: {
+                    waveform: document.getElementById('lfoWaveform').value,
+                    rate: parseFloat(document.getElementById('lfoRate').value),
+                    amount: parseInt(document.getElementById('lfoAmount').value),
+                    sync: document.getElementById('lfoSyncToggle').checked,
+                    destination: document.getElementById('lfoDestination').value
+                },
+                // ... other settings
+            };
+        }
+        
+        // Update applyPreset function to apply LFO settings
+
+        // Completely revamped LFO Scope visualization
+        function initLfoScope() {
+            const lfoScopeCanvas = document.getElementById('lfoScope');
+            if (!lfoScopeCanvas) {
+                console.error('LFO scope canvas not found');
+                return;
+            }
+            
+            const lfoScopeCtx = lfoScopeCanvas.getContext('2d');
+            
+            // Set canvas dimensions explicitly
+            lfoScopeCanvas.width = lfoScopeCanvas.parentElement.clientWidth;
+            lfoScopeCanvas.height = 80; // Fixed height
+            
+            function drawLfoScope() {
+                // Get current LFO settings
+                const waveform = document.getElementById('lfoWaveform').value;
+                const rate = parseFloat(document.getElementById('lfoRate').value);
+                const amount = parseInt(document.getElementById('lfoAmount').value) / 100;
+                
+                // Calculate dimensions
+                const width = lfoScopeCanvas.width;
+                const height = lfoScopeCanvas.height;
+                const centerY = height / 2;
+                
+                // Clear the canvas
+                lfoScopeCtx.clearRect(0, 0, width, height);
+                
+                // Draw background with gradient
+                const bgGradient = lfoScopeCtx.createLinearGradient(0, 0, 0, height);
+                bgGradient.addColorStop(0, 'rgba(15, 15, 20, 0.8)');
+                bgGradient.addColorStop(1, 'rgba(20, 20, 30, 0.8)');
+                lfoScopeCtx.fillStyle = bgGradient;
+                lfoScopeCtx.fillRect(0, 0, width, height);
+                
+                // Draw grid lines
+                lfoScopeCtx.strokeStyle = 'rgba(100, 100, 150, 0.2)';
+                lfoScopeCtx.lineWidth = 1;
+                
+                // Horizontal center line (slightly brighter)
+                lfoScopeCtx.beginPath();
+                lfoScopeCtx.moveTo(0, centerY);
+                lfoScopeCtx.lineTo(width, centerY);
+                lfoScopeCtx.strokeStyle = 'rgba(150, 150, 200, 0.3)';
+                lfoScopeCtx.stroke();
+                
+                // Horizontal grid lines
+                lfoScopeCtx.strokeStyle = 'rgba(100, 100, 150, 0.1)';
+                for (let y = height/4; y < height; y += height/4) {
+                    if (Math.abs(y - centerY) < 2) continue; // Skip center line
+                    lfoScopeCtx.beginPath();
+                    lfoScopeCtx.moveTo(0, y);
+                    lfoScopeCtx.lineTo(width, y);
+                    lfoScopeCtx.stroke();
+                }
+                
+                // Vertical grid lines
+                for (let x = 0; x < width; x += width/8) {
+                    lfoScopeCtx.beginPath();
+                    lfoScopeCtx.moveTo(x, 0);
+                    lfoScopeCtx.lineTo(x, height);
+                    lfoScopeCtx.stroke();
+                }
+                
+                // Calculate how many cycles to show based on rate
+                const cyclesShown = 2; // Show 2 complete cycles
+
+                // Create colored gradient for the waveform
+                const waveGradient = lfoScopeCtx.createLinearGradient(0, 0, width, 0);
+                
+                // Different color schemes for different waveforms
+                switch (waveform) {
+                    case 'sine':
+                        waveGradient.addColorStop(0, '#00e5ff');
+                        waveGradient.addColorStop(0.5, '#18ffff');
+                        waveGradient.addColorStop(1, '#00e5ff');
+                        break;
+                    case 'square':
+                        waveGradient.addColorStop(0, '#ff1744');
+                        waveGradient.addColorStop(0.5, '#ff5252');
+                        waveGradient.addColorStop(1, '#ff1744');
+                        break;
+                    case 'triangle':
+                        waveGradient.addColorStop(0, '#00c853');
+                        waveGradient.addColorStop(0.5, '#69f0ae');
+                        waveGradient.addColorStop(1, '#00c853');
+                        break;
+                    case 'sawtooth':
+                        waveGradient.addColorStop(0, '#ffab00');
+                        waveGradient.addColorStop(0.5, '#ffd740');
+                        waveGradient.addColorStop(1, '#ffab00');
+                        break;
+                    case 'random':
+                        waveGradient.addColorStop(0, '#d500f9');
+                        waveGradient.addColorStop(0.5, '#ea80fc');
+                        waveGradient.addColorStop(1, '#d500f9');
+                        break;
+                    default:
+                        waveGradient.addColorStop(0, '#00e5ff');
+                        waveGradient.addColorStop(1, '#00e5ff');
+                }
+                
+                // Draw the waveform
+                lfoScopeCtx.beginPath();
+                
+                // Calculate amplitude (capped at 80% of half-height for visibility)
+                const amplitude = (height / 2) * 0.8 * amount;
+                
+                // Time is based on current time for animation
+                const now = Date.now() / 1000; // Current time in seconds
+                
+                // Starting position
+                let startX = 0;
+                let startY = 0;
+                
+                // Generate points for the waveform
+                for (let x = 0; x <= width; x++) {
+                    // The x-position determines where in the cycle we are
+                    const t = (x / width) * (cyclesShown * Math.PI * 2) + (now * rate * Math.PI * 2);
+                    let y;
+                    
+                    switch (waveform) {
+                        case 'sine':
+                            y = centerY - Math.sin(t) * amplitude;
+                            break;
+                        case 'square':
+                            y = centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude;
+                            break;
+                        case 'triangle':
+                            y = centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude;
+                            break;
+                        case 'sawtooth':
+                            y = centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude;
+                            break;
+                        case 'random':
+                            // For random, create stable random values at fixed intervals
+                            const segment = Math.floor(t / (Math.PI / 4)); // Change every 1/8th of cycle
+                            // Use sine of a large number to get pseudorandom value between -1 and 1
+                            const randValue = Math.sin(segment * 1000) * 2 - 1;
+                            y = centerY - randValue * amplitude;
+                            break;
+                        default:
+                            y = centerY - Math.sin(t) * amplitude;
+                    }
+                    
+                    if (x === 0) {
+                        startX = 0;
+                        startY = y;
+                        lfoScopeCtx.moveTo(x, y);
+                    } else {
+                        lfoScopeCtx.lineTo(x, y);
+                    }
+                }
+                
+                // Close the path for filling
+                lfoScopeCtx.lineTo(width, centerY);
+                lfoScopeCtx.lineTo(0, centerY);
+                lfoScopeCtx.closePath();
+                
+                // Fill with semi-transparent gradient
+                const fillGradient = lfoScopeCtx.createLinearGradient(0, 0, 0, height);
+                
+                switch (waveform) {
+                    case 'sine':
+                        fillGradient.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
+                        fillGradient.addColorStop(1, 'rgba(0, 229, 255, 0.05)');
+                        break;
+                    case 'square':
+                        fillGradient.addColorStop(0, 'rgba(255, 23, 68, 0.2)');
+                        fillGradient.addColorStop(1, 'rgba(255, 23, 68, 0.05)');
+                        break;
+                    case 'triangle':
+                        fillGradient.addColorStop(0, 'rgba(0, 200, 83, 0.2)');
+                        fillGradient.addColorStop(1, 'rgba(0, 200, 83, 0.05)');
+                        break;
+                    case 'sawtooth':
+                        fillGradient.addColorStop(0, 'rgba(255, 171, 0, 0.2)');
+                        fillGradient.addColorStop(1, 'rgba(255, 171, 0, 0.05)');
+                        break;
+                    case 'random':
+                        fillGradient.addColorStop(0, 'rgba(213, 0, 249, 0.2)');
+                        fillGradient.addColorStop(1, 'rgba(213, 0, 249, 0.05)');
+                        break;
+                    default:
+                        fillGradient.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
+                        fillGradient.addColorStop(1, 'rgba(0, 229, 255, 0.05)');
+                }
+                
+                lfoScopeCtx.fillStyle = fillGradient;
+                lfoScopeCtx.fill();
+                
+                // Redraw the path with line only for a sharp edge
+                lfoScopeCtx.beginPath();
+                lfoScopeCtx.moveTo(startX, startY);
+                
+                for (let x = 0; x <= width; x++) {
+                    const t = (x / width) * (cyclesShown * Math.PI * 2) + (now * rate * Math.PI * 2);
+                    let y;
+                    
+                    switch (waveform) {
+                        case 'sine':
+                            y = centerY - Math.sin(t) * amplitude;
+                            break;
+                        case 'square':
+                            y = centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude;
+                            break;
+                        case 'triangle':
+                            y = centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude;
+                            break;
+                        case 'sawtooth':
+                            y = centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude;
+                            break;
+                        case 'random':
+                            const segment = Math.floor(t / (Math.PI / 4));
+                            const randValue = Math.sin(segment * 1000) * 2 - 1;
+                            y = centerY - randValue * amplitude;
+                            break;
+                        default:
+                            y = centerY - Math.sin(t) * amplitude;
+                    }
+                    
+                    if (x === 0) {
+                        lfoScopeCtx.moveTo(x, y);
+                    } else {
+                        lfoScopeCtx.lineTo(x, y);
+                    }
+                }
+                
+                // Set line style with glow effect
+                lfoScopeCtx.strokeStyle = waveGradient;
+                lfoScopeCtx.lineWidth = 2;
+                lfoScopeCtx.shadowColor = waveform === 'sine' ? '#00e5ff' : 
+                                        waveform === 'square' ? '#ff1744' :
+                                        waveform === 'triangle' ? '#00c853' :
+                                        waveform === 'sawtooth' ? '#ffab00' : '#d500f9';
+                lfoScopeCtx.shadowBlur = 5;
+                lfoScopeCtx.shadowOffsetX = 0;
+                lfoScopeCtx.shadowOffsetY = 0;
+                lfoScopeCtx.stroke();
+                
+                // Draw current playhead position
+                const cyclePosition = (now * rate) % 1;
+                const playheadX = cyclePosition * (width / cyclesShown);
+                
+                lfoScopeCtx.beginPath();
+                lfoScopeCtx.moveTo(playheadX, 0);
+                lfoScopeCtx.lineTo(playheadX, height);
+                lfoScopeCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                lfoScopeCtx.lineWidth = 1;
+                lfoScopeCtx.shadowBlur = 0;
+                lfoScopeCtx.stroke();
+                
+                // Annotate with frequency
+                lfoScopeCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                lfoScopeCtx.font = '10px sans-serif';
+                lfoScopeCtx.textAlign = 'right';
+                lfoScopeCtx.fillText(`${rate.toFixed(1)} Hz`, width - 5, height - 5);
+                
+                // Continue animation
+                requestAnimationFrame(drawLfoScope);
+            }
+            
+            // Start the drawing loop
+            drawLfoScope();
+            
+            // Add event listeners to redraw when settings change
+            document.getElementById('lfoWaveform').addEventListener('change', () => {
+                // Simply let the animation frame handle updates
+            });
+            
+            document.getElementById('lfoRate').addEventListener('input', () => {
+                // Simply let the animation frame handle updates
+            });
+            
+            document.getElementById('lfoAmount').addEventListener('input', () => {
+                // Simply let the animation frame handle updates
+            });
+            
+            window.addEventListener('resize', () => {
+                lfoScopeCanvas.width = lfoScopeCanvas.parentElement.clientWidth;
+                // Height stays fixed
+            });
+        }
+
+        // Initialize LFO scope when DOM content is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Other initializations...
+            initLfoScope();
+        });
+
+        // Update LFO scope when window is resized
+        window.addEventListener('resize', function() {
+            const lfoScopeCanvas = document.getElementById('lfoScope');
+            if (lfoScopeCanvas) {
+                const container = lfoScopeCanvas.parentElement;
+                lfoScopeCanvas.width = container.clientWidth;
+                lfoScopeCanvas.height = container.clientHeight;
+            }
+        });
+
+        // Update the LFO destination handling to support all possible destinations
+        document.getElementById('lfoDestination').addEventListener('change', (e) => {
+            // First, stop any current knob animations
+            if (window.lfoAnimationInterval) {
+                clearInterval(window.lfoAnimationInterval);
+                window.lfoAnimationInterval = null;
+            }
+            
+            // Disconnect LFO from previous destination
+            try {
+                lfo.disconnect();
+            } catch (error) {
+                // Ignore disconnect errors
+            }
+            
+            const destination = e.target.value;
+            
+            // Get target knob and value elements based on destination
+            let targetKnobId, targetRangeId, targetValueId, minValue, maxValue, unit = '';
+            
+            switch (destination) {
+                // Oscillator destinations
+                case 'pitch':
+                case 'detune':
+                    targetKnobId = 'oscillatorSemiKnob';
+                    targetRangeId = 'oscillatorSemi';
+                    targetValueId = 'oscillatorSemiValue';
+                    minValue = -12;
+                    maxValue = 12;
+                    break;
+                case 'oscillatorLevel':
+                    targetKnobId = 'oscillatorLevelKnob';
+                    targetRangeId = 'oscillatorLevel';
+                    targetValueId = 'oscillatorLevelValue';
+                    minValue = 0;
+                    maxValue = 1;
+                    break;
+                
+                // Filter destinations
+                case 'filterCutoff':
+                    targetKnobId = 'filterCutoffKnob';
+                    targetRangeId = 'filterCutoff';
+                    targetValueId = 'filterCutoffValue';
+                    minValue = 20;
+                    maxValue = 20000;
+                    unit = ' Hz';
+                    break;
+                case 'filterRes':
+                    targetKnobId = 'filterResKnob';
+                    targetRangeId = 'filterRes';
+                    targetValueId = 'filterResValue';
+                    minValue = 0;
+                    maxValue = 20;
+                    break;
+                
+                // Effects destinations
+                case 'reverbMix':
+                    targetKnobId = 'reverbMixKnob';
+                    targetRangeId = 'reverbMix';
+                    targetValueId = 'reverbMixValue';
+                    minValue = 0;
+                    maxValue = 1;
+                    break;
+                case 'reverbDecay':
+                    targetKnobId = 'reverbDecayKnob';
+                    targetRangeId = 'reverbDecay';
+                    targetValueId = 'reverbDecayValue';
+                    minValue = 0.1;
+                    maxValue = 10;
+                    unit = 's';
+                    break;
+                case 'delayTime':
+                    targetKnobId = 'delayTimeKnob';
+                    targetRangeId = 'delayTime';
+                    targetValueId = 'delayTimeValue';
+                    minValue = 0;
+                    maxValue = 1;
+                    break;
+                case 'delayFeedback':
+                    targetKnobId = 'delayFeedbackKnob';
+                    targetRangeId = 'delayFeedback';
+                    targetValueId = 'delayFeedbackValue';
+                    minValue = 0;
+                    maxValue = 0.9;
+                    break;
+                case 'chorusMix':
+                    targetKnobId = 'chorusMixKnob';
+                    targetRangeId = 'chorusMix';
+                    targetValueId = 'chorusMixValue';
+                    minValue = 0;
+                    maxValue = 1;
+                    break;
+                case 'flangerMix':
+                    targetKnobId = 'flangerMixKnob';
+                    targetRangeId = 'flangerMix';
+                    targetValueId = 'flangerMixValue';
+                    minValue = 0;
+                    maxValue = 1;
+                    break;
+                case 'distortionMix':
+                    targetKnobId = 'distortionMixKnob';
+                    targetRangeId = 'distortionMix';
+                    targetValueId = 'distortionMixValue';
+                    minValue = 0;
+                    maxValue = 1;
+                    break;
+                case 'phaserMix':
+                    targetKnobId = 'phaserMixKnob';
+                    targetRangeId = 'phaserMix';
+                    targetValueId = 'phaserMixValue';
+                    minValue = 0;
+                    maxValue = 1;
+                    break;
+                
+                // ADSR destinations
+                case 'attack':
+                    targetKnobId = 'attackKnob';
+                    targetRangeId = 'attack';
+                    targetValueId = 'attackValue';
+                    minValue = 0;
+                    maxValue = 2;
+                    unit = 's';
+                    break;
+                case 'decay':
+                    targetKnobId = 'decayKnob';
+                    targetRangeId = 'decay';
+                    targetValueId = 'decayValue';
+                    minValue = 0;
+                    maxValue = 2;
+                    unit = 's';
+                    break;
+                case 'sustain':
+                    targetKnobId = 'sustainKnob';
+                    targetRangeId = 'sustain';
+                    targetValueId = 'sustainValue';
+                    minValue = 0;
+                    maxValue = 1;
+                    break;
+                case 'release':
+                    targetKnobId = 'releaseKnob';
+                    targetRangeId = 'release';
+                    targetValueId = 'releaseValue';
+                    minValue = 0;
+                    maxValue = 2;
+                    unit = 's';
+                    break;
+                
+                // Other destinations - these don't have visible knobs
+                case 'amplitude':
+                case 'pan':
+                    // These don't have visible knobs in the UI
+                    targetKnobId = null;
+                    break;
+                    
+                default:
+                    // Default to filter cutoff if unknown
+                    targetKnobId = 'filterCutoffKnob';
+                    targetRangeId = 'filterCutoff';
+                    targetValueId = 'filterCutoffValue';
+                    minValue = 20;
+                    maxValue = 20000;
+                    unit = ' Hz';
+            }
+            
+            // Connect LFO to the selected destination
+            switch (destination) {
+                // Oscillator destinations
+                case 'pitch':
+                case 'detune':
+                    if (currentMode === "poly") {
+                        lfo.connect(synth.detune);
+                    } else {
+                        lfo.connect(synth.detune);
+                    }
+                    break;
+                case 'oscillatorLevel':
+                    if (currentMode === "poly") {
+                        lfo.connect(synth.volume);
+                    } else {
+                        lfo.connect(synth.volume);
+                    }
+                    break;
+                
+                // Filter destinations
+                case 'filterCutoff':
+                    lfo.connect(filter.frequency);
+                    break;
+                case 'filterRes':
+                    lfo.connect(filter.Q);
+                    break;
+                
+                // Effects destinations
+                case 'reverbMix':
+                    lfo.connect(reverb.wet);
+                    break;
+                case 'reverbDecay':
+                    lfo.connect(reverb.decay);
+                    break;
+                case 'delayTime':
+                    lfo.connect(delay.delayTime);
+                    break;
+                case 'delayFeedback':
+                    lfo.connect(delay.feedback);
+                    break;
+                case 'chorusMix':
+                    lfo.connect(chorus.wet);
+                    break;
+                case 'flangerMix':
+                    lfo.connect(flanger.wet);
+                    break;
+                case 'distortionMix':
+                    lfo.connect(distortion.wet);
+                    break;
+                case 'phaserMix':
+                    lfo.connect(phaser.wet);
+                    break;
+                
+                // Other destinations
+                case 'amplitude':
+                    // Connect to main volume
+                    const mainGain = new Tone.Gain().toDestination();
+                    delay.disconnect();
+                    delay.connect(mainGain);
+                    lfo.connect(mainGain.gain);
+                    break;
+                case 'pan':
+                    // Create a panner if it doesn't exist
+                    if (!window.lfoPanner) {
+                        window.lfoPanner = new Tone.Panner(0).toDestination();
+                        delay.disconnect();
+                        delay.connect(window.lfoPanner);
+                    }
+                    lfo.connect(window.lfoPanner.pan);
+                    break;
+            }
+            
+            // If a target knob was identified, set up visual animation for it
+            if (targetKnobId) {
+                const targetKnob = document.getElementById(targetKnobId);
+                const targetRange = document.getElementById(targetRangeId);
+                const targetValue = document.getElementById(targetValueId);
+                
+                // Store the original/base value
+                const baseValue = parseFloat(targetRange.value);
+                
+                // Set up an animation interval
+                window.lfoAnimationInterval = setInterval(() => {
+                    // Calculate modulated value based on LFO waveform and position
+                    const waveform = document.getElementById('lfoWaveform').value;
+                    const rate = parseFloat(document.getElementById('lfoRate').value);
+                    const amount = parseInt(document.getElementById('lfoAmount').value) / 100;
+                    
+                    // Calculate a 0-1 position in the LFO cycle
+                    const now = Date.now() / 1000;
+                    const cycle = (now * rate) % 1;
+                    
+                    // Calculate LFO value (-1 to 1) based on waveform
+                    let lfoValue;
+                    switch (waveform) {
+                        case 'sine':
+                            lfoValue = Math.sin(cycle * Math.PI * 2);
+                            break;
+                        case 'triangle':
+                            lfoValue = 2 * (Math.abs((cycle * 2) % 2 - 1) - 0.5);
+                            break;
+                        case 'square':
+                            lfoValue = cycle < 0.5 ? 1 : -1;
+                            break;
+                        case 'sawtooth':
+                            lfoValue = 1 - (cycle * 2);
+                            break;
+                        case 'random':
+                            // Generate stable random values within each LFO cycle
+                            const randomCycle = Math.floor(now * rate);
+                            lfoValue = Math.sin(randomCycle * 9999) * 2 - 1;
+                            break;
+                        default:
+                            lfoValue = 0;
+                    }
+                    
+                    // Scale the LFO output by amount
+                    lfoValue *= amount;
+                    
+                    // Calculate parameter range
+                    const range = maxValue - minValue;
+                    
+                    // Modulate the value based on LFO
+                    let modValue = baseValue + (lfoValue * range * 0.25); // Scale by 25% of parameter range
+                    
+                    // Clamp to min/max
+                    modValue = Math.max(minValue, Math.min(maxValue, modValue));
+                    
+                    // Calculate rotation in degrees (from -135 to 135)
+                    const normalizedValue = (modValue - minValue) / (maxValue - minValue);
+                    const rotation = normalizedValue * 270 - 135;
+                    
+                    // Update the knob position using GSAP
+                    gsap.to(targetKnob, {
+                        rotation: rotation,
+                        duration: 0.05, // Fast update for smooth animation
+                        overwrite: true
+                    });
+                    
+                    // Update value display (format based on type)
+                    let displayValue;
+                    if (destination === 'filterCutoff') {
+                        displayValue = Math.round(modValue) + unit;
+                    } else {
+                        displayValue = modValue.toFixed(2) + unit;
+                    }
+                    targetValue.textContent = displayValue;
+                    
+                    // Also update the range input value
+                    targetRange.value = modValue;
+                }, 16); // ~60fps animation
+            }
+        });
+        
+        // Trigger initial LFO destination setup
+        document.getElementById('lfoDestination').dispatchEvent(new Event('change'));
+
     </script>
 </body>
 </html>
