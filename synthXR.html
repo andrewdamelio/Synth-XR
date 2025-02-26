@@ -2009,6 +2009,15 @@
                 toggle.textContent = stepSetup.active ? 'On' : 'Off';
             });
             
+            // Ensure synthSettings is updated
+            synthSettings.envelope.attack = parseFloat(document.getElementById('attack').value);
+            synthSettings.envelope.decay = parseFloat(document.getElementById('decay').value);
+            synthSettings.envelope.sustain = parseFloat(document.getElementById('sustain').value);
+            synthSettings.envelope.release = parseFloat(document.getElementById('release').value);
+
+            // Then recreate the synth to apply all settings consistently
+            createSynth(currentMode);
+
             // Visual feedback
             const loadButton = document.getElementById('loadSetup');
             loadButton.classList.add('success');
