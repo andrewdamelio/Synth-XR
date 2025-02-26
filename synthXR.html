@@ -238,7 +238,7 @@
         
         .oscillator-module { grid-column: 1 / 2; }
         .filter-module { grid-column: 2 / 3; }
-        .effects-module { grid-column: 3 / 4; }
+        .effects-module { overflow: scroll; height: 570px; grid-column: 3 / 4; }
         
         .adsr-module {
             grid-column: 1 / 4;
@@ -273,6 +273,30 @@
         
         .control-group:last-child {
             margin-bottom: 0;
+        }
+        
+        /* New effect group styles */
+        .effect-group {
+            border: 1px dotted rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 14px;
+        }
+        
+        .effect-group-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .effect-group-label i {
+            color: var(--secondary);
+            font-size: 0.8rem;
         }
         
         .knob-container {
@@ -386,6 +410,72 @@
             border-color: var(--primary);
             box-shadow: var(--glow-primary);
             outline: none;
+        }
+        
+        /* Toggle switch styling */
+        .toggle-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .toggle-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--surface-dark);
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: var(--text);
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: var(--primary);
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        
+        .toggle-state {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
         }
         
         .oscilloscope {
@@ -678,6 +768,183 @@
             opacity: 1;
         }
         
+        /* Preset tag styles */
+        .preset-tag {
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .preset-tag.bass {
+            background-color: #00796B;
+            color: white;
+        }
+        
+        .preset-tag.lead {
+            background-color: #C2185B;
+            color: white;
+        }
+        
+        .preset-tag.pad {
+            background-color: #303F9F;
+            color: white;
+        }
+        
+        .preset-tag.fx {
+            background-color: #7B1FA2;
+            color: white;
+        }
+        
+        .preset-tag.pluck {
+            background-color: #0288D1;
+            color: white;
+        }
+        
+        .preset-tag.keys {
+            background-color: #689F38;
+            color: white;
+        }
+        
+        .preset-tag.custom {
+            background-color: #FFA000;
+            color: white;
+        }
+
+        /* Modal styles for preset naming */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: var(--shadow-large);
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+        
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+        
+        .modal-header {
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0;
+            color: var(--text);
+        }
+        
+        .modal-body {
+            margin-bottom: 20px;
+        }
+        
+        .modal-input {
+            width: 100%;
+            background: var(--surface-dark);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text);
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+        
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: var(--glow-primary);
+        }
+
+        .modal-select {
+            width: 100%;
+            background: var(--surface-dark);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text);
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 1rem;
+            margin-top: 10px;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+        }
+        
+        .modal-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: var(--glow-primary);
+        }
+        
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .modal-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .modal-button.cancel {
+            background: var(--surface-light);
+            color: var(--text);
+        }
+        
+        .modal-button.confirm {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .modal-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-small);
+        }
+        
+        .modal-button.cancel:hover {
+            background: var(--surface);
+        }
+        
+        .modal-button.confirm:hover {
+            background: var(--primary-light);
+            box-shadow: var(--glow-primary);
+        }
+        
         /* Responsive design */
         @media (max-width: 1200px) {
             .synth-container {
@@ -699,19 +966,18 @@
             
             .oscillator-module { grid-column: 1 / 2; }
             .filter-module { grid-column: 2 / 3; }
-            .effects-module { grid-column: 1 / 2; }
-            .adsr-module { grid-column: 2 / 3; }
+            .effects-module { grid-column: 1 / 3; }
+            .adsr-module { grid-column: 1 / 3; }
             
             .visualization {
                 grid-column: 1 / 7;
-            display: grid;
+                display: grid;
                 grid-template-columns: 2fr 1fr;
                 gap: 20px;
             }
             
             .oscilloscope-module {
                 grid-column: 1 / 2;
-                height: 200px;
             }
             
             .preset-module {
@@ -792,7 +1058,7 @@
             }
             
             .sequencer {
-            grid-template-columns: repeat(4, 1fr);
+                grid-template-columns: repeat(4, 1fr);
                 grid-template-rows: repeat(4, auto);
             }
             
@@ -842,7 +1108,7 @@
     <div class="synth-container">
         <div class="brand">
             <div class="brand-name">Synth XR</div>
-            <div class="version">v2.5</div>
+            <div class="version">v3.0</div>
         </div>
         
         <div class="master-controls">
@@ -865,7 +1131,7 @@
                 <i class="fas fa-save"></i>
                 <span>Save</span>
             </button>
-            <button class="master-button" id="loadSetup" style="display: none;">
+            <button class="master-button" id="loadSetup">
                 <i class="fas fa-folder-open"></i>
                 <span>Load</span>
             </button>
@@ -953,6 +1219,17 @@
                     </h3>
                 </div>
                 <div class="control-group">
+                    <!-- Added filter type toggle -->
+                    <div class="toggle-container">
+                        <label class="toggle-label">Filter Type</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="filterTypeToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <div class="toggle-state" id="filterTypeState">LP</div>
+                    </div>
+                </div>
+                <div class="control-group">
                     <div class="knob-container">
                         <label class="knob-label">Cutoff</label>
                         <div class="knob" id="filterCutoffKnob">
@@ -981,33 +1258,116 @@
                         Effects
                     </h3>
                 </div>
-                <div class="control-group">
-                    <div class="knob-container">
-                        <label class="knob-label">Reverb</label>
-                        <div class="knob" id="reverbMixKnob">
-                            <div class="knob-inner"></div>
-                            <div class="tooltip">Adjust reverb mix</div>
-                        </div>
-                        <input type="range" id="reverbMix" min="0" max="1" step="0.01" value="0.3">
-                        <span class="knob-value" id="reverbMixValue">0.30</span>
+                
+                <!-- Reverb group with dotted border -->
+                <div class="effect-group">
+                    <div class="effect-group-label">
+                        <i class="fas fa-mountain"></i>
+                        Reverb
                     </div>
-                    <div class="knob-container">
-                        <label class="knob-label">Delay Time</label>
-                        <div class="knob" id="delayTimeKnob">
-                            <div class="knob-inner"></div>
-                            <div class="tooltip">Adjust delay time</div>
+                    <div class="control-group">
+                        <div class="knob-container">
+                            <label class="knob-label">Mix</label>
+                            <div class="knob" id="reverbMixKnob">
+                                <div class="knob-inner"></div>
+                                <div class="tooltip">Adjust reverb mix</div>
+                            </div>
+                            <input type="range" id="reverbMix" min="0" max="1" step="0.01" value="0.3">
+                            <span class="knob-value" id="reverbMixValue">0.30</span>
                         </div>
-                        <input type="range" id="delayTime" min="0" max="1" step="0.01" value="0.3">
-                        <span class="knob-value" id="delayTimeValue">0.30</span>
+                        <!-- New reverb decay knob -->
+                        <div class="knob-container">
+                            <label class="knob-label">Decay</label>
+                            <div class="knob" id="reverbDecayKnob">
+                                <div class="knob-inner"></div>
+                                <div class="tooltip">Adjust reverb decay/tail</div>
+                            </div>
+                            <input type="range" id="reverbDecay" min="0.1" max="10" step="0.1" value="2">
+                            <span class="knob-value" id="reverbDecayValue">2.0s</span>
+                        </div>
                     </div>
-                    <div class="knob-container">
-                        <label class="knob-label">Feedback</label>
-                        <div class="knob" id="delayFeedbackKnob">
-                            <div class="knob-inner"></div>
-                            <div class="tooltip">Adjust delay feedback</div>
+                </div>
+                
+                <!-- Delay group with dotted border -->
+                <div class="effect-group">
+                    <div class="effect-group-label">
+                        <i class="fas fa-clock"></i>
+                        Delay
+                    </div>
+                    <div class="control-group">
+                        <div class="knob-container">
+                            <label class="knob-label">Time</label>
+                            <div class="knob" id="delayTimeKnob">
+                                <div class="knob-inner"></div>
+                                <div class="tooltip">Adjust delay time</div>
+                            </div>
+                            <input type="range" id="delayTime" min="0" max="1" step="0.01" value="0.3">
+                            <span class="knob-value" id="delayTimeValue">0.30</span>
                         </div>
-                        <input type="range" id="delayFeedback" min="0" max="0.9" step="0.01" value="0.4">
-                        <span class="knob-value" id="delayFeedbackValue">0.40</span>
+                        <div class="knob-container">
+                            <label class="knob-label">Feedback</label>
+                            <div class="knob" id="delayFeedbackKnob">
+                                <div class="knob-inner"></div>
+                                <div class="tooltip">Adjust delay feedback</div>
+                            </div>
+                            <input type="range" id="delayFeedback" min="0" max="0.9" step="0.01" value="0.4">
+                            <span class="knob-value" id="delayFeedbackValue">0.40</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- New effects sections -->
+                <div class="effect-group">
+                    <div class="effect-group-label">
+                        <i class="fas fa-wave-square"></i>
+                        Modulation
+                    </div>
+                    <div class="control-group">
+                        <div class="knob-container">
+                            <label class="knob-label">Chorus</label>
+                            <div class="knob" id="chorusMixKnob">
+                                <div class="knob-inner"></div>
+                                <div class="tooltip">Adjust chorus mix</div>
+                            </div>
+                            <input type="range" id="chorusMix" min="0" max="1" step="0.01" value="0">
+                            <span class="knob-value" id="chorusMixValue">0.00</span>
+                        </div>
+                        <div class="knob-container">
+                            <label class="knob-label">Flanger</label>
+                            <div class="knob" id="flangerMixKnob">
+                                <div class="knob-inner"></div>
+                                <div class="tooltip">Adjust flanger mix</div>
+                            </div>
+                            <input type="range" id="flangerMix" min="0" max="1" step="0.01" value="0">
+                            <span class="knob-value" id="flangerMixValue">0.00</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="effect-group">
+                    <div class="effect-group-label">
+                        <i class="fas fa-bolt"></i>
+                        Character
+                    </div>
+                    <div class="control-group">
+                        <div class="knob-container">
+                            <label class="knob-label">Distortion</label>
+                            <div class="knob" id="distortionMixKnob">
+                                <div class="knob-inner"></div>
+                                <div class="tooltip">Adjust distortion amount</div>
+                            </div>
+                            <input type="range" id="distortionMix" min="0" max="1" step="0.01" value="0">
+                            <span class="knob-value" id="distortionMixValue">0.00</span>
+                        </div>
+                        <div class="knob-container">
+                            <label class="knob-label">Phaser</label>
+                            <div class="knob" id="phaserMixKnob">
+                                <div class="knob-inner"></div>
+                                <div class="tooltip">Adjust phaser mix</div>
+                            </div>
+                            <input type="range" id="phaserMix" min="0" max="1" step="0.01" value="0">
+                            <span class="knob-value" id="phaserMixValue">0.00</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1077,42 +1437,27 @@
                 </div>
             </div>
             
-            <!-- <div class="module preset-module">
+            <div class="module preset-module">
                 <div class="module-header">
                     <h3 class="module-title">
                         <i class="fas fa-bookmark"></i>
                         Presets
                     </h3>
                 </div>
-                <div class="preset-list">
-                    <div class="preset-item">
-                        <i class="fas fa-music"></i>
-                        <span class="preset-name">Default</span>
-                    </div>
-                    <div class="preset-item">
-                        <i class="fas fa-music"></i>
-                        <span class="preset-name">Deep Bass</span>
-                    </div>
-                    <div class="preset-item">
-                        <i class="fas fa-music"></i>
-                        <span class="preset-name">Ambient Pad</span>
-                    </div>
-                    <div class="preset-item">
-                        <i class="fas fa-music"></i>
-                        <span class="preset-name">Plucky Lead</span>
-                    </div>
+                <div class="preset-list" id="presetList">
+                    <!-- Presets will be generated by JavaScript -->
                 </div>
                 <div class="preset-actions">
-                    <button>
+                    <button id="newPresetBtn">
                         <i class="fas fa-plus"></i>
                         <span>New</span>
                     </button>
-                    <button>
+                    <button id="deletePresetBtn">
                         <i class="fas fa-trash-alt"></i>
                         <span>Delete</span>
                     </button>
                 </div>
-            </div> -->
+            </div>
         </div>
         
         <div class="module sequencer-container">
@@ -1132,15 +1477,64 @@
         </div>
     </div>
 
+    <!-- Modal for new preset -->
+    <div class="modal-overlay" id="presetModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Save New Preset</h3>
+            </div>
+            <div class="modal-body">
+                <label for="presetName">Preset Name</label>
+                <input type="text" id="presetName" class="modal-input" placeholder="Enter a name for your preset">
+                
+                <label for="presetCategory">Category</label>
+                <select id="presetCategory" class="modal-select">
+                    <option value="bass">Bass</option>
+                    <option value="lead">Lead</option>
+                    <option value="pad">Pad</option>
+                    <option value="fx">FX</option>
+                    <option value="pluck">Pluck</option>
+                    <option value="keys">Keys</option>
+                    <option value="custom" selected>Custom</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-button cancel" id="cancelPresetBtn">Cancel</button>
+                <button class="modal-button confirm" id="savePresetBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Initialize audio processing components first
-        const filter = new Tone.Filter(2000, "lowpass");
-        const reverb = new Tone.Reverb(2);
-        const delay = new Tone.FeedbackDelay("8n", 0.5);
+        let filter = new Tone.Filter(2000, "lowpass");
+        let reverb = new Tone.Reverb(2);
+        let delay = new Tone.FeedbackDelay("8n", 0.5);
+        
+        // Initialize new effects
+        let chorus = new Tone.Chorus(4, 2.5, 0.5).start();
+        let distortion = new Tone.Distortion(0.8);
+        let flanger = new Tone.FeedbackDelay("8n", 0.5);
+        let phaser = new Tone.Phaser({
+            frequency: 0.5,
+            octaves: 3,
+            baseFrequency: 1000
+        });
+        
+        // Initialize wet values to 0 (effects off)
+        chorus.wet.value = 0;
+        distortion.wet.value = 0;
+        flanger.wet.value = 0;
+        phaser.wet.value = 0;
+        
         const waveform = new Tone.Waveform(1024);
 
         // Connect effects chain
-        filter.connect(reverb);
+        filter.connect(chorus);
+        chorus.connect(distortion);
+        distortion.connect(flanger);
+        flanger.connect(phaser);
+        phaser.connect(reverb);
         reverb.connect(delay);
         delay.connect(waveform);
         delay.toDestination();
@@ -1327,20 +1721,7 @@
             
             // Show color scheme name
             const schemeName = colorSchemes[currentColorSchemeIndex].name;
-            const notification = document.createElement('div');
-            notification.textContent = `${schemeName} Theme`;
-            notification.style.position = 'absolute';
-            notification.style.top = '50%';
-            notification.style.left = '50%';
-            notification.style.transform = 'translate(-50%, -50%)';
-            notification.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            notification.style.color = colorSchemes[currentColorSchemeIndex].wave;
-            notification.style.padding = '8px 16px';
-            notification.style.borderRadius = '4px';
-            notification.style.fontSize = '14px';
-            notification.style.fontWeight = 'bold';
-            notification.style.zIndex = '10';
-            
+
             document.querySelector('.oscilloscope').appendChild(notification);
             
             // Remove notification after a short delay
@@ -1451,8 +1832,8 @@
         const createKeyboard = () => {
             const keyboardElement = document.getElementById('keyboard');
             const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-            const startOctave = 2;
-            const endOctave = 7;
+            const startOctave = 3;
+            const endOctave = 5;
             
             // Clear keyboard
             keyboardElement.innerHTML = '';
@@ -1527,75 +1908,95 @@
                 }
                 
                 // Create black keys for this octave
-                // Skip black keys after the last C
-                if (octave < endOctave) {
-                    const blackKeyPositions = []; // After C, D, F, G, A
-                    const whiteKeyWidth = keyboardElement.querySelector('.key').offsetWidth;
+                // Skip black keys after B
+                if (octave < endOctave || (octave === endOctave && octaveNotes.length > 1)) {
+                    const blackKeyPositions = [
+                        { after: 'C', note: 'C#' },
+                        { after: 'D', note: 'D#' },
+                        { after: 'F', note: 'F#' },
+                        { after: 'G', note: 'G#' },
+                        { after: 'A', note: 'A#' }
+                    ];
                     
-                    for (let i = 0; i < blackKeyPositions.length; i++) {
-                        const pos = blackKeyPositions[i];
-                        const blackKey = document.createElement('div');
-                        blackKey.className = 'black-key';
-                        // Calculate position based on current octave and position within octave
-                        const octaveOffset = (octave - startOctave) * 7 * whiteKeyWidth;
-                        blackKey.style.left = `${octaveOffset + (pos * whiteKeyWidth) + (whiteKeyWidth * 0.7)}px`;
-                        blackKey.setAttribute('data-note', `${notes[pos]}#${octave}`);
-                        keyboardElement.appendChild(blackKey);
+                    for (let i = 0; i < octaveNotes.length; i++) {
+                        const whiteNote = octaveNotes[i];
+                        const blackKeyInfo = blackKeyPositions.find(pos => pos.after === whiteNote);
                         
-                        // Add click event with polyphony support
-                        blackKey.addEventListener('mousedown', () => {
-                            const note = `${notes[pos]}#${octave}`;
-                            blackKey.classList.add('active');
+                        if (blackKeyInfo) {
+                            const blackKey = document.createElement('div');
+                            blackKey.className = 'black-key';
+                            blackKey.textContent = `${blackKeyInfo.note}${octave}`;
+                            blackKey.setAttribute('data-note', `${blackKeyInfo.note}${octave}`);
                             
-                            if (currentMode === "poly") {
-                                if (!activeNotes.has(note)) {
-                                    activeNotes.add(note);
-                                    synth.triggerAttack(note);
-                                    updateVUMeter(0.8);
-                                }
-                            } else {
-                                // Use our helper function for mono mode
-                                handleMonoNoteChange(note);
-                            }
-                        });
-                        
-                        blackKey.addEventListener('mouseup', () => {
-                            const note = `${notes[pos]}#${octave}`;
-                            blackKey.classList.remove('active');
+                            // Position the black key
+                            const whiteKeyWidth = document.querySelector('.key').offsetWidth;
+                            const whiteKeyIndex = Array.from(keyboardElement.querySelectorAll('.key')).findIndex(
+                                key => key.getAttribute('data-note') === `${whiteNote}${octave}`
+                            );
                             
-                            if (currentMode === "poly") {
-                                if (activeNotes.has(note)) {
-                                    activeNotes.delete(note);
-                                    synth.triggerRelease(note);
-                                }
-                            } else {
-                                // For mono mode
-                                if (activeNotes.has(note)) {
-                                    activeNotes.delete(note);
-                                    synth.triggerRelease(); // No parameter needed for mono synth
-                                }
-                            }
-                        });
-                        
-                        blackKey.addEventListener('mouseleave', () => {
-                            const note = `${notes[pos]}#${octave}`;
-                            if (blackKey.classList.contains('active')) {
-                                blackKey.classList.remove('active');
+                            if (whiteKeyIndex !== -1) {
+                                const whiteKeyRect = keyboardElement.querySelectorAll('.key')[whiteKeyIndex].getBoundingClientRect();
+                                const keyboardRect = keyboardElement.getBoundingClientRect();
                                 
-                                if (currentMode === "poly") {
-                                    if (activeNotes.has(note)) {
-                                        activeNotes.delete(note);
-                                        synth.triggerRelease(note);
+                                blackKey.style.left = `${whiteKeyRect.right - keyboardRect.left - whiteKeyWidth/4}px`;
+                                keyboardElement.appendChild(blackKey);
+                                
+                                // Add click event with polyphony support
+                                blackKey.addEventListener('mousedown', () => {
+                                    const note = `${blackKeyInfo.note}${octave}`;
+                                    blackKey.classList.add('active');
+                                    
+                                    if (currentMode === "poly") {
+                                        if (!activeNotes.has(note)) {
+                                            activeNotes.add(note);
+                                            synth.triggerAttack(note);
+                                            updateVUMeter(0.8);
+                                        }
+                                    } else {
+                                        // Use our helper function for mono mode
+                                        handleMonoNoteChange(note);
                                     }
-                                } else {
-                                    // For mono mode
-                                    if (activeNotes.has(note)) {
-                                        activeNotes.delete(note);
-                                        synth.triggerRelease(); // No parameter needed for mono synth
+                                });
+                                
+                                blackKey.addEventListener('mouseup', () => {
+                                    const note = `${blackKeyInfo.note}${octave}`;
+                                    blackKey.classList.remove('active');
+                                    
+                                    if (currentMode === "poly") {
+                                        if (activeNotes.has(note)) {
+                                            activeNotes.delete(note);
+                                            synth.triggerRelease(note);
+                                        }
+                                    } else {
+                                        // For mono mode
+                                        if (activeNotes.has(note)) {
+                                            activeNotes.delete(note);
+                                            synth.triggerRelease(); // No parameter needed for mono synth
+                                        }
                                     }
-                                }
+                                });
+                                
+                                blackKey.addEventListener('mouseleave', () => {
+                                    const note = `${blackKeyInfo.note}${octave}`;
+                                    if (blackKey.classList.contains('active')) {
+                                        blackKey.classList.remove('active');
+                                        
+                                        if (currentMode === "poly") {
+                                            if (activeNotes.has(note)) {
+                                                activeNotes.delete(note);
+                                                synth.triggerRelease(note);
+                                            }
+                                        } else {
+                                            // For mono mode
+                                            if (activeNotes.has(note)) {
+                                                activeNotes.delete(note);
+                                                synth.triggerRelease(); // No parameter needed for mono synth
+                                            }
+                                        }
+                                    }
+                                });
                             }
-                        });
+                        }
                     }
                 }
             }
@@ -1726,13 +2127,19 @@
             ['sustainKnob', 'sustain'],
             ['releaseKnob', 'release'],
             ['reverbMixKnob', 'reverbMix'],
+            ['reverbDecayKnob', 'reverbDecay'], // New reverb decay knob
             ['delayTimeKnob', 'delayTime'],
             ['delayFeedbackKnob', 'delayFeedback'],
             ['tempoKnob', 'tempo'],
             // Add new oscillator knobs
             ['oscillatorOctaveKnob', 'oscillatorOctave'],
             ['oscillatorSemiKnob', 'oscillatorSemi'],
-            ['oscillatorLevelKnob', 'oscillatorLevel']
+            ['oscillatorLevelKnob', 'oscillatorLevel'],
+            // New effect knobs
+            ['chorusMixKnob', 'chorusMix'],
+            ['distortionMixKnob', 'distortionMix'],
+            ['flangerMixKnob', 'flangerMix'],
+            ['phaserMixKnob', 'phaserMix']
         ];
 
         knobs.forEach(([knobId, inputId]) => {
@@ -1744,6 +2151,8 @@
         // Create keyboard after DOM is fully loaded
         window.addEventListener('DOMContentLoaded', () => {
             createKeyboard();
+            // Initialize presets
+            initializePresets();
         });
         
         // Recalculate keyboard positions on window resize
@@ -1762,6 +2171,13 @@
             } else {
                 synth.oscillator.type = e.target.value;
             }
+        });
+
+        // Filter type toggle
+        document.getElementById('filterTypeToggle').addEventListener('change', e => {
+            const filterType = e.target.checked ? "highpass" : "lowpass";
+            filter.type = filterType;
+            document.getElementById('filterTypeState').textContent = e.target.checked ? "HP" : "LP";
         });
 
         document.addEventListener('keyup', e => {
@@ -1839,6 +2255,52 @@
             reverb.wet.value = e.target.value;
             document.getElementById('reverbMixValue').textContent = parseFloat(e.target.value).toFixed(2);
         });
+        
+        // New reverb decay control
+        document.getElementById('reverbDecay').addEventListener('input', e => {
+            const value = parseFloat(e.target.value);
+            
+            // Update the display immediately for better UX
+            document.getElementById('reverbDecayValue').textContent = `${value.toFixed(1)}s`;
+            
+            // We'll use a debounce approach to avoid recreating the reverb on every tiny change
+            // Clear any pending reverb update
+            if (window.reverbUpdateTimeout) {
+                clearTimeout(window.reverbUpdateTimeout);
+            }
+            
+            // Set a new timeout to update the reverb after a short delay
+            window.reverbUpdateTimeout = setTimeout(() => {
+                // Store the current wet value
+                const currentWet = reverb.wet.value;
+                
+                // Create a new reverb with the new decay value
+                const newReverb = new Tone.Reverb({
+                    decay: value,
+                    preDelay: 0.01
+                });
+                
+                // Generate the impulse response before swapping
+                newReverb.generate().then(() => {
+                    // Set the wet value to match the previous reverb
+                    newReverb.wet.value = currentWet;
+                    
+                    // Temporarily disconnect reverb from the chain
+                    phaser.disconnect(reverb);
+                    reverb.disconnect(delay);
+                    
+                    // Connect the new reverb
+                    phaser.connect(newReverb);
+                    newReverb.connect(delay);
+                    
+                    // Dispose the old reverb
+                    reverb.dispose();
+                    
+                    // Replace the reverb reference
+                    reverb = newReverb;
+                });
+            }, 300); // 300ms debounce
+        });
 
         document.getElementById('delayTime').addEventListener('input', e => {
             delay.delayTime.value = e.target.value;
@@ -1848,6 +2310,27 @@
         document.getElementById('delayFeedback').addEventListener('input', e => {
             delay.feedback.value = e.target.value;
             document.getElementById('delayFeedbackValue').textContent = parseFloat(e.target.value).toFixed(2);
+        });
+        
+        // New effect controls
+        document.getElementById('chorusMix').addEventListener('input', e => {
+            chorus.wet.value = e.target.value;
+            document.getElementById('chorusMixValue').textContent = parseFloat(e.target.value).toFixed(2);
+        });
+        
+        document.getElementById('distortionMix').addEventListener('input', e => {
+            distortion.wet.value = e.target.value;
+            document.getElementById('distortionMixValue').textContent = parseFloat(e.target.value).toFixed(2);
+        });
+        
+        document.getElementById('flangerMix').addEventListener('input', e => {
+            flanger.wet.value = e.target.value;
+            document.getElementById('flangerMixValue').textContent = parseFloat(e.target.value).toFixed(2);
+        });
+        
+        document.getElementById('phaserMix').addEventListener('input', e => {
+            phaser.wet.value = e.target.value;
+            document.getElementById('phaserMixValue').textContent = parseFloat(e.target.value).toFixed(2);
         });
 
         // New oscillator control event listeners
@@ -1939,14 +2422,799 @@
             }
         });
 
-        // Save and Load functionality
-        document.getElementById('saveSetup').addEventListener('click', () => {
-            const setup = {
+        // Preset management functionality
+        const builtInPresets = [
+            {
+                name: "Default Ambient",
+                category: "pad",
+                settings: {
+                    voiceMode: "poly",
+                    waveform: "triangle",
+                    filterCutoff: "900",
+                    filterRes: "5",
+                    filterType: false,
+                    reverbMix: "0.6",
+                    reverbDecay: "3.5",
+                    delayTime: "0.33",
+                    delayFeedback: "0.55",
+                    tempo: "96",
+                    attack: "0.02",
+                    decay: "0.18",
+                    sustain: "0.35",
+                    release: "1.4",
+                    oscillatorOctave: "0",
+                    oscillatorSemi: "0",
+                    oscillatorLevel: "0.8",
+                    chorusMix: "0.1",
+                    distortionMix: "0",
+                    flangerMix: "0",
+                    phaserMix: "0",
+                    sequencer: [
+                        {"note": "E3", "active": true},
+                        {"note": "B3", "active": true},
+                        {"note": "G3", "active": true},
+                        {"note": "B3", "active": false},
+                        {"note": "A3", "active": true},
+                        {"note": "E4", "active": true},
+                        {"note": "B3", "active": true},
+                        {"note": "C4", "active": false},
+                        {"note": "G3", "active": true},
+                        {"note": "D4", "active": true},
+                        {"note": "B3", "active": true},
+                        {"note": "D4", "active": false},
+                        {"note": "F#3", "active": true},
+                        {"note": "A3", "active": true},
+                        {"note": "E3", "active": true},
+                        {"note": "B3", "active": true}
+                    ]
+                }
+            },
+            {
+                name: "Deep Bass",
+                category: "bass",
+                settings: {
+                    voiceMode: "mono",
+                    waveform: "fatsawtooth",
+                    filterCutoff: "500",
+                    filterRes: "8",
+                    filterType: false,
+                    reverbMix: "0.05",
+                    reverbDecay: "1.2",
+                    delayTime: "0.25",
+                    delayFeedback: "0.2",
+                    tempo: "120",
+                    attack: "0.01",
+                    decay: "0.2",
+                    sustain: "0.8",
+                    release: "0.4",
+                    oscillatorOctave: "-1",
+                    oscillatorSemi: "0",
+                    oscillatorLevel: "0.9",
+                    chorusMix: "0",
+                    distortionMix: "0.3",
+                    flangerMix: "0",
+                    phaserMix: "0",
+                    sequencer: [
+                        {"note": "C2", "active": true},
+                        {"note": "G2", "active": false},
+                        {"note": "C2", "active": true},
+                        {"note": "G2", "active": false},
+                        {"note": "A#1", "active": true},
+                        {"note": "F2", "active": false},
+                        {"note": "A#1", "active": true},
+                        {"note": "F2", "active": false},
+                        {"note": "G#1", "active": true},
+                        {"note": "D#2", "active": false},
+                        {"note": "G#1", "active": true},
+                        {"note": "D#2", "active": false},
+                        {"note": "G1", "active": true},
+                        {"note": "D2", "active": false},
+                        {"note": "G1", "active": true},
+                        {"note": "D2", "active": false}
+                    ]
+                }
+            },
+            {
+                name: "Plucky Lead",
+                category: "lead",
+                settings: {
+                    voiceMode: "poly",
+                    waveform: "square",
+                    filterCutoff: "3000",
+                    filterRes: "6",
+                    filterType: false,
+                    reverbMix: "0.2",
+                    reverbDecay: "1.5",
+                    delayTime: "0.375",
+                    delayFeedback: "0.4",
+                    tempo: "130",
+                    attack: "0.005",
+                    decay: "0.1",
+                    sustain: "0.2",
+                    release: "0.3",
+                    oscillatorOctave: "1",
+                    oscillatorSemi: "0",
+                    oscillatorLevel: "0.75",
+                    chorusMix: "0.1",
+                    distortionMix: "0.05",
+                    flangerMix: "0",
+                    phaserMix: "0",
+                    sequencer: [
+                        {"note": "E4", "active": true},
+                        {"note": "G4", "active": true},
+                        {"note": "B4", "active": true},
+                        {"note": "D5", "active": true},
+                        {"note": "E4", "active": false},
+                        {"note": "G4", "active": false},
+                        {"note": "B4", "active": true},
+                        {"note": "D5", "active": true},
+                        {"note": "E4", "active": true},
+                        {"note": "G4", "active": true},
+                        {"note": "B4", "active": false},
+                        {"note": "D5", "active": false},
+                        {"note": "E4", "active": true},
+                        {"note": "G4", "active": true},
+                        {"note": "B4", "active": true},
+                        {"note": "D5", "active": true}
+                    ]
+                }
+            },
+            {
+                name: "Dreamy Pad",
+                category: "pad",
+                settings: {
+                    voiceMode: "poly",
+                    waveform: "sine",
+                    filterCutoff: "1200",
+                    filterRes: "2",
+                    filterType: false,
+                    reverbMix: "0.7",
+                    reverbDecay: "5",
+                    delayTime: "0.5",
+                    delayFeedback: "0.3",
+                    tempo: "80",
+                    attack: "0.8",
+                    decay: "1",
+                    sustain: "0.8",
+                    release: "1.5",
+                    oscillatorOctave: "0",
+                    oscillatorSemi: "0",
+                    oscillatorLevel: "0.7",
+                    chorusMix: "0.3",
+                    distortionMix: "0",
+                    flangerMix: "0.15",
+                    phaserMix: "0.1",
+                    sequencer: [
+                        {"note": "C3", "active": true},
+                        {"note": "E3", "active": false},
+                        {"note": "G3", "active": false},
+                        {"note": "B3", "active": true},
+                        {"note": "C3", "active": false},
+                        {"note": "E3", "active": true},
+                        {"note": "G3", "active": false},
+                        {"note": "B3", "active": false},
+                        {"note": "A2", "active": true},
+                        {"note": "C3", "active": false},
+                        {"note": "E3", "active": false},
+                        {"note": "G3", "active": true},
+                        {"note": "A2", "active": false},
+                        {"note": "C3", "active": true},
+                        {"note": "E3", "active": false},
+                        {"note": "G3", "active": false}
+                    ]
+                }
+            },
+            {
+                name: "Arpeggiator",
+                category: "pluck",
+                settings: {
+                    voiceMode: "poly",
+                    waveform: "triangle",
+                    filterCutoff: "4000",
+                    filterRes: "3",
+                    filterType: false,
+                    reverbMix: "0.3",
+                    reverbDecay: "2",
+                    delayTime: "0.25",
+                    delayFeedback: "0.6",
+                    tempo: "140",
+                    attack: "0.005",
+                    decay: "0.2",
+                    sustain: "0.3",
+                    release: "0.2",
+                    oscillatorOctave: "0",
+                    oscillatorSemi: "0",
+                    oscillatorLevel: "0.75",
+                    chorusMix: "0.05",
+                    distortionMix: "0",
+                    flangerMix: "0",
+                    phaserMix: "0",
+                    sequencer: [
+                        {"note": "C3", "active": true},
+                        {"note": "E3", "active": true},
+                        {"note": "G3", "active": true},
+                        {"note": "C4", "active": true},
+                        {"note": "E4", "active": true},
+                        {"note": "G4", "active": true},
+                        {"note": "C5", "active": true},
+                        {"note": "G4", "active": true},
+                        {"note": "E4", "active": true},
+                        {"note": "C4", "active": true},
+                        {"note": "G3", "active": true},
+                        {"note": "E3", "active": true},
+                        {"note": "C3", "active": true},
+                        {"note": "E3", "active": true},
+                        {"note": "G3", "active": true},
+                        {"note": "C4", "active": true}
+                    ]
+                }
+            },
+            {
+                name: "Ambient FX",
+                category: "fx",
+                settings: {
+                    voiceMode: "poly",
+                    waveform: "fmsine",
+                    filterCutoff: "2000",
+                    filterRes: "10",
+                    filterType: true,
+                    reverbMix: "0.8",
+                    reverbDecay: "8",
+                    delayTime: "0.7",
+                    delayFeedback: "0.6",
+                    tempo: "60",
+                    attack: "0.3",
+                    decay: "1",
+                    sustain: "0.5",
+                    release: "3",
+                    oscillatorOctave: "1",
+                    oscillatorSemi: "7",
+                    oscillatorLevel: "0.6",
+                    chorusMix: "0.4",
+                    distortionMix: "0.1",
+                    flangerMix: "0.2",
+                    phaserMix: "0.3",
+                    sequencer: [
+                        {"note": "E3", "active": true},
+                        {"note": "B3", "active": false},
+                        {"note": "E4", "active": false},
+                        {"note": "F#4", "active": true},
+                        {"note": "E3", "active": false},
+                        {"note": "B3", "active": true},
+                        {"note": "E4", "active": false},
+                        {"note": "F#4", "active": false},
+                        {"note": "A3", "active": true},
+                        {"note": "E4", "active": false},
+                        {"note": "A4", "active": false},
+                        {"note": "B4", "active": true},
+                        {"note": "A3", "active": false},
+                        {"note": "E4", "active": true},
+                        {"note": "A4", "active": false},
+                        {"note": "B4", "active": false}
+                    ]
+                }
+            },
+            {
+                name: "Warm Keys",
+                category: "keys",
+                settings: {
+                    voiceMode: "poly",
+                    waveform: "sine",
+                    filterCutoff: "3500",
+                    filterRes: "1",
+                    filterType: false,
+                    reverbMix: "0.4",
+                    reverbDecay: "2.5",
+                    delayTime: "0.2",
+                    delayFeedback: "0.2",
+                    tempo: "100",
+                    attack: "0.05",
+                    decay: "0.2",
+                    sustain: "0.7",
+                    release: "0.6",
+                    oscillatorOctave: "0",
+                    oscillatorSemi: "0",
+                    oscillatorLevel: "0.8",
+                    chorusMix: "0.15",
+                    distortionMix: "0",
+                    flangerMix: "0",
+                    phaserMix: "0.1",
+                    sequencer: [
+                        {"note": "C3", "active": true},
+                        {"note": "E3", "active": true},
+                        {"note": "G3", "active": true},
+                        {"note": "C3", "active": false},
+                        {"note": "F3", "active": true},
+                        {"note": "A3", "active": true},
+                        {"note": "C4", "active": true},
+                        {"note": "F3", "active": false},
+                        {"note": "G3", "active": true},
+                        {"note": "B3", "active": true},
+                        {"note": "D4", "active": true},
+                        {"note": "G3", "active": false},
+                        {"note": "A3", "active": true},
+                        {"note": "C4", "active": true},
+                        {"note": "E4", "active": true},
+                        {"note": "A3", "active": false}
+                    ]
+                }
+            },
+            {
+                name: "Wobble Bass",
+                category: "bass",
+                settings: {
+                    voiceMode: "mono",
+                    waveform: "fatsquare",
+                    filterCutoff: "800",
+                    filterRes: "15",
+                    filterType: false,
+                    reverbMix: "0.1",
+                    reverbDecay: "1",
+                    delayTime: "0.125",
+                    delayFeedback: "0.3",
+                    tempo: "135",
+                    attack: "0.01",
+                    decay: "0.1",
+                    sustain: "0.9",
+                    release: "0.2",
+                    oscillatorOctave: "-1",
+                    oscillatorSemi: "0",
+                    oscillatorLevel: "0.85",
+                    chorusMix: "0",
+                    distortionMix: "0.4",
+                    flangerMix: "0.2",
+                    phaserMix: "0.1",
+                    sequencer: [
+                        {"note": "C2", "active": true},
+                        {"note": "C2", "active": true},
+                        {"note": "G2", "active": true},
+                        {"note": "G2", "active": true},
+                        {"note": "A#1", "active": true},
+                        {"note": "A#1", "active": true},
+                        {"note": "F2", "active": true},
+                        {"note": "F2", "active": true},
+                        {"note": "D#2", "active": true},
+                        {"note": "D#2", "active": true},
+                        {"note": "A#2", "active": true},
+                        {"note": "A#2", "active": true},
+                        {"note": "G#1", "active": true},
+                        {"note": "G#1", "active": true},
+                        {"note": "D#2", "active": true},
+                        {"note": "D#2", "active": true}
+                    ]
+                }
+            },
+            {
+                name: "Bright Lead",
+                category: "lead",
+                settings: {
+                    voiceMode: "mono",
+                    waveform: "sawtooth",
+                    filterCutoff: "5000",
+                    filterRes: "4",
+                    filterType: false,
+                    reverbMix: "0.2",
+                    reverbDecay: "1.2",
+                    delayTime: "0.33",
+                    delayFeedback: "0.4",
+                    tempo: "120",
+                    attack: "0.005",
+                    decay: "0.1",
+                    sustain: "0.6",
+                    release: "0.2",
+                    oscillatorOctave: "1",
+                    oscillatorSemi: "0",
+                    oscillatorLevel: "0.8",
+                    chorusMix: "0",
+                    distortionMix: "0.15",
+                    flangerMix: "0",
+                    phaserMix: "0.1",
+                    sequencer: [
+                        {"note": "E4", "active": true},
+                        {"note": "G4", "active": false},
+                        {"note": "A4", "active": true},
+                        {"note": "B4", "active": false},
+                        {"note": "D5", "active": true},
+                        {"note": "B4", "active": false},
+                        {"note": "A4", "active": true},
+                        {"note": "G4", "active": false},
+                        {"note": "E4", "active": true},
+                        {"note": "G4", "active": false},
+                        {"note": "A4", "active": true},
+                        {"note": "B4", "active": false},
+                        {"note": "D5", "active": true},
+                        {"note": "B4", "active": false},
+                        {"note": "A4", "active": true},
+                        {"note": "G4", "active": false}
+                    ]
+                }
+            },
+            {
+                name: "Spacey Atmosphere",
+                category: "pad",
+                settings: {
+                    voiceMode: "poly",
+                    waveform: "amsine",
+                    filterCutoff: "1500",
+                    filterRes: "3",
+                    filterType: true,
+                    reverbMix: "0.9",
+                    reverbDecay: "10",
+                    delayTime: "0.5",
+                    delayFeedback: "0.7",
+                    tempo: "70",
+                    attack: "1",
+                    decay: "1",
+                    sustain: "0.8",
+                    release: "3",
+                    oscillatorOctave: "0",
+                    oscillatorSemi: "5",
+                    oscillatorLevel: "0.65",
+                    chorusMix: "0.4",
+                    distortionMix: "0",
+                    flangerMix: "0.3",
+                    phaserMix: "0.2",
+                    sequencer: [
+                        {"note": "A2", "active": true},
+                        {"note": "E3", "active": false},
+                        {"note": "A3", "active": false},
+                        {"note": "C4", "active": false},
+                        {"note": "E4", "active": true},
+                        {"note": "C4", "active": false},
+                        {"note": "A3", "active": false},
+                        {"note": "E3", "active": false},
+                        {"note": "G2", "active": true},
+                        {"note": "D3", "active": false},
+                        {"note": "G3", "active": false},
+                        {"note": "B3", "active": false},
+                        {"note": "D4", "active": true},
+                        {"note": "B3", "active": false},
+                        {"note": "G3", "active": false},
+                        {"note": "D3", "active": false}
+                    ]
+                }
+            },
+            {
+                name: "Glitch FX",
+                category: "fx",
+                settings: {
+                    voiceMode: "poly",
+                    waveform: "pulse",
+                    filterCutoff: "1000",
+                    filterRes: "18",
+                    filterType: true,
+                    reverbMix: "0.5",
+                    reverbDecay: "3",
+                    delayTime: "0.16",
+                    delayFeedback: "0.8",
+                    tempo: "145",
+                    attack: "0.005",
+                    decay: "0.1",
+                    sustain: "0.3",
+                    release: "0.2",
+                    oscillatorOctave: "2",
+                    oscillatorSemi: "-5",
+                    oscillatorLevel: "0.7",
+                    chorusMix: "0.2",
+                    distortionMix: "0.3",
+                    flangerMix: "0.2",
+                    phaserMix: "0.3",
+                    sequencer: [
+                        {"note": "C5", "active": true},
+                        {"note": "C5", "active": false},
+                        {"note": "G4", "active": true},
+                        {"note": "G4", "active": false},
+                        {"note": "C5", "active": true},
+                        {"note": "C5", "active": false},
+                        {"note": "D#5", "active": true},
+                        {"note": "D#5", "active": false},
+                        {"note": "A#4", "active": true},
+                        {"note": "A#4", "active": false},
+                        {"note": "F5", "active": true},
+                        {"note": "F5", "active": false},
+                        {"note": "G5", "active": true},
+                        {"note": "G5", "active": false},
+                        {"note": "G#5", "active": true},
+                        {"note": "G#5", "active": false}
+                    ]
+                }
+            },
+            {
+                name: "Classic Pluck",
+                category: "pluck",
+                settings: {
+                    voiceMode: "poly",
+                    waveform: "triangle",
+                    filterCutoff: "2500",
+                    filterRes: "2",
+                    filterType: false,
+                    reverbMix: "0.25",
+                    reverbDecay: "1.5",
+                    delayTime: "0.33",
+                    delayFeedback: "0.3",
+                    tempo: "110",
+                    attack: "0.005",
+                    decay: "0.15",
+                    sustain: "0.2",
+                    release: "0.3",
+                    oscillatorOctave: "0",
+                    oscillatorSemi: "0",
+                    oscillatorLevel: "0.8",
+                    chorusMix: "0.05",
+                    distortionMix: "0",
+                    flangerMix: "0",
+                    phaserMix: "0",
+                    sequencer: [
+                        {"note": "E4", "active": true},
+                        {"note": "B3", "active": true},
+                        {"note": "E4", "active": true},
+                        {"note": "G4", "active": true},
+                        {"note": "F#4", "active": true},
+                        {"note": "B3", "active": true},
+                        {"note": "F#4", "active": true},
+                        {"note": "A4", "active": true},
+                        {"note": "D4", "active": true},
+                        {"note": "A3", "active": true},
+                        {"note": "D4", "active": true},
+                        {"note": "F#4", "active": true},
+                        {"note": "E4", "active": true},
+                        {"note": "B3", "active": true},
+                        {"note": "E4", "active": true},
+                        {"note": "G4", "active": true}
+                    ]
+                }
+            },
+            {
+                name: "Electric Piano",
+                category: "keys",
+                settings: {
+                    voiceMode: "poly",
+                    waveform: "sine",
+                    filterCutoff: "4000",
+                    filterRes: "1",
+                    filterType: false,
+                    reverbMix: "0.35",
+                    reverbDecay: "2",
+                    delayTime: "0.15",
+                    delayFeedback: "0.15",
+                    tempo: "100",
+                    attack: "0.01",
+                    decay: "0.5",
+                    sustain: "0.5",
+                    release: "0.5",
+                    oscillatorOctave: "0",
+                    oscillatorSemi: "0",
+                    oscillatorLevel: "0.8",
+                    chorusMix: "0.1",
+                    distortionMix: "0.05",
+                    flangerMix: "0",
+                    phaserMix: "0.15",
+                    sequencer: [
+                        {"note": "C4", "active": true},
+                        {"note": "G3", "active": true},
+                        {"note": "E3", "active": true},
+                        {"note": "G3", "active": true},
+                        {"note": "C4", "active": true},
+                        {"note": "G3", "active": true},
+                        {"note": "E3", "active": true},
+                        {"note": "G3", "active": true},
+                        {"note": "A3", "active": true},
+                        {"note": "E3", "active": true},
+                        {"note": "C3", "active": true},
+                        {"note": "E3", "active": true},
+                        {"note": "F3", "active": true},
+                        {"note": "C3", "active": true},
+                        {"note": "A2", "active": true},
+                        {"note": "C3", "active": true}
+                    ]
+                }
+            }
+        ];
+
+        // The currently active preset name
+        let activePresetName = null;
+
+        // Initialize presets
+        function initializePresets() {
+            // First, create a custom presets array in localStorage if it doesn't exist
+            if (!localStorage.getItem('customPresets')) {
+                localStorage.setItem('customPresets', JSON.stringify([]));
+            }
+            
+            // Set up the default preset from the specified configuration
+            localStorage.setItem('defaultPreset', JSON.stringify({
+                voiceMode: "poly",
+                waveform: "triangle",
+                filterCutoff: "900",
+                filterRes: "5",
+                filterType: false,
+                reverbMix: "0.6",
+                reverbDecay: "3.5",
+                delayTime: "0.33",
+                delayFeedback: "0.55",
+                tempo: "96",
+                attack: "0.02",
+                decay: "0.18",
+                sustain: "0.35",
+                release: "1.4",
+                oscillatorOctave: "0",
+                oscillatorSemi: "0",
+                oscillatorLevel: "0.8",
+                chorusMix: "0.1",
+                distortionMix: "0",
+                flangerMix: "0",
+                phaserMix: "0",
+                sequencer: [
+                    {"note": "E3", "active": true},
+                    {"note": "B3", "active": true},
+                    {"note": "G3", "active": true},
+                    {"note": "B3", "active": false},
+                    {"note": "A3", "active": true},
+                    {"note": "E4", "active": true},
+                    {"note": "B3", "active": true},
+                    {"note": "C4", "active": false},
+                    {"note": "G3", "active": true},
+                    {"note": "D4", "active": true},
+                    {"note": "B3", "active": true},
+                    {"note": "D4", "active": false},
+                    {"note": "F#3", "active": true},
+                    {"note": "A3", "active": true},
+                    {"note": "E3", "active": true},
+                    {"note": "B3", "active": true}
+                ]
+            }));
+            
+            // Apply the default preset
+            applyPreset(JSON.parse(localStorage.getItem('defaultPreset')));
+            
+            // Render the presets list
+            renderPresetList();
+        }
+
+        // Render the preset list
+        function renderPresetList() {
+            const presetList = document.getElementById('presetList');
+            presetList.innerHTML = '';
+            
+            // Add a Default preset
+            const defaultPresetItem = document.createElement('div');
+            defaultPresetItem.className = 'preset-item' + (activePresetName === 'Default' ? ' active' : '');
+            defaultPresetItem.innerHTML = `
+                <i class="fas fa-music"></i>
+                <span class="preset-name">Default</span>
+                <span class="preset-tag pad">Default</span>
+            `;
+            defaultPresetItem.addEventListener('click', () => {
+                // Set as active
+                document.querySelectorAll('.preset-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                defaultPresetItem.classList.add('active');
+                activePresetName = 'Default';
+                
+                // Apply the default preset
+                applyPreset(JSON.parse(localStorage.getItem('defaultPreset')));
+            });
+            presetList.appendChild(defaultPresetItem);
+            
+            // Add built-in presets
+            builtInPresets.forEach(preset => {
+                const presetItem = document.createElement('div');
+                presetItem.className = 'preset-item' + (activePresetName === preset.name ? ' active' : '');
+                presetItem.innerHTML = `
+                    <i class="fas fa-music"></i>
+                    <span class="preset-name">${preset.name}</span>
+                    <span class="preset-tag ${preset.category}">${preset.category}</span>
+                `;
+                presetItem.addEventListener('click', () => {
+                    // Set as active
+                    document.querySelectorAll('.preset-item').forEach(item => {
+                        item.classList.remove('active');
+                    });
+                    presetItem.classList.add('active');
+                    activePresetName = preset.name;
+                    
+                    // Apply the preset
+                    applyPreset(preset.settings);
+                });
+                presetList.appendChild(presetItem);
+            });
+            
+            // Add custom presets
+            const customPresets = JSON.parse(localStorage.getItem('customPresets') || '[]');
+            customPresets.forEach(preset => {
+                const presetItem = document.createElement('div');
+                presetItem.className = 'preset-item' + (activePresetName === preset.name ? ' active' : '');
+                presetItem.innerHTML = `
+                    <i class="fas fa-music"></i>
+                    <span class="preset-name">${preset.name}</span>
+                    <span class="preset-tag ${preset.category}">${preset.category}</span>
+                `;
+                presetItem.addEventListener('click', () => {
+                    // Set as active
+                    document.querySelectorAll('.preset-item').forEach(item => {
+                        item.classList.remove('active');
+                    });
+                    presetItem.classList.add('active');
+                    activePresetName = preset.name;
+                    
+                    // Apply the preset
+                    applyPreset(preset.settings);
+                });
+                presetList.appendChild(presetItem);
+            });
+        }
+
+        // Apply a preset to the synth
+        function applyPreset(settings) {
+            // Update all parameters and trigger input events to update visuals
+            Object.entries(settings).forEach(([key, value]) => {
+                if (key !== 'sequencer') {
+                    if (key === 'filterType') {
+                        // Handle toggle separately
+                        document.getElementById('filterTypeToggle').checked = value;
+                        document.getElementById('filterTypeToggle').dispatchEvent(new Event('change'));
+                    } else {
+                        const input = document.getElementById(key);
+                        if (input) {
+                            input.value = value;
+                            input.dispatchEvent(new Event('input'));
+                            
+                            // Special handling for voice mode
+                            if (key === 'voiceMode' && value !== currentMode) {
+                                currentMode = value;
+                                createSynth(currentMode);
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Update sequencer if available
+            if (settings.sequencer) {
+                const steps = document.querySelectorAll('.step');
+                settings.sequencer.forEach((stepSetup, i) => {
+                    if (i < steps.length) {
+                        const step = steps[i];
+                        const select = step.querySelector('select');
+                        if (select && stepSetup.note) {
+                            select.value = stepSetup.note;
+                        }
+                        
+                        const toggle = step.querySelector('.step-toggle');
+                        if (toggle) {
+                            toggle.classList.toggle('active', stepSetup.active);
+                            toggle.textContent = stepSetup.active ? 'On' : 'Off';
+                        }
+                    }
+                });
+            }
+            
+            // Ensure synth settings is updated for recreating synths
+            synthSettings.envelope.attack = parseFloat(document.getElementById('attack').value);
+            synthSettings.envelope.decay = parseFloat(document.getElementById('decay').value);
+            synthSettings.envelope.sustain = parseFloat(document.getElementById('sustain').value);
+            synthSettings.envelope.release = parseFloat(document.getElementById('release').value);
+
+            // Then recreate the synth to apply all settings consistently
+            createSynth(currentMode);
+            
+            // Update VU meter to provide visual feedback that preset was loaded
+            updateVUMeter(0.6);
+        }
+        
+        // Get the current setup
+        function getCurrentSetup() {
+            const steps = document.querySelectorAll('.step');
+            
+            return {
                 voiceMode: document.getElementById('voiceMode').value,
                 waveform: document.getElementById('waveform').value,
                 filterCutoff: document.getElementById('filterCutoff').value,
                 filterRes: document.getElementById('filterRes').value,
+                filterType: document.getElementById('filterTypeToggle').checked,
                 reverbMix: document.getElementById('reverbMix').value,
+                reverbDecay: document.getElementById('reverbDecay').value,
                 delayTime: document.getElementById('delayTime').value,
                 delayFeedback: document.getElementById('delayFeedback').value,
                 tempo: document.getElementById('tempo').value,
@@ -1954,18 +3222,23 @@
                 decay: document.getElementById('decay').value,
                 sustain: document.getElementById('sustain').value,
                 release: document.getElementById('release').value,
-                // Add new oscillator parameters
                 oscillatorOctave: document.getElementById('oscillatorOctave').value,
                 oscillatorSemi: document.getElementById('oscillatorSemi').value,
                 oscillatorLevel: document.getElementById('oscillatorLevel').value,
-                sequencer: Array.from(document.querySelectorAll('.step')).map(step => ({
+                chorusMix: document.getElementById('chorusMix').value,
+                distortionMix: document.getElementById('distortionMix').value,
+                flangerMix: document.getElementById('flangerMix').value,
+                phaserMix: document.getElementById('phaserMix').value,
+                sequencer: Array.from(steps).map(step => ({
                     note: step.querySelector('select').value,
                     active: step.querySelector('.step-toggle').classList.contains('active')
                 }))
             };
-            
-            localStorage.setItem('synthSetup', JSON.stringify(setup));
-            document.getElementById('loadSetup').style.display = 'block';
+        }
+
+        // Save and Load functionality
+        document.getElementById('saveSetup').addEventListener('click', () => {
+            localStorage.setItem('synthSetup', JSON.stringify(getCurrentSetup()));
             
             // Visual feedback
             const saveButton = document.getElementById('saveSetup');
@@ -1982,42 +3255,8 @@
             const setup = JSON.parse(localStorage.getItem('synthSetup'));
             if (!setup) return;
 
-            // Update all parameters and trigger input events to update visuals
-            Object.entries(setup).forEach(([key, value]) => {
-                if (key !== 'sequencer') {
-                    const input = document.getElementById(key);
-                    if (input) {
-                        input.value = value;
-                        input.dispatchEvent(new Event('input'));
-                        
-                        // Special handling for voice mode
-                        if (key === 'voiceMode' && value !== currentMode) {
-                            currentMode = value;
-                            createSynth(currentMode);
-                        }
-                    }
-                }
-            });
-
-            // Update sequencer
-            const steps = document.querySelectorAll('.step');
-            setup.sequencer.forEach((stepSetup, i) => {
-                const step = steps[i];
-                step.querySelector('select').value = stepSetup.note;
-                const toggle = step.querySelector('.step-toggle');
-                toggle.classList.toggle('active', stepSetup.active);
-                toggle.textContent = stepSetup.active ? 'On' : 'Off';
-            });
+            applyPreset(setup);
             
-            // Ensure synthSettings is updated
-            synthSettings.envelope.attack = parseFloat(document.getElementById('attack').value);
-            synthSettings.envelope.decay = parseFloat(document.getElementById('decay').value);
-            synthSettings.envelope.sustain = parseFloat(document.getElementById('sustain').value);
-            synthSettings.envelope.release = parseFloat(document.getElementById('release').value);
-
-            // Then recreate the synth to apply all settings consistently
-            createSynth(currentMode);
-
             // Visual feedback
             const loadButton = document.getElementById('loadSetup');
             loadButton.classList.add('success');
@@ -2029,12 +3268,106 @@
             }, 1500);
         });
 
-        // Check if there's a saved setup and show load button if there is
-        if (localStorage.getItem('synthSetup')) {
-            document.getElementById('loadSetup').style.display = 'block';
-        }
+        // Modal handling for new preset
+        const presetModal = document.getElementById('presetModal');
+        const presetNameInput = document.getElementById('presetName');
+        const presetCategorySelect = document.getElementById('presetCategory');
+        
+        document.getElementById('newPresetBtn').addEventListener('click', () => {
+            presetModal.classList.add('active');
+            presetNameInput.value = '';
+            presetNameInput.focus();
+        });
+        
+        document.getElementById('cancelPresetBtn').addEventListener('click', () => {
+            presetModal.classList.remove('active');
+        });
+        
+        document.getElementById('savePresetBtn').addEventListener('click', () => {
+            const name = presetNameInput.value.trim();
+            if (!name) {
+                alert('Please enter a name for your preset');
+                return;
+            }
+            
+            const category = presetCategorySelect.value;
+            
+            // Get current custom presets
+            const customPresets = JSON.parse(localStorage.getItem('customPresets') || '[]');
+            
+            // Check if a preset with this name already exists
+            const existingIndex = customPresets.findIndex(p => p.name === name);
+            
+            // Create the new preset
+            const newPreset = {
+                name,
+                category,
+                settings: getCurrentSetup()
+            };
+            
+            // Update or add to the presets array
+            if (existingIndex >= 0) {
+                customPresets[existingIndex] = newPreset;
+            } else {
+                customPresets.push(newPreset);
+            }
+            
+            // Save back to localStorage
+            localStorage.setItem('customPresets', JSON.stringify(customPresets));
+            
+            // Close modal
+            presetModal.classList.remove('active');
+            
+            // Set as active preset
+            activePresetName = name;
+            
+            // Refresh the preset list
+            renderPresetList();
+            
+            // Visual feedback
+            const savePresetBtn = document.getElementById('newPresetBtn');
+            savePresetBtn.classList.add('success');
+            setTimeout(() => {
+                savePresetBtn.classList.remove('success');
+            }, 1000);
+        });
+        
+        // Delete preset functionality
+        document.getElementById('deletePresetBtn').addEventListener('click', () => {
+            if (!activePresetName || activePresetName === 'Default') {
+                alert('Please select a custom preset to delete');
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to delete the preset "${activePresetName}"?`)) {
+                // Get current custom presets
+                const customPresets = JSON.parse(localStorage.getItem('customPresets') || '[]');
+                
+                // Remove the preset
+                const filteredPresets = customPresets.filter(p => p.name !== activePresetName);
+                
+                // Save back to localStorage
+                localStorage.setItem('customPresets', JSON.stringify(filteredPresets));
+                
+                // Reset active preset
+                activePresetName = 'Default';
+                
+                // Apply default preset
+                applyPreset(JSON.parse(localStorage.getItem('defaultPreset')));
+                
+                // Refresh the preset list
+                renderPresetList();
+                
+                // Visual feedback
+                const deletePresetBtn = document.getElementById('deletePresetBtn');
+                deletePresetBtn.classList.add('success');
+                setTimeout(() => {
+                    deletePresetBtn.classList.remove('success');
+                }, 1000);
+            }
+        });
 
-        // Chaos button functionality - Updated to include new oscillator parameters
+        // Chaos button functionality - Updated to include new oscillator parameters and effects
         document.getElementById('chaosButton').addEventListener('click', () => {
             // Randomize waveform
             const waveforms = ['sine', 'square', 'sawtooth', 'triangle', 'pulse', 'fmsine', 'amsine', 'fatsawtooth', 'fatsquare'];
@@ -2042,6 +3375,10 @@
             const waveformInput = document.getElementById('waveform');
             waveformInput.value = randomWaveform;
             waveformInput.dispatchEvent(new Event('change'));
+            
+            // Randomize filter type
+            document.getElementById('filterTypeToggle').checked = Math.random() > 0.5;
+            document.getElementById('filterTypeToggle').dispatchEvent(new Event('change'));
 
             // Randomize all knob values
             knobs.forEach(([knobId, inputId]) => {
@@ -2077,16 +3414,19 @@
             });
         });
 
-        // Nudge button functionality - Updated to include new oscillator parameters
+        // Nudge button functionality - Updated to include new parameters
         document.getElementById('nudgeButton').addEventListener('click', () => {
             const notes = generateNotes();
-            const parameters = [
+                            const parameters = [
                 { type: 'filter', elements: ['filterCutoff', 'filterRes'] },
-                { type: 'effects', elements: ['reverbMix', 'delayTime', 'delayFeedback'] },
-                { type: 'oscillator', elements: ['oscillatorOctave', 'oscillatorSemi', 'oscillatorLevel'] }, // New parameter group
-                { type: 'notes', elements: Array.from(document.querySelectorAll('.step select')) }
+                { type: 'reverb', elements: ['reverbMix', 'reverbDecay'] },
+                { type: 'delay', elements: ['delayTime', 'delayFeedback'] },
+                { type: 'oscillator', elements: ['oscillatorOctave', 'oscillatorSemi', 'oscillatorLevel'] },
+                { type: 'modulation', elements: ['chorusMix', 'flangerMix', 'phaserMix', 'distortionMix'] },
+                { type: 'notes', elements: Array.from(document.querySelectorAll('.step select')) },
+                { type: 'filter type', elements: ['filterTypeToggle'] }
             ];
-
+            
             // Randomly select 1-2 parameter groups to modify
             const numChanges = Math.floor(Math.random() * 2) + 1;
             const selectedParams = parameters
@@ -2116,6 +3456,21 @@
                             repeat: 1
                         });
                     });
+                } else if (param.type === 'filter type') {
+                    // Handle toggle type controls
+                    const element = param.elements[Math.floor(Math.random() * param.elements.length)];
+                    const input = document.getElementById(element);
+                    input.checked = Math.random() > 0.5;
+                    input.dispatchEvent(new Event('change'));
+                    
+                    // Visual feedback for toggle
+                    const toggleContainer = input.closest('.toggle-container');
+                    gsap.to(toggleContainer, {
+                        opacity: 0.5,
+                        duration: 0.2,
+                        yoyo: true,
+                        repeat: 1
+                    });
                 } else {
                     // Modify one random parameter in the group
                     const element = param.elements[Math.floor(Math.random() * param.elements.length)];
@@ -2132,12 +3487,14 @@
                     
                     // Visual feedback
                     const knob = document.getElementById(`${element}Knob`);
-                    gsap.to(knob, {
-                        boxShadow: '0 0 15px rgba(0, 229, 255, 0.8)',
-                        duration: 0.3,
-                        yoyo: true,
-                        repeat: 1
-                    });
+                    if (knob) {
+                        gsap.to(knob, {
+                            boxShadow: '0 0 15px rgba(0, 229, 255, 0.8)',
+                            duration: 0.3,
+                            yoyo: true,
+                            repeat: 1
+                        });
+                    }
                 }
             });
             
@@ -2189,16 +3546,6 @@
 
         // Set initial tempo
         Tone.Transport.bpm.value = 120;
-
-        // Preset list items behavior
-        document.querySelectorAll('.preset-item').forEach(item => {
-            item.addEventListener('click', () => {
-                document.querySelectorAll('.preset-item').forEach(i => {
-                    i.classList.remove('active');
-                });
-                item.classList.add('active');
-            });
-        });
 
         // Add octave control with polyphony support
         let currentOctave = 4;
@@ -2319,6 +3666,3 @@
     </script>
 </body>
 </html>
-                
-
-                
