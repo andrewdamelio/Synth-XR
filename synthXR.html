@@ -245,6 +245,11 @@
             grid-column: 1 / 4;
         }
         
+        .drone-module {
+            grid-column: 1 / 4;
+            margin-top: 0;
+        }
+        
         .visualization {
             grid-column: 9 / 13;
             display: flex;
@@ -1111,6 +1116,7 @@
             .filter-module { grid-column: 2 / 3; }
             .effects-module { grid-column: 1 / 3; }
             .adsr-module { grid-column: 1 / 3; }
+            .drone-module { grid-column: 1 / 3; }
             
             .visualization {
                 grid-column: 1 / 7;
@@ -1148,7 +1154,8 @@
             .oscillator-module,
             .filter-module,
             .effects-module,
-            .adsr-module {
+            .adsr-module,
+            .drone-module {
                 grid-column: 1 / 7;
             }
             
@@ -1248,6 +1255,106 @@
             height: 100%;
             display: block;
         }
+        
+        /* Drone module styles */
+        .drone-button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            background: var(--surface-light);
+            color: var(--text);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all var(--transition-normal);
+            box-shadow: var(--shadow-small);
+        }
+        
+        .drone-button:hover {
+            background: var(--primary);
+            box-shadow: var(--glow-primary);
+            transform: translateY(-2px);
+        }
+        
+        .drone-button.active {
+            background: var(--primary);
+            box-shadow: var(--glow-primary);
+        }
+        
+        .drone-visualizer {
+            height: 40px;
+            margin-top: 16px;
+            background: var(--background);
+            border-radius: 6px;
+            position: relative;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+        
+        .drone-wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .drone-wave span {
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: var(--secondary);
+            box-shadow: 0 0 10px var(--secondary);
+            border-radius: 100%;
+        }
+        
+        .drone-wave.active span {
+            animation: drone-wave 2s linear infinite;
+        }
+        
+        @keyframes drone-wave {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(3);
+                opacity: 0;
+            }
+        }
+        
+        .drone-wave.active span:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+        
+        .drone-wave.active span:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+        
+        .drone-wave.active span:nth-child(4) {
+            animation-delay: 0.9s;
+        }
+        
+        .drone-wave.active span:nth-child(5) {
+            animation-delay: 1.2s;
+        }
+        
+        /* Panic button style */
+        .panic-button {
+            background-color: var(--error);
+            color: white;
+        }
+        
+        .panic-button:hover {
+            background-color: #d50000;
+        }
     </style>
 </head>
 <body>
@@ -1268,6 +1375,11 @@
             </button>
             
             <div class="spacer"></div>
+            
+            <button class="master-button" id="panicButton">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Panic</span>
+            </button>
             
             <button class="master-button" id="initPatchButton">
                 <i class="fas fa-undo"></i>
@@ -1580,7 +1692,56 @@
                 </div>
             </div>
             
-            <!-- Removed the duplicate LFO Module here -->
+            <!-- New Drone Module -->
+            <div class="module drone-module">
+                <div class="module-header">
+                    <h3 class="module-title">
+                        <i class="fas fa-broadcast-tower"></i>
+                        Drone Generator
+                    </h3>
+                </div>
+                <div class="control-group">
+                    <div class="select-container">
+                        <label class="select-label">Drone Type</label>
+                        <select id="droneType">
+                            <option value="oscillator">Oscillator</option>
+                            <option value="white">White Noise</option>
+                            <option value="pink">Pink Noise</option>
+                        </select>
+                    </div>
+                    <div class="knob-container">
+                        <label class="knob-label">Sub Range</label>
+                        <div class="knob" id="droneOctaveKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust drone octave</div>
+                        </div>
+                        <input type="range" id="droneOctave" min="-3" max="0" step="1" value="-1">
+                        <span class="knob-value" id="droneOctaveValue">-1</span>
+                    </div>
+                    <div class="knob-container">
+                        <label class="knob-label">Volume</label>
+                        <div class="knob" id="droneVolumeKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust drone volume</div>
+                        </div>
+                        <input type="range" id="droneVolume" min="0" max="1" step="0.01" value="0.8">
+                        <span class="knob-value" id="droneVolumeValue">0.80</span>
+                    </div>
+                    <button class="drone-button" id="droneButton">
+                        <i class="fas fa-power-off"></i>
+                        <span>Start Drone</span>
+                    </button>
+                </div>
+                <div class="drone-visualizer">
+                    <div class="drone-wave" id="droneWave">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            </div>
             
         </div>
         
@@ -1877,6 +2038,35 @@
             } else {
                 synth.detune.value = detune;
             }
+        }
+        
+        // Function to release all notes (panic button)
+        function releaseAllNotes() {
+            // Release all notes from the synth
+            if (currentMode === "poly") {
+                synth.releaseAll();
+            } else {
+                synth.triggerRelease();
+            }
+            
+            // Clear all active note tracking
+            activeNotes.clear();
+            activeComputerKeys.clear();
+            
+            // Remove active class from all keys
+            document.querySelectorAll('.key.active, .black-key.active').forEach(key => {
+                key.classList.remove('active');
+            });
+            
+            // Clear any sequencer highlights
+            clearSequencerKeyHighlights();
+            
+            // Reset the drone if it's active
+            if (isDroneActive) {
+                toggleDrone();
+            }
+            
+            updateVUMeter(0.5);
         }
         
         // Function to create the appropriate synth type
@@ -2414,9 +2604,14 @@
             ['chorusMixKnob', 'chorusMix'],
             ['distortionMixKnob', 'distortionMix'],
             ['flangerMixKnob', 'flangerMix'],
-            ['phaserMixKnob', 'phaserMix']
+            ['phaserMixKnob', 'phaserMix'],
+            ['lfoRateKnob', 'lfoRate'],
+            ['lfoAmountKnob', 'lfoAmount'],
+            ['droneOctaveKnob', 'droneOctave']
         ];
+        knobs.push(['droneVolumeKnob', 'droneVolume']);
 
+        // Apply knob setup to all knobs at once
         knobs.forEach(([knobId, inputId]) => {
             knobUpdaters[inputId] = setupKnob(knobId, inputId);
         });
@@ -2741,6 +2936,12 @@
                     this.querySelector('span').textContent = 'Show Advanced Visualizations';
                 }
             });
+            
+            // Initialize LFO scope
+            initLfoScope();
+
+            // Make sure LFO is started
+            lfo.start();
         });
         
         // Recalculate keyboard positions on window resize
@@ -2979,6 +3180,9 @@
             distortionMix: "0",
             flangerMix: "0",
             phaserMix: "0",
+            lfoRate: "1",
+            lfoAmount: "50",
+            droneOctave: "-1",
             sequencer: [
                 {"note": "C4", "active": true},
                 {"note": "C4", "active": false},
@@ -3008,6 +3212,11 @@
             setTimeout(() => {
                 this.classList.remove('success');
             }, 1000);
+            
+            // If drone is active, reset it
+            if (isDroneActive) {
+                toggleDrone();
+            }
         });
 
         // Preset management functionality
@@ -3037,6 +3246,9 @@
                     distortionMix: "0",
                     flangerMix: "0",
                     phaserMix: "0",
+                    lfoRate: "1",
+                    lfoAmount: "50",
+                    droneOctave: "-1",
                     sequencer: [
                         {"note": "E3", "active": true},
                         {"note": "B3", "active": true},
@@ -3082,6 +3294,9 @@
                     distortionMix: "0.3",
                     flangerMix: "0",
                     phaserMix: "0",
+                    lfoRate: "0.5",
+                    lfoAmount: "30",
+                    droneOctave: "-2",
                     sequencer: [
                         {"note": "C2", "active": true},
                         {"note": "G2", "active": false},
@@ -3127,6 +3342,9 @@
                     distortionMix: "0.05",
                     flangerMix: "0",
                     phaserMix: "0",
+                    lfoRate: "4",
+                    lfoAmount: "10",
+                    droneOctave: "-1",
                     sequencer: [
                         {"note": "E4", "active": true},
                         {"note": "G4", "active": true},
@@ -3172,6 +3390,9 @@
                     distortionMix: "0",
                     flangerMix: "0.15",
                     phaserMix: "0.1",
+                    lfoRate: "0.2",
+                    lfoAmount: "60",
+                    droneOctave: "-2",
                     sequencer: [
                         {"note": "C3", "active": true},
                         {"note": "E3", "active": false},
@@ -3217,6 +3438,9 @@
                     distortionMix: "0",
                     flangerMix: "0",
                     phaserMix: "0",
+                    lfoRate: "8",
+                    lfoAmount: "20",
+                    droneOctave: "0",
                     sequencer: [
                         {"note": "C3", "active": true},
                         {"note": "E3", "active": true},
@@ -3262,6 +3486,9 @@
                     distortionMix: "0.1",
                     flangerMix: "0.2",
                     phaserMix: "0.3",
+                    lfoRate: "0.3",
+                    lfoAmount: "70",
+                    droneOctave: "-3",
                     sequencer: [
                         {"note": "E3", "active": true},
                         {"note": "B3", "active": false},
@@ -3307,6 +3534,9 @@
                     distortionMix: "0",
                     flangerMix: "0",
                     phaserMix: "0.1",
+                    lfoRate: "1",
+                    lfoAmount: "15",
+                    droneOctave: "-1",
                     sequencer: [
                         {"note": "C3", "active": true},
                         {"note": "E3", "active": true},
@@ -3352,6 +3582,9 @@
                     distortionMix: "0.4",
                     flangerMix: "0.2",
                     phaserMix: "0.1",
+                    lfoRate: "5",
+                    lfoAmount: "80",
+                    droneOctave: "-3",
                     sequencer: [
                         {"note": "C2", "active": true},
                         {"note": "C2", "active": true},
@@ -3397,6 +3630,9 @@
                     distortionMix: "0.15",
                     flangerMix: "0",
                     phaserMix: "0.1",
+                    lfoRate: "10",
+                    lfoAmount: "25",
+                    droneOctave: "0",
                     sequencer: [
                         {"note": "E4", "active": true},
                         {"note": "G4", "active": false},
@@ -3442,6 +3678,9 @@
                     distortionMix: "0",
                     flangerMix: "0.3",
                     phaserMix: "0.2",
+                    lfoRate: "0.1",
+                    lfoAmount: "90",
+                    droneOctave: "-3",
                     sequencer: [
                         {"note": "A2", "active": true},
                         {"note": "E3", "active": false},
@@ -3487,6 +3726,9 @@
                     distortionMix: "0.3",
                     flangerMix: "0.2",
                     phaserMix: "0.3",
+                    lfoRate: "15",
+                    lfoAmount: "100",
+                    droneOctave: "-1",
                     sequencer: [
                         {"note": "C5", "active": true},
                         {"note": "C5", "active": false},
@@ -3532,6 +3774,9 @@
                     distortionMix: "0",
                     flangerMix: "0",
                     phaserMix: "0",
+                    lfoRate: "1",
+                    lfoAmount: "40",
+                    droneOctave: "-1",
                     sequencer: [
                         {"note": "E4", "active": true},
                         {"note": "B3", "active": true},
@@ -3577,6 +3822,9 @@
                     distortionMix: "0.05",
                     flangerMix: "0",
                     phaserMix: "0.15",
+                    lfoRate: "1",
+                    lfoAmount: "20",
+                    droneOctave: "-1",
                     sequencer: [
                         {"note": "C4", "active": true},
                         {"note": "G3", "active": true},
@@ -3636,6 +3884,11 @@
                     
                     // Apply the preset
                     applyPreset(preset.settings);
+                    
+                    // Turn off drone if it's active
+                    if (isDroneActive) {
+                        toggleDrone();
+                    }
                 });
                 presetList.appendChild(presetItem);
             });
@@ -3660,6 +3913,11 @@
                     
                     // Apply the preset
                     applyPreset(preset.settings);
+                    
+                    // Turn off drone if it's active
+                    if (isDroneActive) {
+                        toggleDrone();
+                    }
                 });
                 presetList.appendChild(presetItem);
             });
@@ -3755,6 +4013,9 @@
                 distortionMix: document.getElementById('distortionMix').value,
                 flangerMix: document.getElementById('flangerMix').value,
                 phaserMix: document.getElementById('phaserMix').value,
+                lfoRate: document.getElementById('lfoRate').value,
+                lfoAmount: document.getElementById('lfoAmount').value,
+                droneOctave: document.getElementById('droneOctave').value,
                 sequencer: Array.from(steps).map(step => ({
                     note: step.querySelector('select').value,
                     active: step.querySelector('.step-toggle').classList.contains('active')
@@ -3908,6 +4169,11 @@
                 yoyo: true,
                 repeat: 1
             });
+            
+            // Turn off drone if it's active 
+            if (isDroneActive) {
+                toggleDrone();
+            }
         });
 
         // Nudge button functionality - Updated to include new parameters
@@ -4041,7 +4307,7 @@
         });
 
         // Set initial tempo
-        Tone.Transport.bpm.value = 120;
+        Tone.Transport.bpm.bpm.value = 120;
 
         // Add octave control with polyphony support
         let currentOctave = 4;
@@ -4167,6 +4433,9 @@
             }
         });
 
+        // Add panic button functionality
+        document.getElementById('panicButton').addEventListener('click', releaseAllNotes);
+        
         // Initialize the synth, effects chain and other components
 
         // LFO setup - add this with the other initialization code
@@ -4229,33 +4498,6 @@
             }
         });
         
-        // Add LFO knobs to the global knobs array for the knob rotation animation
-        knobs.push(
-            ['lfoRateKnob', 'lfoRate'],
-            ['lfoAmountKnob', 'lfoAmount']
-        );
-        
-        // Add LFO controls to getCurrentSetup and applyPreset functions for preset saving
-        // Update getCurrentSetup function to include LFO settings
-        function getCurrentSetup() {
-            // Existing code to get current settings
-            
-            // Add LFO settings
-            return {
-                // ... existing settings
-                lfo: {
-                    waveform: document.getElementById('lfoWaveform').value,
-                    rate: parseFloat(document.getElementById('lfoRate').value),
-                    amount: parseInt(document.getElementById('lfoAmount').value),
-                    sync: document.getElementById('lfoSyncToggle').checked,
-                    destination: document.getElementById('lfoDestination').value
-                },
-                // ... other settings
-            };
-        }
-        
-        // Update applyPreset function to apply LFO settings
-
         // Completely revamped LFO Scope visualization
         function initLfoScope() {
             const lfoScopeCanvas = document.getElementById('lfoScope');
@@ -4290,11 +4532,7 @@
                 bgGradient.addColorStop(1, 'rgba(20, 20, 30, 0.8)');
                 lfoScopeCtx.fillStyle = bgGradient;
                 lfoScopeCtx.fillRect(0, 0, width, height);
-                
-                // Draw grid lines
-                lfoScopeCtx.strokeStyle = 'rgba(100, 100, 150, 0.2)';
-                lfoScopeCtx.lineWidth = 1;
-                
+
                 // Horizontal center line (slightly brighter)
                 lfoScopeCtx.beginPath();
                 lfoScopeCtx.moveTo(0, centerY);
@@ -4324,7 +4562,7 @@
                 const cyclesShown = 2; // Show 2 complete cycles
 
                 // Create colored gradient for the waveform
-                const waveGradient = lfoScopeCtx.createLinearGradient(0, 0, width, 0);
+                const waveGradient = lfoScopeCtx.createLinearGradient(0, width, 0, 0);
                 
                 // Different color schemes for different waveforms
                 switch (waveform) {
@@ -4540,25 +4778,8 @@
             });
         }
 
-        // Initialize LFO scope when DOM content is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            // Other initializations...
-            initLfoScope();
-        });
-
-        // Update LFO scope when window is resized
-        window.addEventListener('resize', function() {
-            const lfoScopeCanvas = document.getElementById('lfoScope');
-            if (lfoScopeCanvas) {
-                const container = lfoScopeCanvas.parentElement;
-                lfoScopeCanvas.width = container.clientWidth;
-                lfoScopeCanvas.height = container.clientHeight;
-            }
-        });
-
-        // Update the LFO destination handling to support all possible destinations
         document.getElementById('lfoDestination').addEventListener('change', (e) => {
-            // First, stop any current knob animations
+            // Stop any current animation interval
             if (window.lfoAnimationInterval) {
                 clearInterval(window.lfoAnimationInterval);
                 window.lfoAnimationInterval = null;
@@ -4572,6 +4793,8 @@
             }
             
             const destination = e.target.value;
+            const amount = parseInt(document.getElementById('lfoAmount').value) / 100;
+            lfo.amplitude.value = amount; // Set amplitude directly based on amount
             
             // Get target knob and value elements based on destination
             let targetKnobId, targetRangeId, targetValueId, minValue, maxValue, unit = '';
@@ -4720,57 +4943,64 @@
                     unit = ' Hz';
             }
             
-            // Connect LFO to the selected destination
+            // Scale factor for LFO mapping
+            const scaleFactor = (maxValue - minValue) * 0.5; // 50% of parameter range
+            
+            // Create a scale for LFO - to convert from -1,1 range to parameter range
+            const lfoScale = new Tone.Scale(-1, 1, minValue, maxValue);
+            
+            // Connect LFO through scale to the selected destination
             switch (destination) {
                 // Oscillator destinations
                 case 'pitch':
                 case 'detune':
                     if (currentMode === "poly") {
+                        // Use normal range for detune (which is in cents)
                         lfo.connect(synth.detune);
                     } else {
                         lfo.connect(synth.detune);
                     }
                     break;
                 case 'oscillatorLevel':
-                    if (currentMode === "poly") {
-                        lfo.connect(synth.volume);
-                    } else {
-                        lfo.connect(synth.volume);
-                    }
+                    // Create a special scale for volume (which is exponential)
+                    const volScale = new Tone.Scale(-1, 1, 0, 1);
+                    lfo.chain(volScale, synth.volume);
                     break;
                 
                 // Filter destinations
                 case 'filterCutoff':
-                    lfo.connect(filter.frequency);
+                    // Special scale for filter cutoff (which is exponential)
+                    const filterScale = new Tone.Scale(-1, 1, minValue, maxValue);
+                    lfo.chain(filterScale, filter.frequency);
                     break;
                 case 'filterRes':
-                    lfo.connect(filter.Q);
+                    lfo.chain(lfoScale, filter.Q);
                     break;
                 
                 // Effects destinations
                 case 'reverbMix':
-                    lfo.connect(reverb.wet);
+                    lfo.chain(new Tone.Scale(-1, 1, 0, 1), reverb.wet);
                     break;
                 case 'reverbDecay':
-                    lfo.connect(reverb.decay);
+                    lfo.chain(new Tone.Scale(-1, 1, 0.1, 10), reverb.decay);
                     break;
                 case 'delayTime':
-                    lfo.connect(delay.delayTime);
+                    lfo.chain(new Tone.Scale(-1, 1, 0, 1), delay.delayTime);
                     break;
                 case 'delayFeedback':
-                    lfo.connect(delay.feedback);
+                    lfo.chain(new Tone.Scale(-1, 1, 0, 0.9), delay.feedback);
                     break;
                 case 'chorusMix':
-                    lfo.connect(chorus.wet);
+                    lfo.chain(new Tone.Scale(-1, 1, 0, 1), chorus.wet);
                     break;
                 case 'flangerMix':
-                    lfo.connect(flanger.wet);
+                    lfo.chain(new Tone.Scale(-1, 1, 0, 1), flanger.wet);
                     break;
                 case 'distortionMix':
-                    lfo.connect(distortion.wet);
+                    lfo.chain(new Tone.Scale(-1, 1, 0, 1), distortion.wet);
                     break;
                 case 'phaserMix':
-                    lfo.connect(phaser.wet);
+                    lfo.chain(new Tone.Scale(-1, 1, 0, 1), phaser.wet);
                     break;
                 
                 // Other destinations
@@ -4779,7 +5009,7 @@
                     const mainGain = new Tone.Gain().toDestination();
                     delay.disconnect();
                     delay.connect(mainGain);
-                    lfo.connect(mainGain.gain);
+                    lfo.chain(new Tone.Scale(-1, 1, 0, 2), mainGain.gain);
                     break;
                 case 'pan':
                     // Create a panner if it doesn't exist
@@ -4788,7 +5018,7 @@
                         delay.disconnect();
                         delay.connect(window.lfoPanner);
                     }
-                    lfo.connect(window.lfoPanner.pan);
+                    lfo.chain(new Tone.Scale(-1, 1, -1, 1), window.lfoPanner.pan);
                     break;
             }
             
@@ -4843,7 +5073,7 @@
                     const range = maxValue - minValue;
                     
                     // Modulate the value based on LFO
-                    let modValue = baseValue + (lfoValue * range * 0.25); // Scale by 25% of parameter range
+                    let modValue = baseValue + (lfoValue * scaleFactor); // Scale by 50% of parameter range
                     
                     // Clamp to min/max
                     modValue = Math.max(minValue, Math.min(maxValue, modValue));
@@ -4873,10 +5103,161 @@
                 }, 16); // ~60fps animation
             }
         });
-        
+
+
         // Trigger initial LFO destination setup
         document.getElementById('lfoDestination').dispatchEvent(new Event('change'));
+        
+        // Drone functionality
+        let droneSynth = null;
+        let isDroneActive = false;
+        
+        // Drone button event listener
+        document.getElementById('droneButton').addEventListener('click', toggleDrone);
+        
+        // Drone octave control
+        document.getElementById('droneOctave').addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            document.getElementById('droneOctaveValue').textContent = value.toString();
+            
+            // If drone is active, update its pitch
+            if (isDroneActive) {
+                updateDronePitch();
+            }
+        });
+        
+        // Drone type select
+        document.getElementById('droneType').addEventListener('change', () => {
+            // If drone is active, restart it with the new type
+            if (isDroneActive) {
+                stopDrone();
+                startDrone();
+            }
+        });
+        
+        document.getElementById('droneVolume').addEventListener('input', e => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('droneVolumeValue').textContent = value.toFixed(2);
+            
+            // Update volume if drone is active
+            if (isDroneActive && droneSynth) {
+                droneSynth.volume.value = Tone.gainToDb(value);
+            }
+        });        
+
+        function toggleDrone() {
+            const droneButton = document.getElementById('droneButton');
+            const droneWave = document.getElementById('droneWave');
+            
+            if (isDroneActive) {
+                stopDrone();
+                droneButton.classList.remove('active');
+                droneButton.innerHTML = '<i class="fas fa-power-off"></i><span>Start Drone</span>';
+                droneWave.classList.remove('active');
+            } else {
+                startDrone();
+                droneButton.classList.add('active');
+                droneButton.innerHTML = '<i class="fas fa-power-off"></i><span>Stop Drone</span>';
+                droneWave.classList.add('active');
+            }
+            
+            isDroneActive = !isDroneActive;
+        }
+        
+        function startDrone() {
+            // Get current synth settings
+            const droneType = document.getElementById('droneType').value;
+            const droneVolume = parseFloat(document.getElementById('droneVolume').value);
+            
+            // Create appropriate drone based on type
+            if (droneType === 'oscillator') {
+                // Create a monophonic synth with current waveform
+                const waveform = document.getElementById('waveform').value;
+                
+                droneSynth = new Tone.MonoSynth({
+                    oscillator: {
+                        type: waveform
+                    },
+                    envelope: {
+                        attack: 0.5,
+                        decay: 0.2,
+                        sustain: 1.0,
+                        release: 1.0
+                    },
+                    volume: Tone.gainToDb(droneVolume) // Set volume explicitly
+                }).connect(filter); // Connect to the same effects chain
+                
+                // Start the drone with current note
+                updateDronePitch();
+                droneSynth.triggerAttack(getDroneNote());
+                
+            } else if (droneType === 'white' || droneType === 'pink') {
+                // Create noise generator
+                droneSynth = new Tone.Noise({
+                    type: droneType,
+                    volume: Tone.gainToDb(droneVolume) // Set volume explicitly
+                }).connect(filter); // Connect to the same effects chain
+                
+                droneSynth.start();
+            }
+            
+            // Visual feedback
+            updateVUMeter(0.7);
+        }
+        
+        function stopDrone() {
+            if (droneSynth) {
+                // For oscillator drone
+                if (droneSynth instanceof Tone.MonoSynth) {
+                    droneSynth.triggerRelease();
+                    // Allow time for release to complete before disposal
+                    setTimeout(() => {
+                        droneSynth.dispose();
+                        droneSynth = null;
+                    }, 1000);
+                } 
+                // For noise drone
+                else {
+                    droneSynth.stop();
+                    droneSynth.dispose();
+                    droneSynth = null;
+                }
+                
+                // Visual feedback
+                updateVUMeter(0.3);
+            }
+        }
+        
+        function getDroneNote() {
+            // Get base note from oscillator
+            const oscillatorOctave = parseInt(document.getElementById('oscillatorOctave').value);
+            const oscillatorSemi = parseInt(document.getElementById('oscillatorSemi').value);
+            
+            // Get drone octave offset
+            const droneOctave = parseInt(document.getElementById('droneOctave').value);
+            
+            // Calculate the resulting octave (base octave + drone octave offset)
+            // Default to octave 3 for the root note
+            const resultOctave = 3 + oscillatorOctave + droneOctave;
+            
+            // Convert semitones to a note (C is the default)
+            let rootNote = 'C';
+            if (oscillatorSemi > 0) {
+                const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                rootNote = notes[oscillatorSemi % 12];
+            }
+            
+            // Return the complete note
+            return `${rootNote}${resultOctave}`;
+        }
+        
+        function updateDronePitch() {
+            if (droneSynth && droneSynth instanceof Tone.MonoSynth) {
+                // Update the pitch without re-triggering
+                droneSynth.setNote(getDroneNote());
+            }
+        }
 
     </script>
 </body>
-</html>
+</html>                
