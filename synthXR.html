@@ -20,6 +20,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="module">
+        import { builtInPresets } from './js/presets.js';
+        window.builtInPresets = builtInPresets;
+    </script>    
     <style>
         :root {
             /* Modern Color Scheme */
@@ -706,7 +710,9 @@
 
         .preset-module {
             flex: 2;
+            max-height: 600px;
         }
+
         .preset-list {
             display: flex;
             flex-direction: column;
@@ -1120,9 +1126,6 @@
                 grid-column: 1 / 7;
             }
             
-            .master-controls {
-                grid-column: 1 / 7;
-            }
  
             .oscillator-module { grid-column: 1 / 2; }
             .filter-module { grid-column: 2 / 3; }
@@ -1941,6 +1944,47 @@
                 height: 25px;
             }
         }
+
+        /* Add responsive styling for master controls */
+        @media (max-width: 768px) {
+            /* Change display order using CSS Grid */
+            .synth-container {
+                display: grid;
+                grid-template-rows: auto auto 1fr auto;
+            }
+            
+            .brand {
+                grid-row: 1;
+            }
+            
+            /* Move master controls to the bottom */
+            .master-controls {
+                grid-row: 8; /* Place at the end */
+                margin-top: 20px;
+                margin-bottom: 0;
+                padding-top: 15px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                position: sticky;
+                bottom: 0;
+                background: var(--surface);
+                z-index: 10;
+
+            }
+            
+            /* For even smaller screens, make buttons stack vertically if needed */
+            @media (max-width: 480px) {
+                .master-controls {
+                    flex-wrap: wrap;
+                    justify-content: center;
+                    border: none;
+                }
+                
+                .master-button {
+                    flex: 1 0 45%; /* Two per row on very small screens */
+                    padding: 12px 8px;
+                }
+            }
+        }
     </style>
 </head>
 <body>
@@ -2251,7 +2295,7 @@
                                 <div class="knob-inner"></div>
                                 <div class="tooltip">Adjust attack time</div>
                             </div>
-                            <input type="range" id="attack" min="0" max="2" step="0.01" value="0.1">
+                            <input type="range" id="attack" min="0" max="12" step="0.01" value="0.1">
                             <span class="knob-value" id="attackValue">0.10s</span>
                         </div>
                         <div class="knob-container">
@@ -2260,7 +2304,7 @@
                                 <div class="knob-inner"></div>
                                 <div class="tooltip">Adjust decay time</div>
                             </div>
-                            <input type="range" id="decay" min="0" max="2" step="0.01" value="0.2">
+                            <input type="range" id="decay" min="0" max="12" step="0.01" value="0.2">
                             <span class="knob-value" id="decayValue">0.20s</span>
                         </div>
                         <div class="knob-container">
@@ -2278,7 +2322,7 @@
                                 <div class="knob-inner"></div>
                                 <div class="tooltip">Adjust release time</div>
                             </div>
-                            <input type="range" id="release" min="0" max="2" step="0.01" value="0.5">
+                            <input type="range" id="release" min="0" max="12" step="0.01" value="0.5">
                             <span class="knob-value" id="releaseValue">0.50s</span>
                         </div>
                     </div>
@@ -2806,6 +2850,7 @@
         </div>
     
         <script>
+            
             // Initialize audio processing components first
             let filter = new Tone.Filter(2000, "lowpass");
             let reverb = new Tone.Reverb(2);
@@ -2830,9 +2875,12 @@
                 highFrequency: 2500
             });
             
+            let masterPanner = new Tone.Panner(0).toDestination(); // Create panner at center position
+
             let lfoActive = false;
             let lfoDestination = 'off';
             let lfoBaseValues = {};
+            lfoBaseValues.pan = 0; // Default to center
             let lfoAnimationFrame = null;        
     
             // Initialize wet values to 0 (effects off)
@@ -2854,7 +2902,8 @@
             delay.connect(eq); // Connect delay to EQ
             eq.connect(waveform); // Connect EQ to waveform analyzer
             eq.connect(fft); // Connect EQ to FFT analyzer
-            eq.toDestination(); // Connect EQ to destination
+            eq.connect(masterPanner); // Connect EQ to panner instead of directly to destination
+
     
             // Initialize synth variables
             let synth;
@@ -4680,634 +4729,7 @@
                     toggleDrone();
                 }
             });
-            
-            // Preset management functionality
-    const builtInPresets = [
-    {
-                    name: "Default",
-                    category: "pad", // Using 'pad' category like the other ambient presets
-                    settings: {
-                        voiceMode: "poly",
-                        waveform: "triangle",
-                        filterCutoff: "900",
-                        filterRes: "5",
-                        filterType: false,
-                        reverbMix: "0.6",
-                        reverbDecay: "3.5", // Adding this since it's in our new synthesizer
-                        delayTime: "0.33",
-                        delayFeedback: "0.55",
-                        tempo: "96",
-                        attack: "0.02",
-                        decay: "0.18",
-                        sustain: "0.35",
-                        release: "1.4",
-                        oscillatorOctave: "0", // Adding new synth parameters
-                        oscillatorSemi: "0",
-                        oscillatorLevel: "0.8",
-                        chorusMix: "0.1",
-                        distortionMix: "0",
-                        flangerMix: "0",
-                        phaserMix: "0",
-                        lfoRate: "1",
-                        lfoAmount: "50",
-                        droneOctave: "-1",
-                        sequencer: [
-                            {"note": "E3", "active": true},
-                            {"note": "B3", "active": true},
-                            {"note": "G3", "active": true},
-                            {"note": "B3", "active": false},
-                            {"note": "A3", "active": true},
-                            {"note": "E4", "active": true},
-                            {"note": "B3", "active": true},
-                            {"note": "C4", "active": false},
-                            {"note": "G3", "active": true},
-                            {"note": "D4", "active": true},
-                            {"note": "B3", "active": true},
-                            {"note": "D4", "active": false},
-                            {"note": "F#3", "active": true},
-                            {"note": "A3", "active": true},
-                            {"note": "E3", "active": true},
-                            {"note": "B3", "active": true}
-                        ]
-                    }
-                },            
-                {
-                    name: "Deep Bass",
-                    category: "bass",
-                    settings: {
-                        voiceMode: "poly", // Changed from "mono" to "poly"
-                        waveform: "fatsawtooth",
-                        filterCutoff: "500",
-                        filterRes: "8",
-                        filterType: false,
-                        reverbMix: "0.05",
-                        reverbDecay: "1.2",
-                        delayTime: "0.25",
-                        delayFeedback: "0.2",
-                        tempo: "120",
-                        attack: "0.01",
-                        decay: "0.2",
-                        sustain: "0.8",
-                        release: "0.4",
-                        oscillatorOctave: "-1",
-                        oscillatorSemi: "0",
-                        oscillatorLevel: "0.9",
-                        chorusMix: "0",
-                        distortionMix: "0.3",
-                        flangerMix: "0",
-                        phaserMix: "0",
-                        lfoRate: "0.5",
-                        lfoAmount: "30",
-                        droneOctave: "-2",
-                        sequencer: [
-                            {"note": "C2", "active": true},
-                            {"note": "G2", "active": false},
-                            {"note": "C2", "active": true},
-                            {"note": "G2", "active": false},
-                            {"note": "A#1", "active": true},
-                            {"note": "F2", "active": false},
-                            {"note": "A#1", "active": true},
-                            {"note": "F2", "active": false},
-                            {"note": "G#1", "active": true},
-                            {"note": "D#2", "active": false},
-                            {"note": "G#1", "active": true},
-                            {"note": "D#2", "active": false},
-                            {"note": "G1", "active": true},
-                            {"note": "D2", "active": false},
-                            {"note": "G1", "active": true},
-                            {"note": "D2", "active": false}
-                        ]
-                    }
-                },
-                {
-                    name: "Plucky Lead",
-                    category: "lead",
-                    settings: {
-                        voiceMode: "poly",
-                        waveform: "square",
-                        filterCutoff: "3000",
-                        filterRes: "6",
-                        filterType: false,
-                        reverbMix: "0.2",
-                        reverbDecay: "1.5",
-                        delayTime: "0.375",
-                        delayFeedback: "0.4",
-                        tempo: "130",
-                        attack: "0.005",
-                        decay: "0.1",
-                        sustain: "0.2",
-                        release: "0.3",
-                        oscillatorOctave: "1",
-                        oscillatorSemi: "0",
-                        oscillatorLevel: "0.75",
-                        chorusMix: "0.1",
-                        distortionMix: "0.05",
-                        flangerMix: "0",
-                        phaserMix: "0",
-                        lfoRate: "4",
-                        lfoAmount: "10",
-                        droneOctave: "-1",
-                        sequencer: [
-                            {"note": "E4", "active": true},
-                            {"note": "G4", "active": true},
-                            {"note": "B4", "active": true},
-                            {"note": "D5", "active": true},
-                            {"note": "E4", "active": false},
-                            {"note": "G4", "active": false},
-                            {"note": "B4", "active": true},
-                            {"note": "D5", "active": true},
-                            {"note": "E4", "active": true},
-                            {"note": "G4", "active": true},
-                            {"note": "B4", "active": false},
-                            {"note": "D5", "active": false},
-                            {"note": "E4", "active": true},
-                            {"note": "G4", "active": true},
-                            {"note": "B4", "active": true},
-                            {"note": "D5", "active": true}
-                        ]
-                    }
-                },
-                {
-                    name: "Dreamy Pad",
-                    category: "pad",
-                    settings: {
-                        voiceMode: "poly",
-                        waveform: "sine",
-                        filterCutoff: "1200",
-                        filterRes: "2",
-                        filterType: false,
-                        reverbMix: "0.7",
-                        reverbDecay: "5",
-                        delayTime: "0.5",
-                        delayFeedback: "0.3",
-                        tempo: "80",
-                        attack: "0.8",
-                        decay: "1",
-                        sustain: "0.8",
-                        release: "1.5",
-                        oscillatorOctave: "0",
-                        oscillatorSemi: "0",
-                        oscillatorLevel: "0.7",
-                        chorusMix: "0.3",
-                        distortionMix: "0",
-                        flangerMix: "0.15",
-                        phaserMix: "0.1",
-                        lfoRate: "0.2",
-                        lfoAmount: "60",
-                        droneOctave: "-2",
-                        sequencer: [
-                            {"note": "C3", "active": true},
-                            {"note": "E3", "active": false},
-                            {"note": "G3", "active": false},
-                            {"note": "B3", "active": true},
-                            {"note": "C3", "active": false},
-                            {"note": "E3", "active": true},
-                            {"note": "G3", "active": false},
-                            {"note": "B3", "active": false},
-                            {"note": "A2", "active": true},
-                            {"note": "C3", "active": false},
-                            {"note": "E3", "active": false},
-                            {"note": "G3", "active": true},
-                            {"note": "A2", "active": false},
-                            {"note": "C3", "active": true},
-                            {"note": "E3", "active": false},
-                            {"note": "G3", "active": false}
-                        ]
-                    }
-                },
-                {
-                    name: "Arpeggiator",
-                    category: "pluck",
-                    settings: {
-                        voiceMode: "poly",
-                        waveform: "triangle",
-                        filterCutoff: "4000",
-                        filterRes: "3",
-                        filterType: false,
-                        reverbMix: "0.3",
-                        reverbDecay: "2",
-                        delayTime: "0.25",
-                        delayFeedback: "0.6",
-                        tempo: "140",
-                        attack: "0.005",
-                        decay: "0.2",
-                        sustain: "0.3",
-                        release: "0.2",
-                        oscillatorOctave: "0",
-                        oscillatorSemi: "0",
-                        oscillatorLevel: "0.75",
-                        chorusMix: "0.05",
-                        distortionMix: "0",
-                        flangerMix: "0",
-                        phaserMix: "0",
-                        lfoRate: "8",
-                        lfoAmount: "20",
-                        droneOctave: "0",
-                        sequencer: [
-                            {"note": "C3", "active": true},
-                            {"note": "E3", "active": true},
-                            {"note": "G3", "active": true},
-                            {"note": "C4", "active": true},
-                            {"note": "E4", "active": true},
-                            {"note": "G4", "active": true},
-                            {"note": "C5", "active": true},
-                            {"note": "G4", "active": true},
-                            {"note": "E4", "active": true},
-                            {"note": "C4", "active": true},
-                            {"note": "G3", "active": true},
-                            {"note": "E3", "active": true},
-                            {"note": "C3", "active": true},
-                            {"note": "E3", "active": true},
-                            {"note": "G3", "active": true},
-                            {"note": "C4", "active": true}
-                        ]
-                    }
-                },
-                {
-                    name: "Ambient FX",
-                    category: "fx",
-                    settings: {
-                        voiceMode: "poly",
-                        waveform: "fmsine",
-                        filterCutoff: "2000",
-                        filterRes: "10",
-                        filterType: true,
-                        reverbMix: "0.8",
-                        reverbDecay: "8",
-                        delayTime: "0.7",
-                        delayFeedback: "0.6",
-                        tempo: "60",
-                        attack: "0.3",
-                        decay: "1",
-                        sustain: "0.5",
-                        release: "3",
-                        oscillatorOctave: "1",
-                        oscillatorSemi: "7",
-                        oscillatorLevel: "0.6",
-                        chorusMix: "0.4",
-                        distortionMix: "0.1",
-                        flangerMix: "0.2",
-                        phaserMix: "0.3",
-                        lfoRate: "0.3",
-                        lfoAmount: "70",
-                        droneOctave: "-3",
-                        sequencer: [
-                            {"note": "E3", "active": true},
-                            {"note": "B3", "active": false},
-                            {"note": "E4", "active": false},
-                            {"note": "F#4", "active": true},
-                            {"note": "E3", "active": false},
-                            {"note": "B3", "active": true},
-                            {"note": "E4", "active": false},
-                            {"note": "F#4", "active": false},
-                            {"note": "A3", "active": true},
-                            {"note": "E4", "active": false},
-                            {"note": "A4", "active": false},
-                            {"note": "B4", "active": true},
-                            {"note": "A3", "active": false},
-                            {"note": "E4", "active": true},
-                            {"note": "A4", "active": false},
-                            {"note": "B4", "active": false}
-                        ]
-                    }
-                },
-                {
-                    name: "Warm Keys",
-                    category: "keys",
-                    settings: {
-                        voiceMode: "poly",
-                        waveform: "sine",
-                        filterCutoff: "3500",
-                        filterRes: "1",
-                        filterType: false,
-                        reverbMix: "0.4",
-                        reverbDecay: "2.5",
-                        delayTime: "0.2",
-                        delayFeedback: "0.2",
-                        tempo: "100",
-                        attack: "0.05",
-                        decay: "0.2",
-                        sustain: "0.7",
-                        release: "0.6",
-                        oscillatorOctave: "0",
-                        oscillatorSemi: "0",
-                        oscillatorLevel: "0.8",
-                        chorusMix: "0.15",
-                        distortionMix: "0",
-                        flangerMix: "0",
-                        phaserMix: "0.1",
-                        lfoRate: "1",
-                        lfoAmount: "15",
-                        droneOctave: "-1",
-                        sequencer: [
-                            {"note": "C3", "active": true},
-                            {"note": "E3", "active": true},
-                            {"note": "G3", "active": true},
-                            {"note": "C3", "active": false},
-                            {"note": "F3", "active": true},
-                            {"note": "A3", "active": true},
-                            {"note": "C4", "active": true},
-                            {"note": "F3", "active": false},
-                            {"note": "G3", "active": true},
-                            {"note": "B3", "active": true},
-                            {"note": "D4", "active": true},
-                            {"note": "G3", "active": false},
-                            {"note": "A3", "active": true},
-                            {"note": "C4", "active": true},
-                            {"note": "E4", "active": true},
-                            {"note": "A3", "active": false}
-                        ]
-                    }
-                },
-                {
-                    name: "Wobble Bass",
-                    category: "bass",
-                    settings: {
-                        voiceMode: "poly", // Changed from "mono" to "poly"
-                        waveform: "fatsquare",
-                        filterCutoff: "800",
-                        filterRes: "15",
-                        filterType: false,
-                        reverbMix: "0.1",
-                        reverbDecay: "1",
-                        delayTime: "0.125",
-                        delayFeedback: "0.3",
-                        tempo: "135",
-                        attack: "0.01",
-                        decay: "0.1",
-                        sustain: "0.9",
-                        release: "0.2",
-                        oscillatorOctave: "-1",
-                        oscillatorSemi: "0",
-                        oscillatorLevel: "0.85",
-                        chorusMix: "0",
-                        distortionMix: "0.4",
-                        flangerMix: "0.2",
-                        phaserMix: "0.1",
-                        lfoRate: "5",
-                        lfoAmount: "80",
-                        droneOctave: "-3",
-                        sequencer: [
-                            {"note": "C2", "active": true},
-                            {"note": "C2", "active": true},
-                            {"note": "G2", "active": true},
-                            {"note": "G2", "active": true},
-                            {"note": "A#1", "active": true},
-                            {"note": "A#1", "active": true},
-                            {"note": "F2", "active": true},
-                            {"note": "F2", "active": true},
-                            {"note": "D#2", "active": true},
-                            {"note": "D#2", "active": true},
-                            {"note": "A#2", "active": true},
-                            {"note": "A#2", "active": true},
-                            {"note": "G#1", "active": true},
-                            {"note": "G#1", "active": true},
-                            {"note": "D#2", "active": true},
-                            {"note": "D#2", "active": true}
-                        ]
-                    }
-                },
-                {
-                    name: "Bright Lead",
-                    category: "lead",
-                    settings: {
-                        voiceMode: "poly", // Changed from "mono" to "poly"
-                        waveform: "sawtooth",
-                        filterCutoff: "5000",
-                        filterRes: "4",
-                        filterType: false,
-                        reverbMix: "0.2",
-                        reverbDecay: "1.2",
-                        delayTime: "0.33",
-                        delayFeedback: "0.4",
-                        tempo: "120",
-                        attack: "0.005",
-                        decay: "0.1",
-                        sustain: "0.6",
-                        release: "0.2",
-                        oscillatorOctave: "1",
-                        oscillatorSemi: "0",
-                        oscillatorLevel: "0.8",
-                        chorusMix: "0",
-                        distortionMix: "0.15",
-                        flangerMix: "0",
-                        phaserMix: "0.1",
-                        lfoRate: "10",
-                        lfoAmount: "25",
-                        droneOctave: "0",
-                        sequencer: [
-                            {"note": "E4", "active": true},
-                            {"note": "G4", "active": false},
-                            {"note": "A4", "active": true},
-                            {"note": "B4", "active": false},
-                            {"note": "D5", "active": true},
-                            {"note": "B4", "active": false},
-                            {"note": "A4", "active": true},
-                            {"note": "G4", "active": false},
-                            {"note": "E4", "active": true},
-                            {"note": "G4", "active": false},
-                            {"note": "A4", "active": true},
-                            {"note": "B4", "active": false},
-                            {"note": "D5", "active": true},
-                            {"note": "B4", "active": false},
-                            {"note": "A4", "active": true},
-                            {"note": "G4", "active": false}
-                        ]
-                    }
-                },
-                {
-                    name: "Spacey Atmosphere",
-                    category: "pad",
-                    settings: {
-                        voiceMode: "poly",
-                        waveform: "amsine",
-                        filterCutoff: "1500",
-                        filterRes: "3",
-                        filterType: true,
-                        reverbMix: "0.9",
-                        reverbDecay: "10",
-                        delayTime: "0.5",
-                        delayFeedback: "0.7",
-                        tempo: "70",
-                        attack: "1",
-                        decay: "1",
-                        sustain: "0.8",
-                        release: "3",
-                        oscillatorOctave: "0",
-                        oscillatorSemi: "5",
-                        oscillatorLevel: "0.65",
-                        chorusMix: "0.4",
-                        distortionMix: "0",
-                        flangerMix: "0.3",
-                        phaserMix: "0.2",
-                        lfoRate: "0.1",
-                        lfoAmount: "90",
-                        droneOctave: "-3",
-                        sequencer: [
-                            {"note": "A2", "active": true},
-                            {"note": "E3", "active": false},
-                            {"note": "A3", "active": false},
-                            {"note": "C4", "active": false},
-                            {"note": "E4", "active": true},
-                            {"note": "C4", "active": false},
-                            {"note": "A3", "active": false},
-                            {"note": "E3", "active": false},
-                            {"note": "G2", "active": true},
-                            {"note": "D3", "active": false},
-                            {"note": "G3", "active": false},
-                            {"note": "B3", "active": false},
-                            {"note": "D4", "active": true},
-                            {"note": "B3", "active": false},
-                            {"note": "G3", "active": false},
-                            {"note": "D3", "active": false}
-                        ]
-                    }
-                },
-                {
-                    name: "Glitch FX",
-                    category: "fx",
-                    settings: {
-                        voiceMode: "poly",
-                        waveform: "pulse",
-                        filterCutoff: "1000",
-                        filterRes: "18",
-                        filterType: true,
-                        reverbMix: "0.5",
-                        reverbDecay: "3",
-                        delayTime: "0.16",
-                        delayFeedback: "0.8",
-                        tempo: "145",
-                        attack: "0.005",
-                        decay: "0.1",
-                        sustain: "0.3",
-                        release: "0.2",
-                        oscillatorOctave: "2",
-                        oscillatorSemi: "-5",
-                        oscillatorLevel: "0.7",
-                        chorusMix: "0.2",
-                        distortionMix: "0.3",
-                        flangerMix: "0.2",
-                        phaserMix: "0.3",
-                        lfoRate: "15",
-                        lfoAmount: "100",
-                        droneOctave: "-1",
-                        sequencer: [
-                            {"note": "C5", "active": true},
-                            {"note": "C5", "active": false},
-                            {"note": "G4", "active": true},
-                            {"note": "G4", "active": false},
-                            {"note": "C5", "active": true},
-                            {"note": "C5", "active": false},
-                            {"note": "D#5", "active": true},
-                            {"note": "D#5", "active": false},
-                            {"note": "A#4", "active": true},
-                            {"note": "A#4", "active": false},
-                            {"note": "F5", "active": true},
-                            {"note": "F5", "active": false},
-                            {"note": "G5", "active": true},
-                            {"note": "G5", "active": false},
-                            {"note": "G#5", "active": true},
-                            {"note": "G#5", "active": false}
-                        ]
-                    }
-                },
-                {
-                    name: "Classic Pluck",
-                    category: "pluck",
-                    settings: {
-                        voiceMode: "poly",
-                        waveform: "triangle",
-                        filterCutoff: "2500",
-                        filterRes: "2",
-                        filterType: false,
-                        reverbMix: "0.25",
-                        reverbDecay: "1.5",
-                        delayTime: "0.33",
-                        delayFeedback: "0.3",
-                        tempo: "110",
-                        attack: "0.005",
-                        decay: "0.15",
-                        sustain: "0.2",
-                        release: "0.3",
-                        oscillatorOctave: "0",
-                        oscillatorSemi: "0",
-                        oscillatorLevel: "0.8",
-                        chorusMix: "0.05",
-                        distortionMix: "0",
-                        flangerMix: "0",
-                        phaserMix: "0",
-                        lfoRate: "1",
-                        lfoAmount: "40",
-                        droneOctave: "-1",
-                        sequencer: [
-                            {"note": "E4", "active": true},
-                            {"note": "B3", "active": true},
-                            {"note": "E4", "active": true},
-                            {"note": "G4", "active": true},
-                            {"note": "F#4", "active": true},
-                            {"note": "B3", "active": true},
-                            {"note": "F#4", "active": true},
-                            {"note": "A4", "active": true},
-                            {"note": "D4", "active": true},
-                            {"note": "A3", "active": true},
-                            {"note": "D4", "active": true},
-                            {"note": "F#4", "active": true},
-                            {"note": "E4", "active": true},
-                            {"note": "B3", "active": true},
-                            {"note": "E4", "active": true},
-                            {"note": "G4", "active": true}
-                        ]
-                    }
-                },
-                {
-                    name: "Electric Piano",
-                    category: "keys",
-                    settings: {
-                        voiceMode: "poly",
-                        waveform: "sine",
-                        filterCutoff: "4000",
-                        filterRes: "1",
-                        filterType: false,
-                        reverbMix: "0.35",
-                        reverbDecay: "2",
-                        delayTime: "0.15",
-                        delayFeedback: "0.15",
-                        tempo: "100",
-                        attack: "0.01",
-                        decay: "0.5",
-                        sustain: "0.5",
-                        release: "0.5",
-                        oscillatorOctave: "0",
-                        oscillatorSemi: "0",
-                        oscillatorLevel: "0.8",
-                        chorusMix: "0.1",
-                        distortionMix: "0.05",
-                        flangerMix: "0",
-                        phaserMix: "0.15",
-                        lfoRate: "1",
-                        lfoAmount: "20",
-                        droneOctave: "-1",
-                        sequencer: [
-                            {"note": "C4", "active": true},
-                            {"note": "G3", "active": true},
-                            {"note": "E3", "active": true},
-                            {"note": "G3", "active": true},
-                            {"note": "C4", "active": true},
-                            {"note": "G3", "active": true},
-                            {"note": "E3", "active": true},
-                            {"note": "G3", "active": true},
-                            {"note": "A3", "active": true},
-                            {"note": "E3", "active": true},
-                            {"note": "C3", "active": true},
-                            {"note": "E3", "active": true},
-                            {"note": "F3", "active": true},
-                            {"note": "C3", "active": true},
-                            {"note": "A2", "active": true},
-                            {"note": "C3", "active": true}
-                        ]
-                    }
-                }
-            ];
+
             // The currently active preset name
             let activePresetName = null;
             
@@ -5388,7 +4810,7 @@
             function applyPreset(settings) {
                 // Update all parameters and trigger input events to update visuals
                 Object.entries(settings).forEach(([key, value]) => {
-                    if (key !== 'sequencer') {
+                    if (key !== 'sequencer' && key !== 'drumMachine') {
                         if (key === 'filterType') {
                             // Handle toggle separately
                             document.getElementById('filterTypeToggle').checked = value;
@@ -5408,7 +4830,7 @@
                         }
                     }
                 });
-            
+
                 // Update sequencer if available
                 if (settings.sequencer) {
                     const steps = document.querySelectorAll('.step');
@@ -5429,12 +4851,108 @@
                     });
                 }
                 
+                // Update drum machine settings
+                if (settings.drumMachine) {
+                    const drumTypes = ['kick', 'snare', 'hihat', 'clap'];
+                    
+                    drumTypes.forEach(type => {
+                        const volumeControl = document.getElementById(`${type}Volume`);
+                        const volumeDisplay = document.getElementById(`${type}VolumeValue`);
+                        const steps = document.querySelectorAll(`#${type}Steps .drum-step`);
+                        
+                        // Set volume if provided
+                        if (settings.drumMachine[type] && settings.drumMachine[type].volume !== undefined) {
+                            const volume = settings.drumMachine[type].volume;
+                            volumeControl.value = volume;
+                            volumeDisplay.textContent = volume.toFixed(2);
+                            
+                            // Update drum sound volume
+                            if (drumSounds && drumSounds[type]) {
+                                drumSounds[type].volume.value = Tone.gainToDb(volume);
+                            }
+                        }
+                        
+                        // Set step states
+                        if (settings.drumMachine[type] && settings.drumMachine[type].steps) {
+                            steps.forEach((step, i) => {
+                                if (i < settings.drumMachine[type].steps.length) {
+                                    step.classList.toggle('active', settings.drumMachine[type].steps[i]);
+                                }
+                            });
+                        }
+                    });
+                } else {
+                    // Reset drum machine to default if no settings provided
+                    const drumTypes = ['kick', 'snare', 'hihat', 'clap'];
+                    
+                    drumTypes.forEach(type => {
+                        const volumeControl = document.getElementById(`${type}Volume`);
+                        const volumeDisplay = document.getElementById(`${type}VolumeValue`);
+                        const steps = document.querySelectorAll(`#${type}Steps .drum-step`);
+                        
+                        // Reset volume to default
+                        const defaultVolume = type === 'kick' ? 0.8 : 
+                                            type === 'snare' ? 0.7 : 
+                                            type === 'hihat' ? 0.6 : 0.65;
+                        
+                        volumeControl.value = defaultVolume;
+                        volumeDisplay.textContent = defaultVolume.toFixed(2);
+                        
+                        // Update drum sound volume
+                        if (drumSounds && drumSounds[type]) {
+                            drumSounds[type].volume.value = Tone.gainToDb(defaultVolume);
+                        }
+                        
+                        // Reset step states (default pattern)
+                        steps.forEach((step, i) => {
+                            step.classList.remove('active');
+                            if (type === 'kick' && (i % 4 === 0)) {
+                                step.classList.add('active');
+                            } else if (type === 'snare' && (i % 4 === 2)) {
+                                step.classList.add('active');
+                            } else if (type === 'hihat' && (i % 2 === 0)) {
+                                step.classList.add('active');
+                            } else if (type === 'clap' && (i % 8 === 4)) {
+                                step.classList.add('active');
+                            }
+                        });
+
+                        // Add LFO settings loading near the end of the function
+                        if (settings.lfoDestination) {
+                            loadLfoPresetSettings(settings);
+                        }
+                        
+                        // IMPORTANT: Special handling for LFO - needs full reinitialization
+                        if (settings.lfoDestination && settings.lfoDestination !== 'off' && settings.lfoAmount > 0) {
+                            // Store required values for proper LFO initialization
+                            const destination = settings.lfoDestination;
+                            const lfoSelect = document.getElementById('lfoDestination');
+                            
+                            // First set to "off" to reset any existing LFO connections
+                            lfoSelect.value = "off";
+                            lfoSelect.dispatchEvent(new Event('change'));
+                            
+                            // Small delay to ensure cleanup completes
+                            setTimeout(() => {
+                                // Now set to the desired destination and force initialization
+                                lfoSelect.value = destination;
+                                lfoSelect.dispatchEvent(new Event('change'));
+                                
+                                // If that doesn't trigger it, try manually calling lfoDestination handler
+                                if (typeof lfoDestinationChange === 'function') {
+                                    lfoDestinationChange({ target: { value: destination } });
+                                }
+                            }, 50);
+                        }
+                    });
+                }
+                
                 // Ensure synth settings is updated for recreating synths
                 synthSettings.envelope.attack = parseFloat(document.getElementById('attack').value);
                 synthSettings.envelope.decay = parseFloat(document.getElementById('decay').value);
                 synthSettings.envelope.sustain = parseFloat(document.getElementById('sustain').value);
                 synthSettings.envelope.release = parseFloat(document.getElementById('release').value);
-            
+
                 // Then recreate the synth to apply all settings consistently
                 createSynth(currentMode);
                 
@@ -5449,10 +4967,58 @@
                 
                 // Update VU meter to provide visual feedback that preset was loaded
                 updateVUMeter(0.6);
+                
             }
             
+            // Enhanced LFO Preset Loading Function
+            function loadLfoPresetSettings(settings) {
+                // Ensure LFO-related settings are properly handled
+                const lfoDestinationSelect = document.getElementById('lfoDestination');
+                const lfoRateInput = document.getElementById('lfoRate');
+                const lfoAmountInput = document.getElementById('lfoAmount');
+                const lfoWaveformSelect = document.getElementById('lfoWaveform');
+                const lfoSyncToggle = document.getElementById('lfoSyncToggle');
+
+                // Default to off if no LFO settings found
+                const lfoDestination = settings.lfoDestination || 'off';
+                const lfoRate = settings.lfoRate || 1;
+                const lfoAmount = settings.lfoAmount || 50;
+                const lfoWaveform = settings.lfoWaveform || 'sine';
+                const lfoSync = settings.lfoSync !== undefined ? settings.lfoSync : false;
+
+                // Set all LFO-related controls
+                lfoDestinationSelect.value = lfoDestination;
+                lfoRateInput.value = lfoRate;
+                lfoAmountInput.value = lfoAmount;
+                lfoWaveformSelect.value = lfoWaveform;
+                lfoSyncToggle.checked = lfoSync;
+
+                // Trigger change events to ensure proper initialization
+                lfoDestinationSelect.dispatchEvent(new Event('change'));
+                lfoRateInput.dispatchEvent(new Event('input'));
+                lfoAmountInput.dispatchEvent(new Event('input'));
+                lfoWaveformSelect.dispatchEvent(new Event('change'));
+                lfoSyncToggle.dispatchEvent(new Event('change'));
+            }
+
+
+
             // Get the current setup
             function getCurrentSetup() {
+                // Collect drum machine settings
+                const drumTypes = ['kick', 'snare', 'hihat', 'clap'];
+                const drumMachineSettings = {};
+                
+                drumTypes.forEach(type => {
+                    const steps = document.querySelectorAll(`#${type}Steps .drum-step`);
+                    const volume = parseFloat(document.getElementById(`${type}Volume`).value);
+                    
+                    drumMachineSettings[type] = {
+                        volume: volume,
+                        steps: Array.from(steps).map(step => step.classList.contains('active'))
+                    };
+                });
+                
                 return {
                     voiceMode: "poly", // Always return "poly" regardless of UI selection
                     waveform: document.getElementById('waveform').value,
@@ -5475,21 +5041,25 @@
                     distortionMix: document.getElementById('distortionMix').value,
                     flangerMix: document.getElementById('flangerMix').value,
                     phaserMix: document.getElementById('phaserMix').value,
+                    lfoDestination: document.getElementById('lfoDestination').value,
                     lfoRate: document.getElementById('lfoRate').value,
                     lfoAmount: document.getElementById('lfoAmount').value,
+                    lfoWaveform: document.getElementById('lfoWaveform').value,
+                    lfoSync: document.getElementById('lfoSyncToggle').checked,
                     droneOctave: document.getElementById('droneOctave').value,
                     eqLow: document.getElementById('eqLow').value,
                     eqMid: document.getElementById('eqMid').value,
                     eqHigh: document.getElementById('eqHigh').value,
                     eqMidFreq: document.getElementById('eqMidFreq').value,
                     eqQ: document.getElementById('eqQ').value,
-                    sequencer: Array.from(steps).map(step => ({
+                    sequencer: Array.from(document.querySelectorAll('.step')).map(step => ({
                         note: step.querySelector('select').value,
                         active: step.querySelector('.step-toggle').classList.contains('active')
-                    }))
+                    })),
+                    drumMachine: drumMachineSettings
                 };
-            }
-            
+            }            
+
             // Modal handling for new preset
             const presetModal = document.getElementById('presetModal');
             const presetNameInput = document.getElementById('presetName');
@@ -6166,6 +5736,13 @@
                     case 'eqQ':
                         document.getElementById('eqQValue').textContent = value.toFixed(1);
                         updateEqResponse();
+                        break;
+                    case 'pan':
+                        masterPanner.pan.value = value;
+                        let displayText = "C"; // Center by default
+                        if (value < -0.05) displayText = `L${Math.abs(Math.round(value * 100))}`;
+                        else if (value > 0.05) displayText = `R${Math.round(value * 100)}`;
+                        document.getElementById('masterPanValue').textContent = displayText;
                         break;
                 }
                 
