@@ -88,6 +88,10 @@
             -moz-user-select: none;
         }
         
+        #filterCutoffLow {
+            display: block;
+        }
+        
         .synth-container {
             width: 100%;
             max-width: 1400px;
@@ -192,7 +196,8 @@
             display: flex;
             flex-direction: column;
             position: relative;
-            overflow: hidden;
+            overflow: scroll;
+            max-height: 625px;
         }
         
         .module::before {
@@ -242,12 +247,15 @@
         .effects-module { grid-column: 3 / 4; }
         
         .adsr-module {
-            grid-column: 1 / 4;
+            grid-column: 1 / 2;
+        }
+        
+        .eq-module {
+            grid-column: 2 / 3;
         }
         
         .drone-module {
-            grid-column: 1 / 4;
-            margin-top: 0;
+            grid-column: 3 / 4;
         }
         
         .visualization {
@@ -684,13 +692,15 @@
         .black-key.active {
             background: var(--primary-dark);
         }
-        
+
+        .preset-module {
+            flex: 2;
+        }
         .preset-list {
             display: flex;
             flex-direction: column;
             gap: 8px;
             overflow-y: auto;
-            max-height: 300px;
             padding-right: 8px;
         }
         
@@ -1205,6 +1215,7 @@
             }
             
             .module {
+                grid-column: 1 / 7;
                 padding: 12px;
             }
             
@@ -1267,6 +1278,7 @@
             gap: 10px;
             transition: all var(--transition-normal);
             box-shadow: var(--shadow-small);
+            margin: auto;
         }
         
         .drone-button:hover {
@@ -1281,7 +1293,7 @@
         }
         
         .drone-visualizer {
-            height: 40px;
+            height: 120px;
             margin-top: 16px;
             background: var(--background);
             border-radius: 6px;
@@ -1351,6 +1363,119 @@
         .panic-button:hover {
             background-color: #d50000;
         }
+
+        .eq-response {
+            width: 100%;
+            height: 80px;
+            background: var(--background);
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+            margin-top: 14px;
+            position: relative;
+        }
+        
+        .eq-response svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .eq-curve {
+            fill: none;
+            stroke: var(--primary-light);
+            stroke-width: 2px;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 3px var(--primary-light));
+        }
+        
+        .eq-area {
+            opacity: 0.5;
+        }
+        
+        .eq-response::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 20px 16px;
+            background-position: center center;
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        /* Center line for EQ (0 dB) */
+        .eq-response::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.2);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* Fine control slider styling */
+        .fine-control-container {
+            width: 100%;
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .fine-control-slider {
+            width: 100%;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(90deg, var(--primary-dark), var(--primary-light));
+            border-radius: 4px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .fine-control-slider:hover {
+            opacity: 1;
+        }
+        
+        .fine-control-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--secondary);
+            cursor: pointer;
+            box-shadow: 0 0 4px var(--secondary);
+        }
+        
+        .fine-control-slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--secondary);
+            cursor: pointer;
+            box-shadow: 0 0 4px var(--secondary);
+        }
+        
+        .fine-control-label {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body>
@@ -1371,11 +1496,6 @@
             </button>
             
             <div class="spacer"></div>
-            
-            <button class="master-button" id="panicButton">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>Panic</span>
-            </button>
             
             <button class="master-button" id="initPatchButton">
                 <i class="fas fa-undo"></i>
@@ -1484,6 +1604,12 @@
                         </div>
                         <input type="range" id="filterCutoff" min="20" max="20000" value="2000">
                         <span class="knob-value" id="filterCutoffValue">2000 Hz</span>
+                        
+                        <!-- Add fine control slider for low frequencies -->
+                        <div class="fine-control-container">
+                            <input type="range" id="filterCutoffLow" min="20" max="1000" value="200" class="fine-control-slider">
+                            <span class="fine-control-label">Low-End Focus</span>
+                        </div>
                     </div>
                     <div class="knob-container">
                         <label class="knob-label">Resonance</label>
@@ -1518,7 +1644,6 @@
                         Effects
                     </h3>
                 </div>
-                <div style="overflow: auto; max-height: 520px;">
                     <!-- Reverb group with dotted border -->
                     <div class="effect-group">
                         <div class="effect-group-label">
@@ -1546,7 +1671,6 @@
                                 <span class="knob-value" id="reverbDecayValue">2.0s</span>
                             </div>
                         </div>
-                    </div>
                     
                     <!-- Delay group with dotted border -->
                     <div class="effect-group">
@@ -1688,7 +1812,79 @@
                 </div>
             </div>
             
-            <!-- New Drone Module -->
+            
+            <div class="module eq-module">
+                <div class="module-header">
+                    <h3 class="module-title">
+                        <i class="fas fa-sliders-h"></i>
+                        Equalizer
+                    </h3>
+                </div>
+                <div class="control-group">
+                    <div class="knob-container">
+                        <label class="knob-label">Low</label>
+                        <div class="knob" id="eqLowKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust low frequency gain</div>
+                        </div>
+                        <input type="range" id="eqLow" min="-12" max="12" value="0" step="0.5">
+                        <span class="knob-value" id="eqLowValue">0 dB</span>
+                    </div>
+                    <div class="knob-container">
+                        <label class="knob-label">Mid</label>
+                        <div class="knob" id="eqMidKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust mid frequency gain</div>
+                        </div>
+                        <input type="range" id="eqMid" min="-12" max="12" value="0" step="0.5">
+                        <span class="knob-value" id="eqMidValue">0 dB</span>
+                    </div>
+                    <div class="knob-container">
+                        <label class="knob-label">High</label>
+                        <div class="knob" id="eqHighKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust high frequency gain</div>
+                        </div>
+                        <input type="range" id="eqHigh" min="-12" max="12" value="0" step="0.5">
+                        <span class="knob-value" id="eqHighValue">0 dB</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="knob-container">
+                        <label class="knob-label">Mid Freq</label>
+                        <div class="knob" id="eqMidFreqKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust mid frequency center</div>
+                        </div>
+                        <input type="range" id="eqMidFreq" min="200" max="5000" value="1000" step="50">
+                        <span class="knob-value" id="eqMidFreqValue">1000 Hz</span>
+                    </div>
+                    <div class="knob-container">
+                        <label class="knob-label">Q</label>
+                        <div class="knob" id="eqQKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust Q factor (bandwidth)</div>
+                        </div>
+                        <input type="range" id="eqQ" min="0.1" max="5" value="1" step="0.1">
+                        <span class="knob-value" id="eqQValue">1.0</span>
+                    </div>
+                </div>
+                
+                <!-- EQ Response Curve -->
+                <div class="eq-response">
+                    <svg id="eqResponseSvg" width="100%" height="100%">
+                        <defs>
+                            <linearGradient id="eqGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="rgba(157, 70, 255, 0.3)" />
+                                <stop offset="100%" stop-color="rgba(157, 70, 255, 0)" />
+                            </linearGradient>
+                        </defs>
+                        <path id="eqCurve" class="eq-curve" d="M0,50 L400,50" />
+                        <path id="eqArea" class="eq-area" d="M0,70 L400,70 L400,50 L0,50 Z" fill="url(#eqGradient)" />
+                    </svg>
+                </div>
+            </div>
+
             <div class="module drone-module">
                 <div class="module-header">
                     <h3 class="module-title">
@@ -1785,9 +1981,10 @@
                     <div class="select-container">
                         <label class="select-label">Destination</label>
                         <select id="lfoDestination">
+                            <!-- LFO Control -->
+                            <option value="off" selected>Off</option>
+                            
                             <!-- Oscillator Destinations -->
-                            <option value="pitch">Pitch</option>
-                            <option value="detune">Detune</option>
                             <option value="oscillatorLevel">Oscillator Level</option>
                             
                             <!-- Filter Destinations -->
@@ -1823,7 +2020,7 @@
                             <div class="knob-inner"></div>
                             <div class="tooltip">Adjust LFO speed</div>
                         </div>
-                        <input type="range" id="lfoRate" min="0.1" max="20" step="0.1" value="1">
+                        <input type="range" id="lfoRate" min="0.1" max="5" step="0.1" value="0.5">
                         <span class="knob-value" id="lfoRateValue">1.0 Hz</span>
                     </div>
                     <div class="knob-container">
@@ -4452,9 +4649,6 @@
             }
         });
 
-        // Add panic button functionality
-        document.getElementById('panicButton').addEventListener('click', releaseAllNotes);
-        
         // Connect LFO controls
         // Waveform
         document.getElementById('lfoWaveform').addEventListener('change', (e) => {
@@ -4526,19 +4720,16 @@
             const amount = parseInt(document.getElementById('lfoAmount').value) / 100;
             lfo.amplitude.value = amount; // Set amplitude directly based on amount
             
+            // If "Off" is selected, just leave the LFO disconnected and return
+            if (destination === 'off') {
+                return;
+            }
+            
             // Get target knob and value elements based on destination
             let targetKnobId, targetRangeId, targetValueId, minValue, maxValue, unit = '';
             
             switch (destination) {
                 // Oscillator destinations
-                case 'pitch':
-                case 'detune':
-                    targetKnobId = 'oscillatorSemiKnob';
-                    targetRangeId = 'oscillatorSemi';
-                    targetValueId = 'oscillatorSemiValue';
-                    minValue = -12;
-                    maxValue = 12;
-                    break;
                 case 'oscillatorLevel':
                     targetKnobId = 'oscillatorLevelKnob';
                     targetRangeId = 'oscillatorLevel';
@@ -4682,15 +4873,6 @@
             // Connect LFO through scale to the selected destination
             switch (destination) {
                 // Oscillator destinations
-                case 'pitch':
-                case 'detune':
-                    if (currentMode === "poly") {
-                        // Use normal range for detune (which is in cents)
-                        lfo.connect(synth.detune);
-                    } else {
-                        lfo.connect(synth.detune);
-                    }
-                    break;
                 case 'oscillatorLevel':
                     // Create a special scale for volume (which is exponential)
                     const volScale = new Tone.Scale(-1, 1, 0, 1);
@@ -5264,6 +5446,106 @@
                 droneSynth.setNote(getDroneNote());
             }
         }
+
+        // EQ Response Curve
+        function updateEqResponse() {
+            const svg = document.getElementById('eqResponseSvg');
+            const width = svg.clientWidth;
+            const height = svg.clientHeight;
+            
+            const low = parseFloat(document.getElementById('eqLow').value);
+            const mid = parseFloat(document.getElementById('eqMid').value);
+            const high = parseFloat(document.getElementById('eqHigh').value);
+            const midFreq = parseFloat(document.getElementById('eqMidFreq').value);
+            const q = parseFloat(document.getElementById('eqQ').value);
+            
+            // Calculate log scale for x-axis (frequency)
+            const frequencyToX = (freq) => {
+                const minLog = Math.log10(200);
+                const maxLog = Math.log10(5000);
+                const logPos = (Math.log10(freq) - minLog) / (maxLog - minLog);
+                return logPos * width;
+            };
+            
+            // Generate points for the EQ curve
+            const points = [];
+            for (let freq = 200; freq <= 5000; freq = freq * 1.1) {
+                const x = frequencyToX(freq);
+                
+                // Calculate EQ response at this frequency
+                let response = 0;
+                if (freq < midFreq) {
+                    // Low frequency band
+                    response = low;
+                } else if (freq > midFreq) {
+                    // High frequency band
+                    response = high;
+                } else {
+                    // Mid frequency band
+                    response = mid;
+                }
+                
+                // Convert to y coordinate (inverted, as 0,0 is top-left)
+                const y = height - (response * (height * 0.8));
+                points.push(`${x},${y}`);
+            }
+            
+            // Create the EQ curve path
+            const path = `M0,${height} L${points.join(' L')} L${width},${height}`;
+            document.getElementById('eqCurve').setAttribute('d', `M${points.join(' L')}`);
+            
+            // Create the filled area for the EQ curve
+            document.getElementById('eqArea').setAttribute('d', `M0,${height} L${points.join(' L')} L${width},${height} Z`);
+        }
+
+        // Add event listeners for the fine control cutoff slider
+        document.addEventListener('DOMContentLoaded', () => {
+            const filterCutoff = document.getElementById('filterCutoff');
+            const filterCutoffLow = document.getElementById('filterCutoffLow');
+            const filterCutoffValue = document.getElementById('filterCutoffValue');
+            
+            // Update low slider when main slider changes
+            filterCutoff.addEventListener('input', () => {
+                const value = parseFloat(filterCutoff.value);
+                // Only update low slider if main slider is within low range
+                if (value <= 1000) {
+                    filterCutoffLow.value = value;
+                }
+                
+                // Update filter and value display (existing functionality)
+                if (filter) {
+                    filter.frequency.value = value;
+                }
+                filterCutoffValue.textContent = Math.round(value) + ' Hz';
+                
+                // Update filter response visualization (if it exists)
+                if (typeof updateFilterResponse === 'function') {
+                    updateFilterResponse();
+                }
+            });
+            
+            // Update main slider when low slider changes
+            filterCutoffLow.addEventListener('input', () => {
+                const value = parseFloat(filterCutoffLow.value);
+                filterCutoff.value = value;
+                
+                // Update filter and value display
+                if (filter) {
+                    filter.frequency.value = value;
+                }
+                filterCutoffValue.textContent = Math.round(value) + ' Hz';
+                
+                // Update knob rotation
+                if (knobUpdaters.filterCutoff) {
+                    knobUpdaters.filterCutoff(value);
+                }
+                
+                // Update filter response visualization
+                if (typeof updateFilterResponse === 'function') {
+                    updateFilterResponse();
+                }
+            });
+        });
 
     </script>
 </body>
