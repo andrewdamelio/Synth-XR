@@ -1486,6 +1486,252 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
+        /* Mastering module styles */
+        .mastering-module {
+            max-height: 200px;
+        }
+        
+        .compact-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: space-between;
+        }
+        
+        .small-knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            position: relative;
+            flex: 1;
+            min-width: 60px;
+        }
+        
+        .small-knob {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--knob-bg);
+            position: relative;
+            cursor: pointer;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3),
+                        inset 0 2px 3px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .small-knob-inner {
+            width: 72%;
+            height: 72%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #444, #222);
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        
+        .small-knob::before {
+            content: '';
+            position: absolute;
+            width: 3px;
+            height: 15px;
+            background: var(--knob-indicator);
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 2px;
+            box-shadow: 0 0 5px var(--knob-indicator);
+        }
+        
+        .small-knob::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--knob-indicator);
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 5px var(--knob-indicator);
+            opacity: 0.8;
+        }
+        
+        .mastering-module .knob-label {
+            font-size: 0.7rem;
+        }
+        
+        .mastering-module .knob-value {
+            font-size: 0.7rem;
+        }
+        
+        .button-group-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .chord-buttons, .note-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        
+        .chord-button, .note-button {
+            background: var(--surface-dark);
+            color: var(--text);
+            border: none;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            flex-grow: 1;
+            text-align: center;
+            min-width: calc(25% - 6px);
+        }
+        
+        .chord-button:hover, .note-button:hover {
+            background: var(--surface-light);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-small);
+        }
+        
+        .chord-button.active, .note-button.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: var(--glow-primary);
+        }
+        
+        /* For smaller screens, make buttons wrap better */
+        @media (max-width: 768px) {
+            .chord-button, .note-button {
+                min-width: calc(33.33% - 6px);
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .chord-button, .note-button {
+                min-width: calc(50% - 6px);
+            }
+        }
+        
+        /* Quick Chord module with pagination octave control */
+        .module-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .octave-pagination {
+            display: flex;
+            align-items: center;
+            background: var(--surface-dark);
+            border-radius: 4px;
+            padding: 2px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        
+        .octave-page-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: var(--surface);
+            color: var(--text-secondary);
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .octave-page-btn:hover {
+            background: var(--surface-light);
+            color: var(--text);
+            box-shadow: var(--shadow-small);
+        }
+        
+        .octave-page-display {
+            padding: 0 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--primary-light);
+            user-select: none;
+        }
+        
+        /* Rest of the Quick Chord module styles */
+        .chord-controls-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .chord-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .button-group-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .chord-buttons, .note-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        
+        .chord-button, .note-button {
+            background: var(--surface-dark);
+            color: var(--text);
+            border: none;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            flex-grow: 1;
+            text-align: center;
+            min-width: calc(25% - 6px);
+        }
+        
+        .chord-button:hover, .note-button:hover {
+            background: var(--surface-light);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-small);
+        }
+        
+        .chord-button.active, .note-button.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: var(--glow-primary);
+        }
+        
+        /* For smaller screens, make buttons wrap better */
+        @media (max-width: 768px) {
+            .chord-button, .note-button {
+                min-width: calc(33.33% - 6px);
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .chord-button, .note-button {
+                min-width: calc(50% - 6px);
+            }
+        }
     </style>
 </head>
 <body>
@@ -2081,6 +2327,102 @@
                 </div>
                 <div class="vu-meter">
                     <div class="vu-meter-fill" id="vuMeter"></div>
+                </div>
+            </div>
+            
+            <!-- New Mastering Module -->
+            <div class="module mastering-module">
+                <div class="module-header">
+                    <h3 class="module-title">
+                        <i class="fas fa-sliders-h"></i>
+                        Mastering
+                    </h3>
+                </div>
+                <div class="compact-controls">
+                    <div class="small-knob-container">
+                        <label class="knob-label">Volume</label>
+                        <div class="small-knob" id="masterVolumeKnob">
+                            <div class="small-knob-inner"></div>
+                        </div>
+                        <input type="range" id="masterVolume" min="0" max="1" step="0.01" value="0.8">
+                        <span class="knob-value" id="masterVolumeValue">0.80</span>
+                    </div>
+                    <div class="small-knob-container">
+                        <label class="knob-label">Pan</label>
+                        <div class="small-knob" id="masterPanKnob">
+                            <div class="small-knob-inner"></div>
+                        </div>
+                        <input type="range" id="masterPan" min="-1" max="1" step="0.01" value="0">
+                        <span class="knob-value" id="masterPanValue">C</span>
+                    </div>
+                    <div class="small-knob-container">
+                        <label class="knob-label">Width</label>
+                        <div class="small-knob" id="stereoWidthKnob">
+                            <div class="small-knob-inner"></div>
+                        </div>
+                        <input type="range" id="stereoWidth" min="0" max="2" step="0.01" value="1">
+                        <span class="knob-value" id="stereoWidthValue">1.00</span>
+                    </div>
+                    <div class="small-knob-container">
+                        <label class="knob-label">Comp</label>
+                        <div class="small-knob" id="compressorKnob">
+                            <div class="small-knob-inner"></div>
+                        </div>
+                        <input type="range" id="compressor" min="0" max="1" step="0.01" value="0">
+                        <span class="knob-value" id="compressorValue">0.00</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Moved Quick Chord Module -->
+            <div class="module quick-chord-module">
+                <div class="module-header">
+                    <h3 class="module-title">
+                        <i class="fas fa-music"></i>
+                        Quick Chord
+                    </h3>
+                    <!-- Add octave pagination in the header -->
+                    <div class="octave-pagination">
+                        <button class="octave-page-btn" id="decreaseOctave" title="Lower Octave (Z key)">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <span class="octave-page-display" id="currentOctave">C4</span>
+                        <button class="octave-page-btn" id="increaseOctave" title="Raise Octave (X key)">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="chord-controls-container">
+                    <div class="chord-controls">
+                        <div class="button-group-label">Chord Type</div>
+                        <div class="chord-buttons">
+                            <button class="chord-button" data-chord-type="maj">Maj</button>
+                            <button class="chord-button" data-chord-type="min">Min</button>
+                            <button class="chord-button" data-chord-type="dim">Dim</button>
+                            <button class="chord-button" data-chord-type="aug">Aug</button>
+                            <button class="chord-button" data-chord-type="maj7">Maj7</button>
+                            <button class="chord-button" data-chord-type="min7">Min7</button>
+                            <button class="chord-button" data-chord-type="dom7">Dom7</button>
+                            <button class="chord-button" data-chord-type="maj9">Maj9</button>
+                        </div>
+                        <div class="button-group-label">Root Note</div>
+                        <div class="note-buttons">
+                            <button class="note-button" data-note="C">C</button>
+                            <button class="note-button" data-note="C#">C#</button>
+                            <button class="note-button" data-note="D">D</button>
+                            <button class="note-button" data-note="D#">D#</button>
+                            <button class="note-button" data-note="E">E</button>
+                            <button class="note-button" data-note="F">F</button>
+                            <button class="note-button" data-note="F#">F#</button>
+                            <button class="note-button" data-note="G">G</button>
+                            <button class="note-button" data-note="G#">G#</button>
+                            <button class="note-button" data-note="A">A</button>
+                            <button class="note-button" data-note="A#">A#</button>
+                            <button class="note-button" data-note="B">B</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Removed the previous octave counter since we now have it in the header -->
                 </div>
             </div>
         </div>
@@ -5732,6 +6074,211 @@ const builtInPresets = [
                     updateFilterResponse();
                 }
             });
+        });
+
+        // Add Quick Chord module octave switcher functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get octave control elements
+            const decreaseOctaveBtn = document.getElementById('decreaseOctave');
+            const increaseOctaveBtn = document.getElementById('increaseOctave');
+            const currentOctaveDisplay = document.getElementById('currentOctave');
+            
+            // Keep track of current octave
+            let currentOctave = 4; // Default starting octave
+            
+            // Function to update both displays and the actual synth octave
+            function updateOctave(newOctave) {
+                // Ensure octave stays within valid range
+                newOctave = Math.max(1, Math.min(7, newOctave));
+                
+                // Update our local tracking variable
+                currentOctave = newOctave;
+                
+                // Update the display
+                currentOctaveDisplay.textContent = `C${currentOctave}`;
+                
+                // Update the synth's octave
+                // This assumes there's a global octave variable that the keyboard uses
+                if (typeof window.octave !== 'undefined') {
+                    window.octave = currentOctave;
+                }
+                
+                // If there's a keyboard octave indicator, update it too
+                const keyboardOctaveIndicator = document.querySelector('.octave-indicator');
+                if (keyboardOctaveIndicator) {
+                    keyboardOctaveIndicator.textContent = currentOctave;
+                }
+            }
+            
+            // Decrease octave button
+            decreaseOctaveBtn.addEventListener('click', function() {
+                updateOctave(currentOctave - 1);
+            });
+            
+            // Increase octave button
+            increaseOctaveBtn.addEventListener('click', function() {
+                updateOctave(currentOctave + 1);
+            });
+            
+            // Hook into Z/X keys
+            document.addEventListener('keydown', function(e) {
+                if (e.key.toLowerCase() === 'z') {
+                    updateOctave(currentOctave - 1);
+                } else if (e.key.toLowerCase() === 'x') {
+                    updateOctave(currentOctave + 1);
+                }
+            });
+            
+            // Initialize display
+            updateOctave(currentOctave);
+        });
+        
+        // Add Quick Chord functionality for playing chords
+        document.addEventListener('DOMContentLoaded', function() {
+            // Chord type definitions (intervals from root)
+            const chordTypes = {
+                'maj': [0, 4, 7],              // Major (root, major 3rd, perfect 5th)
+                'min': [0, 3, 7],              // Minor (root, minor 3rd, perfect 5th)
+                'dim': [0, 3, 6],              // Diminished (root, minor 3rd, diminished 5th)
+                'aug': [0, 4, 8],              // Augmented (root, major 3rd, augmented 5th)
+                'maj7': [0, 4, 7, 11],         // Major 7th (root, major 3rd, perfect 5th, major 7th)
+                'min7': [0, 3, 7, 10],         // Minor 7th (root, minor 3rd, perfect 5th, minor 7th)
+                'dom7': [0, 4, 7, 10],         // Dominant 7th (root, major 3rd, perfect 5th, minor 7th)
+                'maj9': [0, 4, 7, 11, 14]      // Major 9th (root, major 3rd, perfect 5th, major 7th, major 9th)
+            };
+            
+            let selectedChordType = null;
+            let selectedNote = null;
+            let activeChordTimeout = null;
+            
+            // Get all chord buttons and note buttons
+            const chordButtons = document.querySelectorAll('.chord-button');
+            const noteButtons = document.querySelectorAll('.note-button');
+            
+            // Add click event to chord buttons
+            chordButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active class from all chord buttons
+                    chordButtons.forEach(btn => btn.classList.remove('active'));
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    // Store selected chord type
+                    selectedChordType = this.getAttribute('data-chord-type');
+                    
+                    // If both chord type and note are selected, play the chord
+                    if (selectedChordType && selectedNote) {
+                        playChord(selectedNote, selectedChordType);
+                    }
+                });
+            });
+            
+            // Add click event to note buttons
+            noteButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active class from all note buttons
+                    noteButtons.forEach(btn => btn.classList.remove('active'));
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    // Store selected note
+                    selectedNote = this.getAttribute('data-note');
+                    
+                    // If both chord type and note are selected, play the chord
+                    if (selectedChordType && selectedNote) {
+                        playChord(selectedNote, selectedChordType);
+                    }
+                });
+            });
+            
+            // Function to highlight keyboard keys for a chord
+            function highlightChordOnKeyboard(notes) {
+                // First remove any existing highlighted chord
+                if (activeChordTimeout) {
+                    clearTimeout(activeChordTimeout);
+                    removeKeyboardHighlights();
+                }
+                
+                // For each note in the chord, find and highlight the corresponding key
+                notes.forEach(noteWithOctave => {
+                    // Extract note name and octave
+                    const noteName = noteWithOctave.replace(/\d+$/, '');
+                    const octave = parseInt(noteWithOctave.match(/\d+$/)[0]);
+                    
+                    // Find the key corresponding to this note
+                    // The selector will depend on how your keyboard keys are structured
+                    let keyElement;
+                    
+                    // Try different potential selectors based on common implementations
+                    keyElement = document.querySelector(`.piano-key[data-note="${noteName}${octave}"]`);
+                    if (!keyElement) keyElement = document.querySelector(`.piano-key[data-note="${noteName}"][data-octave="${octave}"]`);
+                    if (!keyElement) keyElement = document.querySelector(`[data-note="${noteWithOctave}"]`);
+                    if (!keyElement) keyElement = document.querySelector(`.key[data-note="${noteName}"]`);
+                    
+                    // If we found the key, highlight it
+                    if (keyElement) {
+                        keyElement.classList.add('active', 'chord-highlighted');
+                    }
+                });
+                
+                // Set a timeout to remove highlights after a short duration
+                activeChordTimeout = setTimeout(removeKeyboardHighlights, 500);
+            }
+            
+            // Function to remove keyboard highlights
+            function removeKeyboardHighlights() {
+                document.querySelectorAll('.chord-highlighted').forEach(key => {
+                    key.classList.remove('active', 'chord-highlighted');
+                });
+            }
+            
+            // Function to play chord using Tone.js
+            function playChord(note, chordType) {
+                if (!chordTypes[chordType]) return;
+                
+                // Get current octave
+                const octave = parseInt(document.getElementById('currentOctave').textContent.replace(/\D/g, ''));
+                
+                // Create array of notes for the chord
+                const notes = chordTypes[chordType].map(interval => {
+                    // Convert interval to note name with octave
+                    const noteIndex = getNoteIndex(note);
+                    const newNoteIndex = noteIndex + interval;
+                    const newOctave = octave + Math.floor(newNoteIndex / 12);
+                    const newNote = getNoteFromIndex(newNoteIndex % 12);
+                    
+                    return `${newNote}${newOctave}`;
+                });
+                
+                // Highlight the chord on the keyboard
+                highlightChordOnKeyboard(notes);
+                
+                // Play the chord using the synth
+                if (typeof playSynthChord === 'function') {
+                    playSynthChord(notes);
+                } else if (typeof synth !== 'undefined' && typeof synth.triggerAttackRelease === 'function') {
+                    // Default fallback if playSynthChord doesn't exist
+                    synth.triggerAttackRelease(notes, "8n");
+                } else if (typeof Tone !== 'undefined') {
+                    // Another fallback using Tone.js directly
+                    const synth = new Tone.PolySynth().toDestination();
+                    synth.triggerAttackRelease(notes, "8n");
+                }
+            }
+            
+            // Helper function to get note index (C = 0, C# = 1, etc.)
+            function getNoteIndex(note) {
+                const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                return notes.indexOf(note);
+            }
+            
+            // Helper function to get note from index
+            function getNoteFromIndex(index) {
+                const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                return notes[index];
+            }
         });
 
     </script>
