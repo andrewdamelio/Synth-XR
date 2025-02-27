@@ -1365,9 +1365,10 @@
             background-color: #d50000;
         }
 
+        /* EQ Response visualization improvements */
         .eq-response {
             width: 100%;
-            height: 80px;
+            height: 120px;  /* Increased height for better visibility */
             background: var(--background);
             border-radius: 6px;
             overflow: hidden;
@@ -1386,43 +1387,51 @@
         
         .eq-curve {
             fill: none;
-            stroke: var(--primary-light);
-            stroke-width: 2px;
+            stroke: var(--secondary);
+            stroke-width: 2.5px;
             stroke-linecap: round;
-            filter: drop-shadow(0 0 3px var(--primary-light));
+            filter: drop-shadow(0 0 4px var(--secondary));
         }
         
         .eq-area {
-            opacity: 0.5;
+            opacity: 0.3;
         }
         
-        .eq-response::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-            background-size: 20px 16px;
-            background-position: center center;
-            z-index: 1;
-            pointer-events: none;
+        .eq-grid {
+            stroke: rgba(255, 255, 255, 0.08);
+            stroke-width: 1px;
         }
         
-        /* Center line for EQ (0 dB) */
-        .eq-response::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            width: 100%;
-            height: 1px;
-            background: rgba(255, 255, 255, 0.2);
-            z-index: 2;
-            pointer-events: none;
+        .eq-zero-line {
+            stroke: rgba(255, 255, 255, 0.3);
+            stroke-width: 1px;
+            stroke-dasharray: 4 2;
+        }
+        
+        .eq-label {
+            fill: var(--text-secondary);
+            font-size: 8px;
+            font-family: 'Roboto Mono', monospace;
+            text-anchor: middle;
+        }
+        
+        .eq-gain-label {
+            fill: var(--text-secondary);
+            font-size: 8px;
+            font-family: 'Roboto Mono', monospace;
+            text-anchor: end;
+        }
+        
+        .eq-frequency-marker {
+            fill: rgba(255, 255, 255, 0.2);
+            stroke: none;
+        }
+        
+        .eq-mid-marker {
+            stroke: var(--primary-light);
+            stroke-width: 1px;
+            stroke-dasharray: 2 2;
+            opacity: 0.7;
         }
 
         /* Fine control slider styling */
@@ -1871,17 +1880,27 @@
                     </div>
                 </div>
                 
-                <!-- EQ Response Curve -->
+                <!-- Improved EQ Response Curve Visualization -->
                 <div class="eq-response">
                     <svg id="eqResponseSvg" width="100%" height="100%">
                         <defs>
                             <linearGradient id="eqGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stop-color="rgba(157, 70, 255, 0.3)" />
+                                <stop offset="0%" stop-color="rgba(0, 229, 255, 0.4)" />
+                                <stop offset="50%" stop-color="rgba(157, 70, 255, 0.2)" />
                                 <stop offset="100%" stop-color="rgba(157, 70, 255, 0)" />
                             </linearGradient>
                         </defs>
-                        <path id="eqCurve" class="eq-curve" d="M0,50 L400,50" />
-                        <path id="eqArea" class="eq-area" d="M0,70 L400,70 L400,50 L0,50 Z" fill="url(#eqGradient)" />
+                        <!-- Grid lines will be added by JS -->
+                        <g id="eqGrid"></g>
+                        <!-- Zero dB reference line -->
+                        <line id="eqZeroLine" class="eq-zero-line" x1="0" y1="50%" x2="100%" y2="50%"></line>
+                        <!-- Frequency labels will be added by JS -->
+                        <g id="eqLabels"></g>
+                        <!-- Mid frequency marker -->
+                        <line id="eqMidMarker" class="eq-mid-marker" x1="50%" y1="0" x2="50%" y2="100%"></line>
+                        <!-- The EQ curve and area -->
+                        <path id="eqArea" class="eq-area" d="M0,50% L100%,50% L100%,50% L0,50% Z" fill="url(#eqGradient)" />
+                        <path id="eqCurve" class="eq-curve" d="M0,50% L100%,50%" />
                     </svg>
                 </div>
             </div>
@@ -2151,6 +2170,15 @@
             baseFrequency: 1000
         });
         
+        // Initialize the EQ3 (three-band equalizer)
+        let eq = new Tone.EQ3({
+            low: 0,
+            mid: 0,
+            high: 0,
+            lowFrequency: 400,
+            highFrequency: 2500
+        });
+        
         let lfoActive = false;
         let lfoDestination = 'off';
         let lfoBaseValues = {};
@@ -2172,9 +2200,10 @@
         flanger.connect(phaser);
         phaser.connect(reverb);
         reverb.connect(delay);
-        delay.connect(waveform);
-        delay.connect(fft);
-        delay.toDestination();
+        delay.connect(eq); // Connect delay to EQ
+        eq.connect(waveform); // Connect EQ to waveform analyzer
+        eq.connect(fft); // Connect EQ to FFT analyzer
+        eq.toDestination(); // Connect EQ to destination
 
         // Initialize synth variables
         let synth;
@@ -2418,31 +2447,30 @@
                 setTimeout(() => notification.remove(), 500);
             }, 1500);
         });
-
         drawOscilloscope();
 
         // Helper function to highlight a key when a note plays in the sequencer
         function highlightKeyFromSequencer(note, duration = 0.25) {
             // Only proceed if it's a valid note
             if (!note) return;
-
+        
             // Find the corresponding key element
             const keyElement = document.querySelector(`.key[data-note="${note}"]`);
             if (!keyElement) return;
-
+        
             // Add the active class to highlight the key
             keyElement.classList.add('active');
-
+        
             // Store the timeout ID so we can clear it if needed
             const timeoutId = setTimeout(() => {
                 keyElement.classList.remove('active');
                 sequencerActiveKeys.delete(note);
             }, duration * 1000);
-
+        
             // Store the note and its timeout ID
             sequencerActiveKeys.set(note, timeoutId);
         }
-
+        
         // Clear any active key highlights
         function clearSequencerKeyHighlights() {
             sequencerActiveKeys.forEach((timeoutId, note) => {
@@ -2454,7 +2482,7 @@
             });
             sequencerActiveKeys.clear();
         }
-
+        
         // Generate notes from C3 to B4
         const generateNotes = () => {
             const notes = [];
@@ -2466,7 +2494,7 @@
             }
             return notes;
         };
-
+        
         // Create sequencer with proper note names
         const createSequencer = () => {
             const sequencerElement = document.getElementById('sequencer');
@@ -2514,12 +2542,12 @@
                 sequencerElement.appendChild(step);
             }
         };
-
+        
         // Create keyboard with polyphonic support
         const createKeyboard = () => {
             const keyboardElement = document.getElementById('keyboard');
             const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-
+        
             // Make octave range responsive based on screen size
             const isMobile = window.innerWidth <= 768;
             const startOctave = 3;
@@ -2691,7 +2719,7 @@
                 }
             }
         };
-
+        
         // Update sequencer visuals
         const updateSequencer = (currentStep) => {
             const steps = document.querySelectorAll('.step');
@@ -2699,7 +2727,7 @@
                 step.classList.toggle('active', i === currentStep);
             });
         };
-
+        
         // VU meter animation
         const updateVUMeter = (value) => {
             const vuMeter = document.getElementById('vuMeter');
@@ -2715,7 +2743,7 @@
                 }
             });
         };
-
+        
         // Knob control functionality
         const setupKnob = (knobId, inputId) => {
             const knob = document.getElementById(knobId);
@@ -2723,7 +2751,7 @@
             let isDragging = false;
             let startY;
             let startValue;
-
+        
             const updateKnobRotation = (value) => {
                 const min = parseFloat(input.min);
                 const max = parseFloat(input.max);
@@ -2733,7 +2761,7 @@
                     duration: 0.1
                 });
             };
-
+        
             knob.addEventListener('mousedown', (e) => {
                 isDragging = true;
                 startY = e.clientY;
@@ -2742,7 +2770,7 @@
                 document.addEventListener('mouseup', handleMouseUp);
                 e.preventDefault(); // Prevent text selection
             });
-
+        
             const handleMouseMove = (e) => {
                 if (!isDragging) return;
                 
@@ -2757,13 +2785,13 @@
                 updateKnobRotation(newValue);
                 input.dispatchEvent(new Event('input'));
             };
-
+        
             const handleMouseUp = () => {
                 isDragging = false;
                 document.removeEventListener('mousemove', handleMouseMove);
                 document.removeEventListener('mouseup', handleMouseUp);
             };
-
+        
             // Touch support
             knob.addEventListener('touchstart', (e) => {
                 isDragging = true;
@@ -2773,7 +2801,7 @@
                 document.addEventListener('touchend', handleTouchEnd);
                 e.preventDefault(); // Prevent scrolling
             });
-
+        
             const handleTouchMove = (e) => {
                 if (!isDragging) return;
                 
@@ -2789,24 +2817,24 @@
                 input.dispatchEvent(new Event('input'));
                 e.preventDefault(); // Prevent scrolling
             };
-
+        
             const handleTouchEnd = () => {
                 isDragging = false;
                 document.removeEventListener('touchmove', handleTouchMove);
                 document.removeEventListener('touchend', handleTouchEnd);
             };
-
+        
             // Initialize knob rotation
             updateKnobRotation(input.value);
-
+        
             // Add input event listener to update knob when value changes
             input.addEventListener('input', () => {
                 updateKnobRotation(input.value);
             });
-
+        
             return updateKnobRotation;
         };
-
+        
         // Setup all knobs and store their update functions
         const knobUpdaters = {};
         const knobs = [
@@ -2831,14 +2859,20 @@
             ['lfoRateKnob', 'lfoRate'],
             ['lfoAmountKnob', 'lfoAmount'],
             ['droneOctaveKnob', 'droneOctave'],
-            ['droneVolumeKnob', 'droneVolume']
+            ['droneVolumeKnob', 'droneVolume'],
+            // Add the EQ knobs to the list
+            ['eqLowKnob', 'eqLow'],
+            ['eqMidKnob', 'eqMid'],
+            ['eqHighKnob', 'eqHigh'],
+            ['eqMidFreqKnob', 'eqMidFreq'],
+            ['eqQKnob', 'eqQ']
         ];
-
+        
         // Apply knob setup to all knobs at once
         knobs.forEach(([knobId, inputId]) => {
             knobUpdaters[inputId] = setupKnob(knobId, inputId);
         });
-
+        
         // ADSR Envelope Visualizer
         function updateADSRVisualizer() {
             const svg = document.getElementById('adsrVisualizerSvg');
@@ -2873,7 +2907,7 @@
             
             document.getElementById('adsrPath').setAttribute('d', path);
         }
-
+        
         // Filter Response Curve
         function updateFilterResponse() {
             const svg = document.getElementById('filterResponseSvg');
@@ -2938,7 +2972,239 @@
             // Create the filled area for the filter curve
             document.getElementById('filterArea').setAttribute('d', `M0,${height} L${points.join(' L')} L${width},${height} Z`);
         }
-
+        
+        // Improved EQ Response Curve Visualization
+        function updateEqResponse() {
+            const svg = document.getElementById('eqResponseSvg');
+            const width = svg.clientWidth;
+            const height = svg.clientHeight;
+            
+            // Get EQ parameters
+            const lowGain = parseFloat(document.getElementById('eqLow').value);
+            const midGain = parseFloat(document.getElementById('eqMid').value);
+            const highGain = parseFloat(document.getElementById('eqHigh').value);
+            const midFreq = parseFloat(document.getElementById('eqMidFreq').value);
+            const q = parseFloat(document.getElementById('eqQ').value);
+            
+            // EQ crossover frequencies
+            const lowMidCrossover = 400;  // Fixed in Tone.EQ3
+            const midHighCrossover = 2500; // Fixed in Tone.EQ3
+            
+            // Create a logarithmic scale for frequencies (20Hz - 20kHz)
+            const freqToX = (freq) => {
+                const minLog = Math.log10(20);
+                const maxLog = Math.log10(20000);
+                const normalized = (Math.log10(freq) - minLog) / (maxLog - minLog);
+                return normalized * width;
+            };
+            
+            // Convert gain in dB to y-coordinate (0dB at center)
+            const gainToY = (gain) => {
+                // Scale to fit in the view (±12dB maps to 80% of height)
+                const maxDb = 12;
+                const scaledGain = Math.max(-maxDb, Math.min(maxDb, gain));
+                // Map -12...12 to 80%...20% of height
+                return height * (0.5 - (scaledGain / (maxDb * 2.5)));
+            };
+            
+            // Generate the EQ curve points
+            const points = [];
+            
+            // Generate points across the frequency spectrum
+            for (let freq = 20; freq <= 20000; freq = freq * 1.05) { // Logarithmic steps
+                const x = freqToX(freq);
+                
+                // Calculate the gain at this frequency
+                let gain = 0;
+                
+                // Model the 3-band EQ with crossovers and Q factor
+                if (freq < lowMidCrossover) {
+                    // Low band
+                    gain = lowGain;
+                    // Smooth transition to mid band
+                    if (freq > lowMidCrossover / 2) {
+                        const t = (freq - lowMidCrossover / 2) / (lowMidCrossover / 2);
+                        gain = lowGain * (1 - t) + midGain * t;
+                    }
+                } else if (freq < midHighCrossover) {
+                    // Mid band with focus around midFreq
+                    gain = midGain;
+                    
+                    // Apply Q factor around the mid frequency center
+                    const octaveWidth = 1 / q;
+                    const freqRatio = freq / midFreq;
+                    const octaveDistance = Math.abs(Math.log2(freqRatio));
+                    
+                    // Smooth transition to low or high bands at crossover points
+                    if (freq < lowMidCrossover * 1.5) {
+                        const t = (freq - lowMidCrossover) / (lowMidCrossover * 0.5);
+                        gain = lowGain * (1 - t) + midGain * t;
+                    } else if (freq > midHighCrossover / 1.5) {
+                        const t = (freq - midHighCrossover / 1.5) / (midHighCrossover / 3);
+                        gain = midGain * (1 - t) + highGain * t;
+                    }
+                    
+                    // Apply the Q factor (which focuses the mid band around midFreq)
+                    if (octaveDistance < octaveWidth) {
+                        // If we're within the Q-affected region near midFreq
+                        const qIntensity = 1 - (octaveDistance / octaveWidth);
+                        // Emphasize the effect more for higher Q values
+                        const qEffect = midGain * qIntensity * (q / 3);
+                        gain = midGain + qEffect;
+                    }
+                } else {
+                    // High band
+                    gain = highGain;
+                    // Smooth transition from mid band
+                    if (freq < midHighCrossover * 1.5) {
+                        const t = (freq - midHighCrossover) / (midHighCrossover * 0.5);
+                        gain = midGain * (1 - t) + highGain * t;
+                    }
+                }
+                
+                const y = gainToY(gain);
+                points.push(`${x},${y}`);
+            }
+            
+            // Create the EQ curve path
+            const pathStr = `M${points.join(' L')}`;
+            document.getElementById('eqCurve').setAttribute('d', pathStr);
+            
+            // Create the filled area (from curve to the center line)
+            const centerY = gainToY(0); // 0dB line
+            document.getElementById('eqArea').setAttribute('d', `${pathStr} L${width},${centerY} L0,${centerY} Z`);
+            
+            // Update mid frequency marker position
+            const midX = freqToX(midFreq);
+            document.getElementById('eqMidMarker').setAttribute('x1', midX);
+            document.getElementById('eqMidMarker').setAttribute('x2', midX);
+            
+            // Generate frequency grid and labels
+            const freqGrid = document.getElementById('eqGrid');
+            const labelsGroup = document.getElementById('eqLabels');
+            
+            // Clear existing grid lines and labels
+            freqGrid.innerHTML = '';
+            labelsGroup.innerHTML = '';
+            
+            // Major frequency points to show on the grid
+            const freqPoints = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+            
+            // Add frequency grid lines and labels
+            freqPoints.forEach(freq => {
+                const x = freqToX(freq);
+                
+                // Add vertical grid line
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('class', 'eq-grid');
+                line.setAttribute('x1', x);
+                line.setAttribute('y1', 0);
+                line.setAttribute('x2', x);
+                line.setAttribute('y2', height);
+                freqGrid.appendChild(line);
+                
+                // Add frequency label
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.setAttribute('class', 'eq-label');
+                label.setAttribute('x', x);
+                label.setAttribute('y', height - 5);
+                
+                // Format frequency for display
+                let freqText = freq.toString();
+                if (freq >= 1000) {
+                    freqText = (freq / 1000) + 'k';
+                }
+                
+                label.textContent = freqText;
+                labelsGroup.appendChild(label);
+            });
+            
+            // Add gain labels on y-axis
+            const gainPoints = [-12, -6, 0, 6, 12];
+            gainPoints.forEach(gain => {
+                const y = gainToY(gain);
+                
+                // Add horizontal grid line (except for 0dB which has its own line)
+                if (gain !== 0) {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('class', 'eq-grid');
+                    line.setAttribute('x1', 0);
+                    line.setAttribute('y1', y);
+                    line.setAttribute('x2', width);
+                    line.setAttribute('y2', y);
+                    freqGrid.appendChild(line);
+                }
+                
+                // Add gain label
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.setAttribute('class', 'eq-gain-label');
+                label.setAttribute('x', 20);
+                label.setAttribute('y', y + 3); // +3 to center text vertically
+                label.textContent = gain + 'dB';
+                labelsGroup.appendChild(label);
+            });
+        }
+        
+        // Initialize EQ visualization on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateEqResponse();
+            
+            // Also make sure to update EQ visualization on window resize
+            window.addEventListener('resize', function() {
+                updateEqResponse();
+            });
+        });
+        
+        // Add event listeners for the EQ controls
+        document.getElementById('eqLow').addEventListener('input', function(e) {
+            const value = parseFloat(e.target.value);
+            document.getElementById('eqLowValue').textContent = `${value.toFixed(1)} dB`;
+            
+            // Update the EQ3 low gain value
+            eq.low.value = value;
+            
+            // Update the EQ visualization
+            updateEqResponse();
+        });
+        
+        document.getElementById('eqMid').addEventListener('input', function(e) {
+            const value = parseFloat(e.target.value);
+            document.getElementById('eqMidValue').textContent = `${value.toFixed(1)} dB`;
+            
+            // Update the EQ3 mid gain value
+            eq.mid.value = value;
+            
+            // Update the EQ visualization
+            updateEqResponse();
+        });
+        
+        document.getElementById('eqHigh').addEventListener('input', function(e) {
+            const value = parseFloat(e.target.value);
+            document.getElementById('eqHighValue').textContent = `${value.toFixed(1)} dB`;
+            
+            // Update the EQ3 high gain value
+            eq.high.value = value;
+            
+            // Update the EQ visualization
+            updateEqResponse();
+        });
+        
+        document.getElementById('eqMidFreq').addEventListener('input', function(e) {
+            const value = parseFloat(e.target.value);
+            document.getElementById('eqMidFreqValue').textContent = `${value.toFixed(0)} Hz`;
+            
+            // Update the EQ visualization (mid frequency isn't directly accessible in Tone.EQ3)
+            updateEqResponse();
+        });
+        
+        document.getElementById('eqQ').addEventListener('input', function(e) {
+            const value = parseFloat(e.target.value);
+            document.getElementById('eqQValue').textContent = value.toFixed(1);
+            
+            // Update the EQ visualization (Q factor isn't directly accessible in Tone.EQ3)
+            updateEqResponse();
+        });
+        
         // Spectrum Analyzer
         function setupSpectrumAnalyzer() {
             const canvas = document.getElementById('spectrumAnalyzer');
@@ -3017,7 +3283,7 @@
             
             drawSpectrumAnalyzer();
         }
-
+        
         // Particle System
         function setupParticleSystem() {
             const canvas = document.getElementById('particleSystem');
@@ -3122,7 +3388,7 @@
             
             updateParticles();
         }
-
+        
         createSequencer();
         
         // Create keyboard after DOM is fully loaded
@@ -3136,6 +3402,9 @@
             
             // Initialize Filter Response Curve
             updateFilterResponse();
+            
+            // Initialize EQ Response Visualization
+            updateEqResponse();
             
             // Set up visualizers toggle
             document.getElementById('visualizerToggle').addEventListener('click', function() {
@@ -3169,10 +3438,10 @@
             // Small delay to ensure DOM has updated
             setTimeout(createKeyboard, 100);
         });
-
+        
         let isPlaying = false;
         let currentStep = 0;
-
+        
         // Connect UI controls to synth parameters
         document.getElementById('waveform').addEventListener('change', e => {
             if (currentMode === "poly") {
@@ -3181,7 +3450,7 @@
                 synth.oscillator.type = e.target.value;
             }
         });
-
+        
         // Filter type toggle
         document.getElementById('filterTypeToggle').addEventListener('change', e => {
             const filterType = e.target.checked ? "highpass" : "lowpass";
@@ -3189,19 +3458,19 @@
             document.getElementById('filterTypeState').textContent = e.target.checked ? "HP" : "LP";
             updateFilterResponse();
         });
-
+        
         document.getElementById('filterCutoff').addEventListener('input', e => {
             filter.frequency.value = e.target.value;
             document.getElementById('filterCutoffValue').textContent = `${Math.round(e.target.value)} Hz`;
             updateFilterResponse();
         });
-
+        
         document.getElementById('filterRes').addEventListener('input', e => {
             filter.Q.value = e.target.value;
             document.getElementById('filterResValue').textContent = parseFloat(e.target.value).toFixed(1);
             updateFilterResponse();
         });
-
+        
         document.getElementById('reverbMix').addEventListener('input', e => {
             reverb.wet.value = e.target.value;
             document.getElementById('reverbMixValue').textContent = parseFloat(e.target.value).toFixed(2);
@@ -3252,12 +3521,12 @@
                 });
             }, 300); // 300ms debounce
         });
-
+        
         document.getElementById('delayTime').addEventListener('input', e => {
             delay.delayTime.value = e.target.value;
             document.getElementById('delayTimeValue').textContent = parseFloat(e.target.value).toFixed(2);
         });
-
+        
         document.getElementById('delayFeedback').addEventListener('input', e => {
             delay.feedback.value = e.target.value;
             document.getElementById('delayFeedbackValue').textContent = parseFloat(e.target.value).toFixed(2);
@@ -3283,20 +3552,20 @@
             phaser.wet.value = e.target.value;
             document.getElementById('phaserMixValue').textContent = parseFloat(e.target.value).toFixed(2);
         });
-
+        
         // New oscillator control event listeners
         document.getElementById('oscillatorOctave').addEventListener('input', e => {
             const value = parseInt(e.target.value);
             document.getElementById('oscillatorOctaveValue').textContent = value;
             updateDetune();
         });
-
+        
         document.getElementById('oscillatorSemi').addEventListener('input', e => {
             const value = parseInt(e.target.value);
             document.getElementById('oscillatorSemiValue').textContent = value;
             updateDetune();
         });
-
+        
         document.getElementById('oscillatorLevel').addEventListener('input', e => {
             const value = parseFloat(e.target.value);
             if (currentMode === "poly") {
@@ -3306,7 +3575,7 @@
             }
             document.getElementById('oscillatorLevelValue').textContent = value.toFixed(2);
         });
-
+        
         // ADSR controls
         document.getElementById('attack').addEventListener('input', e => {
             const value = parseFloat(e.target.value);
@@ -3320,7 +3589,7 @@
             document.getElementById('attackValue').textContent = `${value.toFixed(2)}s`;
             updateADSRVisualizer();
         });
-
+        
         document.getElementById('decay').addEventListener('input', e => {
             const value = parseFloat(e.target.value);
             if (currentMode === "poly") {
@@ -3333,7 +3602,7 @@
             document.getElementById('decayValue').textContent = `${value.toFixed(2)}s`;
             updateADSRVisualizer();
         });
-
+        
         document.getElementById('sustain').addEventListener('input', e => {
             const value = parseFloat(e.target.value);
             if (currentMode === "poly") {
@@ -3346,7 +3615,7 @@
             document.getElementById('sustainValue').textContent = value.toFixed(2);
             updateADSRVisualizer();
         });
-
+        
         document.getElementById('release').addEventListener('input', e => {
             const value = parseFloat(e.target.value);
             if (currentMode === "poly") {
@@ -3359,7 +3628,7 @@
             document.getElementById('releaseValue').textContent = `${value.toFixed(2)}s`;
             updateADSRVisualizer();
         });
-
+        
         document.getElementById('startSequencer').addEventListener('click', async function() {
             if (!isPlaying) {
                 await Tone.start();
@@ -3376,7 +3645,7 @@
                 clearSequencerKeyHighlights();
             }
         });
-
+        
         // The init patch with basic settings
         const initPatch = {
             voiceMode: "poly",
@@ -3403,6 +3672,11 @@
             lfoRate: "1",
             lfoAmount: "50",
             droneOctave: "-1",
+            eqLow: "0",
+            eqMid: "0",
+            eqHigh: "0",
+            eqMidFreq: "1000",
+            eqQ: "1",
             sequencer: [
                 {"note": "C4", "active": true},
                 {"note": "C4", "active": false},
@@ -3422,7 +3696,7 @@
                 {"note": "C4", "active": false}
             ]
         };
-
+        
         // Init Patch button
         document.getElementById('initPatchButton').addEventListener('click', function() {
             applyPreset(initPatch);
@@ -3438,10 +3712,10 @@
                 toggleDrone();
             }
         });
-
+        
         // Preset management functionality
-        const builtInPresets = [
-            {
+const builtInPresets = [
+{
                 name: "Default",
                 category: "pad", // Using 'pad' category like the other ambient presets
                 settings: {
@@ -4068,7 +4342,7 @@
         ];
         // The currently active preset name
         let activePresetName = null;
-
+        
         // Initialize presets
         function initializePresets() {
             // Apply the default preset from builtInPresets
@@ -4078,7 +4352,7 @@
             // Render the presets list
             renderPresetList();
         }
-
+        
         // Render the preset list
         function renderPresetList() {
             const presetList = document.getElementById('presetList');
@@ -4141,7 +4415,7 @@
                 presetList.appendChild(presetItem);
             });
         }
-
+        
         // Apply a preset to the synth
         function applyPreset(settings) {
             // Update all parameters and trigger input events to update visuals
@@ -4166,7 +4440,7 @@
                     }
                 }
             });
-
+        
             // Update sequencer if available
             if (settings.sequencer) {
                 const steps = document.querySelectorAll('.step');
@@ -4192,7 +4466,7 @@
             synthSettings.envelope.decay = parseFloat(document.getElementById('decay').value);
             synthSettings.envelope.sustain = parseFloat(document.getElementById('sustain').value);
             synthSettings.envelope.release = parseFloat(document.getElementById('release').value);
-
+        
             // Then recreate the synth to apply all settings consistently
             createSynth(currentMode);
             
@@ -4201,6 +4475,9 @@
             
             // Update Filter Response Curve
             updateFilterResponse();
+            
+            // Update EQ Response Curve
+            updateEqResponse();
             
             // Update VU meter to provide visual feedback that preset was loaded
             updateVUMeter(0.6);
@@ -4235,13 +4512,18 @@
                 lfoRate: document.getElementById('lfoRate').value,
                 lfoAmount: document.getElementById('lfoAmount').value,
                 droneOctave: document.getElementById('droneOctave').value,
+                eqLow: document.getElementById('eqLow').value,
+                eqMid: document.getElementById('eqMid').value,
+                eqHigh: document.getElementById('eqHigh').value,
+                eqMidFreq: document.getElementById('eqMidFreq').value,
+                eqQ: document.getElementById('eqQ').value,
                 sequencer: Array.from(steps).map(step => ({
                     note: step.querySelector('select').value,
                     active: step.querySelector('.step-toggle').classList.contains('active')
                 }))
             };
         }
-
+        
         // Modal handling for new preset
         const presetModal = document.getElementById('presetModal');
         const presetNameInput = document.getElementById('presetName');
@@ -4342,7 +4624,7 @@
                 }, 1000);
             }
         });
-
+        
         // Chaos button functionality - Updated to include new oscillator parameters and effects
         document.getElementById('chaosButton').addEventListener('click', () => {
             // Randomize waveform
@@ -4355,7 +4637,7 @@
             // Randomize filter type
             document.getElementById('filterTypeToggle').checked = Math.random() > 0.5;
             document.getElementById('filterTypeToggle').dispatchEvent(new Event('change'));
-
+        
             // Randomize all knob values
             knobs.forEach(([knobId, inputId]) => {
                 const input = document.getElementById(inputId);
@@ -4365,14 +4647,14 @@
                 input.value = randomValue;
                 input.dispatchEvent(new Event('input'));
             });
-
+        
             // Randomize sequencer notes
             const notes = generateNotes();
             document.querySelectorAll('.step select').forEach(select => {
                 const randomNote = notes[Math.floor(Math.random() * notes.length)];
                 select.value = randomNote;
             });
-
+        
             // Randomize step toggles
             document.querySelectorAll('.step-toggle').forEach(toggle => {
                 const shouldBeActive = Math.random() > 0.5;
@@ -4394,7 +4676,7 @@
                 toggleDrone();
             }
         });
-
+        
         // Nudge button functionality - Updated to include new parameters
         document.getElementById('nudgeButton').addEventListener('click', () => {
             const notes = generateNotes();
@@ -4404,6 +4686,7 @@
                 { type: 'delay', elements: ['delayTime', 'delayFeedback'] },
                 { type: 'oscillator', elements: ['oscillatorOctave', 'oscillatorSemi', 'oscillatorLevel'] },
                 { type: 'modulation', elements: ['chorusMix', 'flangerMix', 'phaserMix', 'distortionMix'] },
+                { type: 'eq', elements: ['eqLow', 'eqMid', 'eqHigh', 'eqMidFreq', 'eqQ'] },
                 { type: 'notes', elements: Array.from(document.querySelectorAll('.step select')) },
                 { type: 'filter type', elements: ['filterTypeToggle'] }
             ];
@@ -4413,7 +4696,7 @@
             const selectedParams = parameters
                 .sort(() => Math.random() - 0.5)
                 .slice(0, numChanges);
-
+        
             selectedParams.forEach(param => {
                 if (param.type === 'notes') {
                     // Modify 1-2 random step notes
@@ -4421,7 +4704,7 @@
                     const stepSelects = param.elements
                         .sort(() => Math.random() - 0.5)
                         .slice(0, numNoteChanges);
-
+        
                     stepSelects.forEach(select => {
                         const currentNote = select.value;
                         const currentIndex = notes.indexOf(currentNote);
@@ -4488,7 +4771,7 @@
                 repeat: 1
             });
         });
-
+        
         // Set up sequencer loop
         Tone.Transport.scheduleRepeat((time) => {
             const steps = document.querySelectorAll('.step');
@@ -4517,20 +4800,20 @@
             updateSequencer(currentStep);
             currentStep = (currentStep + 1) % 16;
         }, '8n');
-
+        
         // Update tempo
         document.getElementById('tempo').addEventListener('input', (e) => {
             const tempo = parseInt(e.target.value);
             document.getElementById('tempoValue').textContent = `${tempo} BPM`;
             Tone.Transport.bpm.value = tempo;
         });
-
+        
         // Set initial tempo
         Tone.Transport.bpm.value = 120;
-
+        
         // Add octave control with polyphony support
         let currentOctave = 4;
-
+        
         document.addEventListener('keydown', e => {
             // Toggle play/pause with spacebar
             if (e.code === 'Space') {
@@ -4607,7 +4890,7 @@
                 }
             }
         });
-
+        
         document.addEventListener('keyup', e => {
             const keyMap = {
                 'a': `C${currentOctave}`, 
@@ -4651,7 +4934,7 @@
                 }
             }
         });
-
+        
         // Connect LFO controls
         // Update these handlers to restart LFO when changed
         document.getElementById('lfoRate').addEventListener('input', function(e) {
@@ -4663,7 +4946,7 @@
                 restartLfo();
             }
         });
-
+        
         document.getElementById('lfoAmount').addEventListener('input', function(e) {
             const amount = parseInt(e.target.value);
             document.getElementById('lfoAmountValue').textContent = `${amount}%`;
@@ -4673,7 +4956,7 @@
                 restartLfo();
             }
         });
-
+        
         document.getElementById('lfoWaveform').addEventListener('change', function(e) {
             // Only restart if LFO is active
             if (lfoDestination !== 'off') {
@@ -4689,13 +4972,13 @@
             }
             lfoActive = false;
         }
-
+        
         // Function to restart LFO (for when parameters change)
         function restartLfo() {
             stopLfo();
             startLfo();
         }
-
+        
         // Function to start LFO
         function startLfo() {
             // Don't start if destination is off
@@ -4802,7 +5085,7 @@
             // Start animation
             lfoAnimationFrame = requestAnimationFrame(animateLfo);
         }
-
+        
         // Function to update audio parameter directly
         function updateAudioParameter(paramId, value) {
             switch(paramId) {
@@ -4890,6 +5173,29 @@
                     synthSettings.envelope.release = value;
                     document.getElementById('releaseValue').textContent = `${value.toFixed(2)}s`;
                     break;
+                case 'eqLow':
+                    eq.low.value = value;
+                    document.getElementById('eqLowValue').textContent = `${value.toFixed(1)} dB`;
+                    updateEqResponse();
+                    break;
+                case 'eqMid':
+                    eq.mid.value = value;
+                    document.getElementById('eqMidValue').textContent = `${value.toFixed(1)} dB`;
+                    updateEqResponse();
+                    break;
+                case 'eqHigh':
+                    eq.high.value = value;
+                    document.getElementById('eqHighValue').textContent = `${value.toFixed(1)} dB`;
+                    updateEqResponse();
+                    break;
+                case 'eqMidFreq':
+                    document.getElementById('eqMidFreqValue').textContent = `${Math.round(value)} Hz`;
+                    updateEqResponse();
+                    break;
+                case 'eqQ':
+                    document.getElementById('eqQValue').textContent = value.toFixed(1);
+                    updateEqResponse();
+                    break;
             }
             
             // Update visualizations if needed
@@ -4897,8 +5203,11 @@
                 updateFilterResponse();
             } else if (['attack', 'decay', 'sustain', 'release'].includes(paramId)) {
                 updateADSRVisualizer();
+            } else if (['eqLow', 'eqMid', 'eqHigh', 'eqMidFreq', 'eqQ'].includes(paramId)) {
+                updateEqResponse();
             }
         }        
+        
         // Sync toggle
         document.getElementById('lfoSyncToggle').addEventListener('change', (e) => {
             if (e.target.checked) {
@@ -5374,57 +5683,6 @@
                 // Update the pitch without re-triggering
                 droneSynth.setNote(getDroneNote());
             }
-        }
-
-        // EQ Response Curve
-        function updateEqResponse() {
-            const svg = document.getElementById('eqResponseSvg');
-            const width = svg.clientWidth;
-            const height = svg.clientHeight;
-            
-            const low = parseFloat(document.getElementById('eqLow').value);
-            const mid = parseFloat(document.getElementById('eqMid').value);
-            const high = parseFloat(document.getElementById('eqHigh').value);
-            const midFreq = parseFloat(document.getElementById('eqMidFreq').value);
-            const q = parseFloat(document.getElementById('eqQ').value);
-            
-            // Calculate log scale for x-axis (frequency)
-            const frequencyToX = (freq) => {
-                const minLog = Math.log10(200);
-                const maxLog = Math.log10(5000);
-                const logPos = (Math.log10(freq) - minLog) / (maxLog - minLog);
-                return logPos * width;
-            };
-            
-            // Generate points for the EQ curve
-            const points = [];
-            for (let freq = 200; freq <= 5000; freq = freq * 1.1) {
-                const x = frequencyToX(freq);
-                
-                // Calculate EQ response at this frequency
-                let response = 0;
-                if (freq < midFreq) {
-                    // Low frequency band
-                    response = low;
-                } else if (freq > midFreq) {
-                    // High frequency band
-                    response = high;
-                } else {
-                    // Mid frequency band
-                    response = mid;
-                }
-                
-                // Convert to y coordinate (inverted, as 0,0 is top-left)
-                const y = height - (response * (height * 0.8));
-                points.push(`${x},${y}`);
-            }
-            
-            // Create the EQ curve path
-            const path = `M0,${height} L${points.join(' L')} L${width},${height}`;
-            document.getElementById('eqCurve').setAttribute('d', `M${points.join(' L')}`);
-            
-            // Create the filled area for the EQ curve
-            document.getElementById('eqArea').setAttribute('d', `M0,${height} L${points.join(' L')} L${width},${height} Z`);
         }
 
         // Add event listeners for the fine control cutoff slider
