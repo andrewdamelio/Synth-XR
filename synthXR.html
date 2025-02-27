@@ -1217,6 +1217,7 @@
             .module {
                 grid-column: 1 / 7;
                 padding: 12px;
+                max-height: 100vh;
             }
             
             .module-title {
@@ -2150,6 +2151,11 @@
             baseFrequency: 1000
         });
         
+        let lfoActive = false;
+        let lfoDestination = 'off';
+        let lfoBaseValues = {};
+        let lfoAnimationFrame = null;        
+
         // Initialize wet values to 0 (effects off)
         chorus.wet.value = 0;
         distortion.wet.value = 0;
@@ -3156,9 +3162,6 @@
             
             // Initialize LFO scope
             initLfoScope();
-
-            // Make sure LFO is started
-            lfo.start();
         });
         
         // Recalculate keyboard positions on window resize
@@ -4650,26 +4653,252 @@
         });
 
         // Connect LFO controls
-        // Waveform
-        document.getElementById('lfoWaveform').addEventListener('change', (e) => {
-            lfo.type = e.target.value;
-        });
-        
-        // Rate
-        document.getElementById('lfoRate').addEventListener('input', (e) => {
+        // Update these handlers to restart LFO when changed
+        document.getElementById('lfoRate').addEventListener('input', function(e) {
             const rate = parseFloat(e.target.value);
-            lfo.frequency.value = rate;
             document.getElementById('lfoRateValue').textContent = `${rate.toFixed(1)} Hz`;
+            
+            // Only restart if LFO is active
+            if (lfoDestination !== 'off') {
+                restartLfo();
+            }
         });
-        
-        // Amount
-        document.getElementById('lfoAmount').addEventListener('input', (e) => {
+
+        document.getElementById('lfoAmount').addEventListener('input', function(e) {
             const amount = parseInt(e.target.value);
-            // Scale 0-100 to 0-1 for Tone.js
-            lfo.amplitude.value = amount / 100;
             document.getElementById('lfoAmountValue').textContent = `${amount}%`;
+            
+            // Only restart if LFO is active
+            if (lfoDestination !== 'off') {
+                restartLfo();
+            }
+        });
+
+        document.getElementById('lfoWaveform').addEventListener('change', function(e) {
+            // Only restart if LFO is active
+            if (lfoDestination !== 'off') {
+                restartLfo();
+            }
         });
         
+        // Function to stop LFO
+        function stopLfo() {
+            if (lfoAnimationFrame) {
+                cancelAnimationFrame(lfoAnimationFrame);
+                lfoAnimationFrame = null;
+            }
+            lfoActive = false;
+        }
+
+        // Function to restart LFO (for when parameters change)
+        function restartLfo() {
+            stopLfo();
+            startLfo();
+        }
+
+        // Function to start LFO
+        function startLfo() {
+            // Don't start if destination is off
+            if (lfoDestination === 'off') return;
+            
+            lfoActive = true;
+            
+            // Get parameter info
+            const input = document.getElementById(lfoDestination);
+            if (!input) return;
+            
+            const min = parseFloat(input.min);
+            const max = parseFloat(input.max);
+            const baseValue = lfoBaseValues[lfoDestination];
+            
+            // Start the animation loop
+            let startTime = performance.now() / 1000; // seconds
+            
+            function animateLfo() {
+                if (!lfoActive) return;
+                
+                // Get current LFO settings
+                const waveform = document.getElementById('lfoWaveform').value;
+                const rate = parseFloat(document.getElementById('lfoRate').value);
+                const amountPercent = parseInt(document.getElementById('lfoAmount').value);
+                const amount = amountPercent / 100; // Convert to 0-1
+                
+                // Calculate current time in seconds
+                const currentTime = performance.now() / 1000;
+                const elapsedTime = currentTime - startTime;
+                
+                // Calculate phase (0-1) based on rate
+                const phase = (elapsedTime * rate) % 1;
+                
+                // Calculate LFO output (-1 to 1) based on waveform
+                let lfoOutput;
+                
+                switch (waveform) {
+                    case 'sine':
+                        lfoOutput = Math.sin(phase * Math.PI * 2);
+                        break;
+                    case 'triangle':
+                        lfoOutput = 1 - Math.abs((phase * 4) % 4 - 2);
+                        break;
+                    case 'square':
+                        lfoOutput = phase < 0.5 ? 1 : -1;
+                        break;
+                    case 'sawtooth':
+                        lfoOutput = (phase * 2) - 1;
+                        break;
+                    case 'random':
+                        // Use a stable random value for each segment
+                        const segments = 8; // 8 segments per cycle
+                        const segmentIndex = Math.floor(phase * segments);
+                        // Generate a pseudorandom value based on segment
+                        lfoOutput = Math.sin(segmentIndex * 1000) * 2 - 1;
+                        break;
+                    default:
+                        lfoOutput = 0;
+                }
+                
+                // Scale by amount
+                lfoOutput *= amount;
+                
+                // Calculate modulation range (50% of parameter range)
+                const range = max - min;
+                const modRange = range * 0.5;
+                
+                // Calculate modulated value
+                const modValue = baseValue + (lfoOutput * modRange);
+                
+                // Clamp value to parameter range
+                const clampedValue = Math.max(min, Math.min(max, modValue));
+                
+                // Set the parameter value WITHOUT breaking its connection
+                // We do this by:
+                // 1. Updating the input value
+                // 2. Setting the actual audio parameter directly
+                // 3. Updating the display
+                
+                // Update input value
+                input.value = clampedValue;
+                
+                // Update audio parameter directly based on destination
+                updateAudioParameter(lfoDestination, clampedValue);
+                
+                // Update knob rotation using GSAP
+                const knob = document.getElementById(`${lfoDestination}Knob`);
+                if (knob) {
+                    const normalizedValue = (clampedValue - min) / range;
+                    const rotation = normalizedValue * 270 - 135;
+                    
+                    gsap.to(knob, {
+                        rotation: rotation,
+                        duration: 0.05,
+                        overwrite: true
+                    });
+                }
+                
+                // Continue animation
+                lfoAnimationFrame = requestAnimationFrame(animateLfo);
+            }
+            
+            // Start animation
+            lfoAnimationFrame = requestAnimationFrame(animateLfo);
+        }
+
+        // Function to update audio parameter directly
+        function updateAudioParameter(paramId, value) {
+            switch(paramId) {
+                case 'filterCutoff':
+                    filter.frequency.value = value;
+                    document.getElementById('filterCutoffValue').textContent = `${Math.round(value)} Hz`;
+                    break;
+                case 'filterRes':
+                    filter.Q.value = value;
+                    document.getElementById('filterResValue').textContent = parseFloat(value).toFixed(1);
+                    break;
+                case 'oscillatorLevel':
+                    if (currentMode === "poly") {
+                        synth.set({ volume: Tone.gainToDb(value) });
+                    } else {
+                        synth.volume.value = Tone.gainToDb(value);
+                    }
+                    document.getElementById('oscillatorLevelValue').textContent = value.toFixed(2);
+                    break;
+                case 'reverbMix':
+                    reverb.wet.value = value;
+                    document.getElementById('reverbMixValue').textContent = parseFloat(value).toFixed(2);
+                    break;
+                case 'reverbDecay':
+                    document.getElementById('reverbDecayValue').textContent = `${value.toFixed(1)}s`;
+                    // We don't change the actual reverb time continuously as it would create artifacts
+                    break;
+                case 'delayTime':
+                    delay.delayTime.value = value;
+                    document.getElementById('delayTimeValue').textContent = parseFloat(value).toFixed(2);
+                    break;
+                case 'delayFeedback':
+                    delay.feedback.value = value;
+                    document.getElementById('delayFeedbackValue').textContent = parseFloat(value).toFixed(2);
+                    break;
+                case 'chorusMix':
+                    chorus.wet.value = value;
+                    document.getElementById('chorusMixValue').textContent = parseFloat(value).toFixed(2);
+                    break;
+                case 'flangerMix':
+                    flanger.wet.value = value;
+                    document.getElementById('flangerMixValue').textContent = parseFloat(value).toFixed(2);
+                    break;
+                case 'distortionMix':
+                    distortion.wet.value = value;
+                    document.getElementById('distortionMixValue').textContent = parseFloat(value).toFixed(2);
+                    break;
+                case 'phaserMix':
+                    phaser.wet.value = value;
+                    document.getElementById('phaserMixValue').textContent = parseFloat(value).toFixed(2);
+                    break;
+                case 'attack':
+                    if (currentMode === "poly") {
+                        synth.set({ envelope: { attack: value } });
+                    } else {
+                        synth.envelope.attack = value;
+                    }
+                    synthSettings.envelope.attack = value;
+                    document.getElementById('attackValue').textContent = `${value.toFixed(2)}s`;
+                    break;
+                case 'decay':
+                    if (currentMode === "poly") {
+                        synth.set({ envelope: { decay: value } });
+                    } else {
+                        synth.envelope.decay = value;
+                    }
+                    synthSettings.envelope.decay = value;
+                    document.getElementById('decayValue').textContent = `${value.toFixed(2)}s`;
+                    break;
+                case 'sustain':
+                    if (currentMode === "poly") {
+                        synth.set({ envelope: { sustain: value } });
+                    } else {
+                        synth.envelope.sustain = value;
+                    }
+                    synthSettings.envelope.sustain = value;
+                    document.getElementById('sustainValue').textContent = value.toFixed(2);
+                    break;
+                case 'release':
+                    if (currentMode === "poly") {
+                        synth.set({ envelope: { release: value } });
+                    } else {
+                        synth.envelope.release = value;
+                    }
+                    synthSettings.envelope.release = value;
+                    document.getElementById('releaseValue').textContent = `${value.toFixed(2)}s`;
+                    break;
+            }
+            
+            // Update visualizations if needed
+            if (['filterCutoff', 'filterRes'].includes(paramId)) {
+                updateFilterResponse();
+            } else if (['attack', 'decay', 'sustain', 'release'].includes(paramId)) {
+                updateADSRVisualizer();
+            }
+        }        
         // Sync toggle
         document.getElementById('lfoSyncToggle').addEventListener('change', (e) => {
             if (e.target.checked) {
@@ -4702,318 +4931,31 @@
             }
         });
 
-        document.getElementById('lfoDestination').addEventListener('change', (e) => {
-            // Stop any current animation interval
-            if (window.lfoAnimationInterval) {
-                clearInterval(window.lfoAnimationInterval);
-                window.lfoAnimationInterval = null;
-            }
+        // Replace your LFO destination handler with this implementation
+        document.getElementById('lfoDestination').addEventListener('change', function(e) {
+            // Stop any existing LFO animation
+            stopLfo();
             
-            // Disconnect LFO from previous destination
-            try {
-                lfo.disconnect();
-            } catch (error) {
-                // Ignore disconnect errors
-            }
+            // Get new destination
+            const newDestination = e.target.value;
             
-            const destination = e.target.value;
-            const amount = parseInt(document.getElementById('lfoAmount').value) / 100;
-            lfo.amplitude.value = amount; // Set amplitude directly based on amount
-            
-            // If "Off" is selected, just leave the LFO disconnected and return
-            if (destination === 'off') {
+            // If turning off, we're done
+            if (newDestination === 'off') {
+                lfoDestination = 'off';
                 return;
             }
             
-            // Get target knob and value elements based on destination
-            let targetKnobId, targetRangeId, targetValueId, minValue, maxValue, unit = '';
+            // Store the destination
+            lfoDestination = newDestination;
             
-            switch (destination) {
-                // Oscillator destinations
-                case 'oscillatorLevel':
-                    targetKnobId = 'oscillatorLevelKnob';
-                    targetRangeId = 'oscillatorLevel';
-                    targetValueId = 'oscillatorLevelValue';
-                    minValue = 0;
-                    maxValue = 1;
-                    break;
-                
-                // Filter destinations
-                case 'filterCutoff':
-                    targetKnobId = 'filterCutoffKnob';
-                    targetRangeId = 'filterCutoff';
-                    targetValueId = 'filterCutoffValue';
-                    minValue = 20;
-                    maxValue = 20000;
-                    unit = ' Hz';
-                    break;
-                case 'filterRes':
-                    targetKnobId = 'filterResKnob';
-                    targetRangeId = 'filterRes';
-                    targetValueId = 'filterResValue';
-                    minValue = 0;
-                    maxValue = 20;
-                    break;
-                
-                // Effects destinations
-                case 'reverbMix':
-                    targetKnobId = 'reverbMixKnob';
-                    targetRangeId = 'reverbMix';
-                    targetValueId = 'reverbMixValue';
-                    minValue = 0;
-                    maxValue = 1;
-                    break;
-                case 'reverbDecay':
-                    targetKnobId = 'reverbDecayKnob';
-                    targetRangeId = 'reverbDecay';
-                    targetValueId = 'reverbDecayValue';
-                    minValue = 0.1;
-                    maxValue = 10;
-                    unit = 's';
-                    break;
-                case 'delayTime':
-                    targetKnobId = 'delayTimeKnob';
-                    targetRangeId = 'delayTime';
-                    targetValueId = 'delayTimeValue';
-                    minValue = 0;
-                    maxValue = 1;
-                    break;
-                case 'delayFeedback':
-                    targetKnobId = 'delayFeedbackKnob';
-                    targetRangeId = 'delayFeedback';
-                    targetValueId = 'delayFeedbackValue';
-                    minValue = 0;
-                    maxValue = 0.9;
-                    break;
-                case 'chorusMix':
-                    targetKnobId = 'chorusMixKnob';
-                    targetRangeId = 'chorusMix';
-                    targetValueId = 'chorusMixValue';
-                    minValue = 0;
-                    maxValue = 1;
-                    break;
-                case 'flangerMix':
-                    targetKnobId = 'flangerMixKnob';
-                    targetRangeId = 'flangerMix';
-                    targetValueId = 'flangerMixValue';
-                    minValue = 0;
-                    maxValue = 1;
-                    break;
-                case 'distortionMix':
-                    targetKnobId = 'distortionMixKnob';
-                    targetRangeId = 'distortionMix';
-                    targetValueId = 'distortionMixValue';
-                    minValue = 0;
-                    maxValue = 1;
-                    break;
-                case 'phaserMix':
-                    targetKnobId = 'phaserMixKnob';
-                    targetRangeId = 'phaserMix';
-                    targetValueId = 'phaserMixValue';
-                    minValue = 0;
-                    maxValue = 1;
-                    break;
-                
-                // ADSR destinations
-                case 'attack':
-                    targetKnobId = 'attackKnob';
-                    targetRangeId = 'attack';
-                    targetValueId = 'attackValue';
-                    minValue = 0;
-                    maxValue = 2;
-                    unit = 's';
-                    break;
-                case 'decay':
-                    targetKnobId = 'decayKnob';
-                    targetRangeId = 'decay';
-                    targetValueId = 'decayValue';
-                    minValue = 0;
-                    maxValue = 2;
-                    unit = 's';
-                    break;
-                case 'sustain':
-                    targetKnobId = 'sustainKnob';
-                    targetRangeId = 'sustain';
-                    targetValueId = 'sustainValue';
-                    minValue = 0;
-                    maxValue = 1;
-                    break;
-                case 'release':
-                    targetKnobId = 'releaseKnob';
-                    targetRangeId = 'release';
-                    targetValueId = 'releaseValue';
-                    minValue = 0;
-                    maxValue = 2;
-                    unit = 's';
-                    break;
-                
-                // Other destinations - these don't have visible knobs
-                case 'amplitude':
-                case 'pan':
-                    // These don't have visible knobs in the UI
-                    targetKnobId = null;
-                    break;
-                    
-                default:
-                    // Default to filter cutoff if unknown
-                    targetKnobId = 'filterCutoffKnob';
-                    targetRangeId = 'filterCutoff';
-                    targetValueId = 'filterCutoffValue';
-                    minValue = 20;
-                    maxValue = 20000;
-                    unit = ' Hz';
+            // Store the base value
+            const input = document.getElementById(newDestination);
+            if (input) {
+                lfoBaseValues[newDestination] = parseFloat(input.value);
             }
             
-            // Scale factor for LFO mapping
-            const scaleFactor = (maxValue - minValue) * 0.5; // 50% of parameter range
-            
-            // Create a scale for LFO - to convert from -1,1 range to parameter range
-            const lfoScale = new Tone.Scale(-1, 1, minValue, maxValue);
-            
-            // Connect LFO through scale to the selected destination
-            switch (destination) {
-                // Oscillator destinations
-                case 'oscillatorLevel':
-                    // Create a special scale for volume (which is exponential)
-                    const volScale = new Tone.Scale(-1, 1, 0, 1);
-                    lfo.chain(volScale, synth.volume);
-                    break;
-                
-                // Filter destinations
-                case 'filterCutoff':
-                    // Special scale for filter cutoff (which is exponential)
-                    const filterScale = new Tone.Scale(-1, 1, minValue, maxValue);
-                    lfo.chain(filterScale, filter.frequency);
-                    break;
-                case 'filterRes':
-                    lfo.chain(lfoScale, filter.Q);
-                    break;
-                
-                // Effects destinations
-                case 'reverbMix':
-                    lfo.chain(new Tone.Scale(-1, 1, 0, 1), reverb.wet);
-                    break;
-                case 'reverbDecay':
-                    lfo.chain(new Tone.Scale(-1, 1, 0.1, 10), reverb.decay);
-                    break;
-                case 'delayTime':
-                    lfo.chain(new Tone.Scale(-1, 1, 0, 1), delay.delayTime);
-                    break;
-                case 'delayFeedback':
-                    lfo.chain(new Tone.Scale(-1, 1, 0, 0.9), delay.feedback);
-                    break;
-                case 'chorusMix':
-                    lfo.chain(new Tone.Scale(-1, 1, 0, 1), chorus.wet);
-                    break;
-                case 'flangerMix':
-                    lfo.chain(new Tone.Scale(-1, 1, 0, 1), flanger.wet);
-                    break;
-                case 'distortionMix':
-                    lfo.chain(new Tone.Scale(-1, 1, 0, 1), distortion.wet);
-                    break;
-                case 'phaserMix':
-                    lfo.chain(new Tone.Scale(-1, 1, 0, 1), phaser.wet);
-                    break;
-                
-                // Other destinations
-                case 'amplitude':
-                    // Connect to main volume
-                    const mainGain = new Tone.Gain().toDestination();
-                    delay.disconnect();
-                    delay.connect(mainGain);
-                    lfo.chain(new Tone.Scale(-1, 1, 0, 2), mainGain.gain);
-                    break;
-                case 'pan':
-                    // Create a panner if it doesn't exist
-                    if (!window.lfoPanner) {
-                        window.lfoPanner = new Tone.Panner(0).toDestination();
-                        delay.disconnect();
-                        delay.connect(window.lfoPanner);
-                    }
-                    lfo.chain(new Tone.Scale(-1, 1, -1, 1), window.lfoPanner.pan);
-                    break;
-            }
-            
-            // If a target knob was identified, set up visual animation for it
-            if (targetKnobId) {
-                const targetKnob = document.getElementById(targetKnobId);
-                const targetRange = document.getElementById(targetRangeId);
-                const targetValue = document.getElementById(targetValueId);
-                
-                // Store the original/base value
-                const baseValue = parseFloat(targetRange.value);
-                
-                // Set up an animation interval
-                window.lfoAnimationInterval = setInterval(() => {
-                    // Calculate modulated value based on LFO waveform and position
-                    const waveform = document.getElementById('lfoWaveform').value;
-                    const rate = parseFloat(document.getElementById('lfoRate').value);
-                    const amount = parseInt(document.getElementById('lfoAmount').value) / 100;
-                    
-                    // Calculate a 0-1 position in the LFO cycle
-                    const now = Date.now() / 1000;
-                    const cycle = (now * rate) % 1;
-                    
-                    // Calculate LFO value (-1 to 1) based on waveform
-                    let lfoValue;
-                    switch (waveform) {
-                        case 'sine':
-                            lfoValue = Math.sin(cycle * Math.PI * 2);
-                            break;
-                        case 'triangle':
-                            lfoValue = 2 * (Math.abs((cycle * 2) % 2 - 1) - 0.5);
-                            break;
-                        case 'square':
-                            lfoValue = cycle < 0.5 ? 1 : -1;
-                            break;
-                        case 'sawtooth':
-                            lfoValue = 1 - (cycle * 2);
-                            break;
-                        case 'random':
-                            // Generate stable random values within each LFO cycle
-                            const randomCycle = Math.floor(now * rate);
-                            lfoValue = Math.sin(randomCycle * 9999) * 2 - 1;
-                            break;
-                        default:
-                            lfoValue = 0;
-                    }
-                    
-                    // Scale the LFO output by amount
-                    lfoValue *= amount;
-                    
-                    // Calculate parameter range
-                    const range = maxValue - minValue;
-                    
-                    // Modulate the value based on LFO
-                    let modValue = baseValue + (lfoValue * scaleFactor); // Scale by 50% of parameter range
-                    
-                    // Clamp to min/max
-                    modValue = Math.max(minValue, Math.min(maxValue, modValue));
-                    
-                    // Calculate rotation in degrees (from -135 to 135)
-                    const normalizedValue = (modValue - minValue) / (maxValue - minValue);
-                    const rotation = normalizedValue * 270 - 135;
-                    
-                    // Update the knob position using GSAP
-                    gsap.to(targetKnob, {
-                        rotation: rotation,
-                        duration: 0.05, // Fast update for smooth animation
-                        overwrite: true
-                    });
-                    
-                    // Update value display (format based on type)
-                    let displayValue;
-                    if (destination === 'filterCutoff') {
-                        displayValue = Math.round(modValue) + unit;
-                    } else {
-                        displayValue = modValue.toFixed(2) + unit;
-                    }
-                    targetValue.textContent = displayValue;
-                    
-                    // Also update the range input value
-                    targetRange.value = modValue;
-                }, 16); // ~60fps animation
-            }
+            // Start the LFO
+            startLfo();
         });
 
         // Completely revamped LFO Scope visualization
@@ -5276,20 +5218,7 @@
             
             // Start the drawing loop
             drawLfoScope();
-            
-            // Add event listeners to redraw when settings change
-            document.getElementById('lfoWaveform').addEventListener('change', () => {
-                // Simply let the animation frame handle updates
-            });
-            
-            document.getElementById('lfoRate').addEventListener('input', () => {
-                // Simply let the animation frame handle updates
-            });
-            
-            document.getElementById('lfoAmount').addEventListener('input', () => {
-                // Simply let the animation frame handle updates
-            });
-            
+                        
             window.addEventListener('resize', () => {
                 lfoScopeCanvas.width = lfoScopeCanvas.parentElement.clientWidth;
                 // Height stays fixed
