@@ -701,7 +701,7 @@
         }
         
         .black-key.active {
-            background: var(--primary-dark);
+            background: var(--primary-light);
         }
 
         .preset-module {
@@ -1826,7 +1826,7 @@
 
         /* Snare specific styling */
         .drum-row[data-drum="snare"] .drum-step.active {
-            background: var(--secondary);
+            background: tomato;
         }
 
         /* Hihat specific styling */
@@ -1947,7 +1947,7 @@
     <div class="synth-container">
         <div class="brand">
             <div class="brand-name">Synth XR</div>
-            <div class="version">v4.0</div>
+            <div class="version">v5.0</div>
         </div>
         
         <div class="master-controls">
@@ -2002,13 +2002,6 @@
                         <input type="range" id="tempo" min="60" max="200" value="120">
                         <span class="knob-value" id="tempoValue">120 BPM</span>
                     </div>
-                    <div class="select-container">
-                        <label class="select-label">Voice Mode</label>
-                        <select id="voiceMode">
-                            <option value="poly">Polyphonic</option>
-                            <option value="mono">Monophonic</option>
-                        </select>
-                    </div>
                 </div>
                 <!-- New control group for octave, semi, and level knobs -->
                 <div class="control-group">
@@ -2038,6 +2031,26 @@
                         </div>
                         <input type="range" id="oscillatorLevel" min="0" max="1" step="0.01" value="0.8">
                         <span class="knob-value" id="oscillatorLevelValue">0.80</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="knob-container">
+                        <label class="knob-label">Detune</label>
+                        <div class="knob" id="detuneKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust oscillator detune</div>
+                        </div>
+                        <input type="range" id="detune" min="-100" max="100" step="1" value="0">
+                        <span class="knob-value" id="detuneValue">0 ¢</span>
+                    </div>
+                    <div class="knob-container">
+                        <label class="knob-label">Voices</label>
+                        <div class="knob" id="voicesKnob">
+                            <div class="knob-inner"></div>
+                            <div class="tooltip">Adjust number of voices</div>
+                        </div>
+                        <input type="range" id="voices" min="1" max="8" step="1" value="8">
+                        <span class="knob-value" id="voicesValue">8</span>
                     </div>
                 </div>
             </div>
@@ -3096,24 +3109,26 @@
             function highlightKeyFromSequencer(note, duration = 0.25) {
                 // Only proceed if it's a valid note
                 if (!note) return;
-            
-                // Find the corresponding key element
-                const keyElement = document.querySelector(`.key[data-note="${note}"]`);
+
+                // Try multiple selectors to find the key
+                const keyElement = document.querySelector(`.key[data-note="${note}"]`) || 
+                                document.querySelector(`.black-key[data-note="${note}"]`);
+
                 if (!keyElement) return;
-            
+
                 // Add the active class to highlight the key
                 keyElement.classList.add('active');
-            
+
                 // Store the timeout ID so we can clear it if needed
                 const timeoutId = setTimeout(() => {
                     keyElement.classList.remove('active');
                     sequencerActiveKeys.delete(note);
                 }, duration * 1000);
-            
+
                 // Store the note and its timeout ID
                 sequencerActiveKeys.set(note, timeoutId);
-            }
-            
+            }            
+
             // Clear any active key highlights
             function clearSequencerKeyHighlights() {
                 sequencerActiveKeys.forEach((timeoutId, note) => {
@@ -3515,6 +3530,33 @@
                 ['hihatVolumeKnob', 'hihatVolume'],
                 ['clapVolumeKnob', 'clapVolume']
             ];
+            
+            // Add detune and voices knobs to the knobs array
+            knobs.push(['detuneKnob', 'detune']);
+            knobs.push(['voicesKnob', 'voices']);
+            
+            // Add to knobUpdaters for proper rotation handling
+            knobUpdaters.detune = (value) => {
+                const min = -100;
+                const max = 100;
+                const normalizedValue = (value - min) / (max - min);
+                const rotation = normalizedValue * 270 - 135;
+                gsap.to(document.getElementById('detuneKnob'), {
+                    rotation: rotation,
+                    duration: 0.1
+                });
+            };
+            
+            knobUpdaters.voices = (value) => {
+                const min = 1;
+                const max = 8;
+                const normalizedValue = (value - min) / (max - min);
+                const rotation = normalizedValue * 270 - 135;
+                gsap.to(document.getElementById('voicesKnob'), {
+                    rotation: rotation,
+                    duration: 0.1
+                });
+            };
             
             // Apply knob setup to all knobs at once
             knobs.forEach(([knobId, inputId]) => {
@@ -4392,12 +4434,76 @@
             
             document.getElementById('oscillatorLevel').addEventListener('input', e => {
                 const value = parseFloat(e.target.value);
+                document.getElementById('oscillatorLevelValue').textContent = value.toFixed(2);
+                
+                // Update oscillator level
                 if (currentMode === "poly") {
                     synth.set({ volume: Tone.gainToDb(value) });
                 } else {
                     synth.volume.value = Tone.gainToDb(value);
                 }
-                document.getElementById('oscillatorLevelValue').textContent = value.toFixed(2);
+            });
+            
+            // Add detune control (fine tuning in cents)
+            document.getElementById('detune').addEventListener('input', e => {
+                const value = parseInt(e.target.value);
+                document.getElementById('detuneValue').textContent = value + " ¢";
+                
+                // Update knob rotation visually
+                knobUpdaters.detune(value);
+                
+                // Apply fine detune (this is separate from octave/semitone detune)
+                if (currentMode === "poly") {
+                    synth.set({ 
+                        oscillator: { 
+                            detune: value  // Fine detune in cents
+                        } 
+                    });
+                } else {
+                    synth.oscillator.detune.value = value;  // Fine detune in cents
+                }
+            });
+            
+            // Add voices control
+            document.getElementById('voices').addEventListener('input', e => {
+                const value = parseInt(e.target.value);
+                document.getElementById('voicesValue').textContent = value;
+                
+                // Update knob rotation visually
+                knobUpdaters.voices(value);
+                
+                // Only apply to poly synth mode
+                if (currentMode === "poly") {
+                    // Store current oscillator settings
+                    const waveformType = document.getElementById('waveform').value;
+                    const level = parseFloat(document.getElementById('oscillatorLevel').value);
+                    const detune = parseInt(document.getElementById('detune').value);
+                    
+                    // Create a new PolySynth with the specified number of voices
+                    const oldSynth = synth;
+                    synth = new Tone.PolySynth({
+                        maxPolyphony: value,
+                        voice: Tone.Synth,
+                        options: {
+                            ...synthSettings,
+                            oscillator: {
+                                type: waveformType,
+                                detune: detune
+                            },
+                            volume: Tone.gainToDb(level)
+                        }
+                    });
+                    
+                    // Connect to the effects chain
+                    synth.connect(filter);
+                    
+                    // Apply octave/semitone detune
+                    updateDetune();
+                    
+                    // Dispose of the old synth (after releasing notes)
+                    oldSynth.releaseAll();
+                    setTimeout(() => oldSynth.dispose(), 100);
+                }
             });
             
             // ADSR controls
@@ -4526,6 +4632,7 @@
                 oscillatorOctave: "0",
                 oscillatorSemi: "0",
                 oscillatorLevel: "0.8",
+                detune: "0",
                 chorusMix: "0",
                 distortionMix: "0",
                 flangerMix: "0",
@@ -4628,7 +4735,7 @@
                     name: "Deep Bass",
                     category: "bass",
                     settings: {
-                        voiceMode: "mono",
+                        voiceMode: "poly", // Changed from "mono" to "poly"
                         waveform: "fatsawtooth",
                         filterCutoff: "500",
                         filterRes: "8",
@@ -4916,7 +5023,7 @@
                     name: "Wobble Bass",
                     category: "bass",
                     settings: {
-                        voiceMode: "mono",
+                        voiceMode: "poly", // Changed from "mono" to "poly"
                         waveform: "fatsquare",
                         filterCutoff: "800",
                         filterRes: "15",
@@ -4964,7 +5071,7 @@
                     name: "Bright Lead",
                     category: "lead",
                     settings: {
-                        voiceMode: "mono",
+                        voiceMode: "poly", // Changed from "mono" to "poly"
                         waveform: "sawtooth",
                         filterCutoff: "5000",
                         filterRes: "4",
@@ -5346,10 +5453,8 @@
             
             // Get the current setup
             function getCurrentSetup() {
-                const steps = document.querySelectorAll('.step');
-                
                 return {
-                    voiceMode: document.getElementById('voiceMode').value,
+                    voiceMode: "poly", // Always return "poly" regardless of UI selection
                     waveform: document.getElementById('waveform').value,
                     filterCutoff: document.getElementById('filterCutoff').value,
                     filterRes: document.getElementById('filterRes').value,
