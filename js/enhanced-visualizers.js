@@ -12,9 +12,30 @@ class EnhancedVisualizers {
         this.contexts = {};
         this.container = null;
         
-        // Audio analyzers (use the ones already defined in the main app)
-        this.waveform = window.waveform || new Tone.Waveform(2048);
-        this.fft = window.fft || new Tone.FFT(2048);
+        // Use the global analyzers
+        this.waveform = window.waveform;
+        this.fft = window.fft;
+        
+        // Create backup analyzers only if global ones don't exist
+        if (!this.waveform) {
+            console.warn('Global waveform analyzer not found, creating a new one');
+            this.waveform = new Tone.Waveform(2048);
+            
+            // Try to connect to master output
+            if (Tone.getDestination) {
+                Tone.getDestination().connect(this.waveform);
+            }
+        }
+        
+        if (!this.fft) {
+            console.warn('Global FFT analyzer not found, creating a new one');
+            this.fft = new Tone.FFT(2048);
+            
+            // Try to connect to master output
+            if (Tone.getDestination) {
+                Tone.getDestination().connect(this.fft);
+            }
+        }
         
         // Animation properties
         this.animationFrames = {};
@@ -61,8 +82,12 @@ class EnhancedVisualizers {
         // Performance monitoring
         this.fpsCounter = { lastTime: 0, frames: 0, currentFps: 0 };
         this.stats = { renderTime: 0, dataTime: 0 };
+        
+        console.log('Enhanced visualizers created with analyzers:', 
+                   !!this.waveform ? 'Waveform connected' : 'Waveform missing',
+                   !!this.fft ? 'FFT connected' : 'FFT missing');
     }
-    
+        
     // Initialize the visualizer system
     init() {
         if (this.isInitialized) return;
@@ -179,7 +204,7 @@ class EnhancedVisualizers {
             { id: 'spectrum', label: 'Spectrum Analyzer' },
             { id: 'waveform3d', label: '3D Waveform' },
             { id: 'particles', label: 'Particle System' },
-            { id: 'waterfall', label: 'Frequency Waterfall' },
+            // { id: 'waterfall', label: 'Frequency Waterfall' },
             { id: 'circular', label: 'Circular Visualizer' }
         ];
         
@@ -247,25 +272,60 @@ class EnhancedVisualizers {
         
         // Handle fullscreen toggle
         let isFullscreen = false;
+        let originalStyles = {};
+
         fullscreenButton.addEventListener('click', () => {
             if (isFullscreen) {
                 // Exit fullscreen
-                this.container.style.position = 'relative';
-                this.container.style.height = '300px';
-                this.container.style.zIndex = 'auto';
+                Object.keys(originalStyles).forEach(prop => {
+                    this.container.style[prop] = originalStyles[prop];
+                });
+                
                 fullscreenButton.innerHTML = '<i class="fas fa-expand"></i>';
+                
+                // Use standard fullscreen exit method
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) { // Safari
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { // IE/Edge
+                    document.msExitFullscreen();
+                }
                 
                 // Force resize to update canvas dimensions
                 this.handleResize();
             } else {
-                // Enter fullscreen
-                this.container.style.position = 'fixed';
-                this.container.style.top = '0';
-                this.container.style.left = '0';
-                this.container.style.width = '100vw';
-                this.container.style.height = '100vh';
-                this.container.style.zIndex = '9999';
-                this.container.style.borderRadius = '0';
+                // Store original styles before going fullscreen
+                originalStyles = {
+                    position: this.container.style.position,
+                    top: this.container.style.top,
+                    left: this.container.style.left,
+                    width: this.container.style.width,
+                    height: this.container.style.height,
+                    zIndex: this.container.style.zIndex,
+                    borderRadius: this.container.style.borderRadius
+                };
+
+                // Try browser-specific fullscreen methods
+                const requestFullScreen = 
+                    this.container.requestFullscreen ||
+                    this.container.mozRequestFullScreen || // Firefox
+                    this.container.webkitRequestFullscreen || // Chrome/Safari
+                    this.container.msRequestFullscreen; // IE/Edge
+
+                if (requestFullScreen) {
+                    requestFullScreen.call(this.container);
+                } else {
+                    // Fallback to manual fullscreen
+                    this.container.style.position = 'fixed';
+                    this.container.style.top = '0';
+                    this.container.style.left = '0';
+                    this.container.style.width = '100vw';
+                    this.container.style.height = '100vh';
+                    this.container.style.zIndex = '9999';
+                    this.container.style.borderRadius = '0';
+                }
+
                 fullscreenButton.innerHTML = '<i class="fas fa-compress"></i>';
                 
                 // Force resize to update canvas dimensions
@@ -273,6 +333,19 @@ class EnhancedVisualizers {
             }
             
             isFullscreen = !isFullscreen;
+        });
+
+        // Handle fullscreen change events to ensure consistent state
+        document.addEventListener('fullscreenchange', () => {
+            isFullscreen = !!document.fullscreenElement;
+            if (!document.fullscreenElement) {
+                // Restore original styles if fullscreen was exited by browser chrome
+                Object.keys(originalStyles).forEach(prop => {
+                    this.container.style[prop] = originalStyles[prop];
+                });
+                fullscreenButton.innerHTML = '<i class="fas fa-expand"></i>';
+                this.handleResize();
+            }
         });
         
         // Create left controls group
@@ -506,27 +579,80 @@ class EnhancedVisualizers {
         // Only resize if initialized
         if (!this.isInitialized) return;
         
+        // Get current container dimensions
+        const containerWidth = this.container.clientWidth;
+        const containerHeight = this.container.clientHeight;
+        
         // Update canvas dimensions for all visualizers
         Object.keys(this.canvases).forEach(id => {
             const canvas = this.canvases[id];
-            canvas.width = this.container.clientWidth;
-            canvas.height = this.container.clientHeight;
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
         });
         
-        // Update circular visualizer center and radius
-        if (this.visualizers.circular) {
-            const options = this.visualizers.circular.options;
-            const canvas = this.canvases.circular;
-            
-            options.centerX = canvas.width / 2;
-            options.centerY = canvas.height / 2;
-            options.radius = Math.min(canvas.width, canvas.height) * 0.40;
-        }
+        // Reset visualizer-specific properties
+        const visualizersToReset = [
+            'circular', 
+            'waveform3d', 
+            'terrain', 
+            'vortex', 
+            'bloom', 
+            'holographic'
+        ];
         
-        // Reinitialize particles
-        if (this.visualizers.particles && this.visualizers.particles.options.init) {
-            this.visualizers.particles.options.init();
-        }
+        visualizersToReset.forEach(id => {
+            if (this.visualizers[id]) {
+                const options = this.visualizers[id].options;
+                const canvas = this.canvases[id];
+                
+                // Reset center and radius for circular-like visualizers
+                if (options.centerX !== undefined) {
+                    options.centerX = canvas.width / 2;
+                    options.centerY = canvas.height / 2;
+                }
+                
+                // Reset radius for circular visualizer
+                if (options.radius !== undefined) {
+                    options.radius = Math.min(canvas.width, canvas.height) * 0.40;
+                }
+                
+                // Reset perspective for 3D-like visualizers
+                if (options.perspective !== undefined) {
+                    options.perspective = 800; // Reset to standard perspective
+                }
+                
+                // Reset rotation angles
+                if (options.angleX !== undefined) {
+                    options.angleX = Math.PI / 4;
+                }
+                if (options.angleY !== undefined) {
+                    options.angleY = Math.PI / 16;
+                }
+                
+                // Reset scale for terrain-like visualizers
+                if (options.scale !== undefined) {
+                    options.scale = 8;
+                }
+            }
+        });
+        
+        // Reinitialize particles and other dynamic visualizers
+        const dynamicVisualizers = [
+            'particles', 
+            'neural', 
+            'terrain', 
+            'vortex', 
+            'bloom', 
+            'caustics'
+        ];
+        
+        dynamicVisualizers.forEach(id => {
+            if (this.visualizers[id] && 
+                this.visualizers[id].options.init && 
+                typeof this.visualizers[id].options.init === 'function') {
+                this.visualizers[id].options.init();
+            }
+        });
     }
     
     // Update FPS counter
@@ -1362,31 +1488,48 @@ window.enhancedVisualizers = new EnhancedVisualizers();
 
 // Initialize visualizers when document is loaded or when called
 document.addEventListener('DOMContentLoaded', () => {
-    const advancedVisualizersDiv = document.getElementById('advancedVisualizers');
-    const visualizerToggle = document.getElementById('visualizerToggle');
+    if (!window.enhancedVisualizers.isInitialized) {
+        window.enhancedVisualizers.init();
+        
+        // Ensure visualizers are hidden by default
+        const container = document.getElementById('enhanced-visualizers-container');
+        if (container) {
+            container.style.maxHeight = '0';
+            container.style.overflow = 'hidden';
+            container.style.marginTop = '10px';
+            container.style.marginBottom = '10px';
+        }
+    }
     
+    const visualizerToggle = document.getElementById('visualizerToggle');
+
     if (visualizerToggle) {
+        // Make sure toggle button text reflects hidden state initially
+        if (visualizerToggle.querySelector('span')) {
+            visualizerToggle.querySelector('span').textContent = 'Show Advanced Visualizations';
+        }
+        
         // Replace the old click handler
         const oldClickHandler = visualizerToggle.onclick;
         
         visualizerToggle.onclick = function() {
-            // Initialize enhanced visualizers if needed
-            if (!window.enhancedVisualizers.isInitialized) {
-                window.enhancedVisualizers.init();
-            }
-            
             // Toggle as before, but also show our new visualizers
             if (oldClickHandler) {
                 oldClickHandler.call(visualizerToggle);
             } else {
                 // Fallback if old handler not found
                 const isExpanded = visualizerToggle.classList.toggle('active');
+                const container = document.getElementById('enhanced-visualizers-container');
                 
-                if (isExpanded) {
-                    advancedVisualizersDiv.style.maxHeight = '500px';
+                if (isExpanded && container) {
+                    container.style.maxHeight = '500px';
+                    container.style.marginTop = '20px';
+                    container.style.marginBottom = '20px';
                     visualizerToggle.querySelector('span').textContent = 'Hide Advanced Visualizations';
-                } else {
-                    advancedVisualizersDiv.style.maxHeight = '0';
+                } else if (container) {
+                    container.style.maxHeight = '0';
+                    container.style.marginTop = '10px';
+                    container.style.marginBottom = '10px';
                     visualizerToggle.querySelector('span').textContent = 'Show Advanced Visualizations';
                 }
             }
@@ -1484,5 +1627,1895 @@ function initEnhancedVisualizers() {
     }
 }
 
+// Extend EnhancedVisualizers class with more advanced visualizations
+// Add these functions to the existing EnhancedVisualizers class
+
+// First, let's extend the initialization code to add our new visualizers
+const originalInitVisualizers = EnhancedVisualizers.prototype.initVisualizers;
+EnhancedVisualizers.prototype.initVisualizers = function() {
+    // Call the original init function first
+    originalInitVisualizers.call(this);
+    
+    // Add our new fancy visualizers
+    
+    // Neural Network visualizer
+    this.visualizers.neural = {
+        render: this.renderNeuralNetwork.bind(this),
+        animationFrame: null,
+        options: {
+            nodes: [],
+            connections: [],
+            nodeCount: 60,
+            initialConnectionCount: 100,
+            maxConnections: 200,
+            nodeSize: 4,
+            pulseSpeed: 0.05,
+            init: () => {
+                const options = this.visualizers.neural.options;
+                options.nodes = [];
+                options.connections = [];
+                
+                const width = this.canvases.neural.width;
+                const height = this.canvases.neural.height;
+                
+                // Create nodes with random positions
+                for (let i = 0; i < options.nodeCount; i++) {
+                    options.nodes.push({
+                        x: Math.random() * width,
+                        y: Math.random() * height,
+                        size: options.nodeSize * (0.5 + Math.random()),
+                        color: Math.random() > 0.5 ? this.colorScheme.secondary : this.colorScheme.primary,
+                        pulsePhase: Math.random() * Math.PI * 2,
+                        energy: 0,
+                        isActive: false
+                    });
+                }
+                
+                // Create initial connections
+                for (let i = 0; i < options.initialConnectionCount; i++) {
+                    const nodeA = Math.floor(Math.random() * options.nodes.length);
+                    let nodeB = Math.floor(Math.random() * options.nodes.length);
+                    
+                    // Avoid self-connections
+                    while (nodeB === nodeA) {
+                        nodeB = Math.floor(Math.random() * options.nodes.length);
+                    }
+                    
+                    options.connections.push({
+                        from: nodeA,
+                        to: nodeB,
+                        strength: Math.random(),
+                        active: false,
+                        pulsePosition: 0,
+                        direction: Math.random() > 0.5 ? 1 : -1,
+                        speed: 0.01 + Math.random() * 0.05
+                    });
+                }
+            }
+        }
+    };
+    
+    // Audio Terrain (3D landscape) visualizer
+    this.visualizers.terrain = {
+        render: this.renderAudioTerrain.bind(this),
+        animationFrame: null,
+        options: {
+            gridSize: 60,
+            heightMap: [],
+            heightHistory: [],
+            maxHistory: 10,
+            angleX: Math.PI / 4,
+            angleY: Math.PI / 16,
+            scale: 8,
+            color1: this.colorScheme.primary,
+            color2: this.colorScheme.secondary,
+            terrainHeight: 120,
+            waterLevel: 20,
+            lastMouseX: 0,
+            lastMouseY: 0,
+            isMouseDown: false,
+            init: () => {
+                const options = this.visualizers.terrain.options;
+                
+                // Initialize height map with zeros
+                options.heightMap = new Array(options.gridSize).fill(0)
+                    .map(() => new Array(options.gridSize).fill(0));
+                
+                // Initialize height history
+                options.heightHistory = [];
+                
+                // Add mouse controls for rotation
+                const canvas = this.canvases.terrain;
+                
+                if (canvas) {
+                    canvas.addEventListener('mousedown', (e) => {
+                        options.isMouseDown = true;
+                        options.lastMouseX = e.clientX;
+                        options.lastMouseY = e.clientY;
+                    });
+                    
+                    canvas.addEventListener('mouseup', () => {
+                        options.isMouseDown = false;
+                    });
+                    
+                    canvas.addEventListener('mousemove', (e) => {
+                        if (options.isMouseDown) {
+                            const deltaX = e.clientX - options.lastMouseX;
+                            const deltaY = e.clientY - options.lastMouseY;
+                            
+                            options.angleY += deltaX * 0.01;
+                            options.angleX = Math.max(0, Math.min(Math.PI / 2, options.angleX + deltaY * 0.01));
+                            
+                            options.lastMouseX = e.clientX;
+                            options.lastMouseY = e.clientY;
+                        }
+                    });
+                    
+                    canvas.addEventListener('mouseleave', () => {
+                        options.isMouseDown = false;
+                    });
+                }
+            }
+        }
+    };
+    
+    // Vortex visualizer
+    this.visualizers.vortex = {
+        render: this.renderVortex.bind(this),
+        animationFrame: null,
+        options: {
+            rings: 5,
+            pointsPerRing: 180,
+            rotationSpeed: 0.005,
+            waveAmplitude: 20,
+            waveFrequency: 6,
+            waveSpeed: 0.02,
+            depthScale: 600,
+            ringScale: 0.85,
+            time: 0,
+            points: [],
+            init: () => {
+                const options = this.visualizers.vortex.options;
+                options.points = [];
+                
+                // Reset time
+                options.time = 0;
+                
+                // Pre-calculate all points
+                for (let ring = 0; ring < options.rings; ring++) {
+                    const ringPoints = [];
+                    const radius = 100 * Math.pow(options.ringScale, ring);
+                    
+                    for (let p = 0; p < options.pointsPerRing; p++) {
+                        const angle = (p / options.pointsPerRing) * Math.PI * 2;
+                        ringPoints.push({
+                            angle: angle,
+                            radius: radius,
+                            z: 0, // Will be calculated during rendering
+                            projection: {x: 0, y: 0, scale: 0} // For 3D projection
+                        });
+                    }
+                    
+                    options.points.push(ringPoints);
+                }
+            }
+        }
+    };
+    
+    // Fractal Aurora visualizer
+    this.visualizers.fractal = {
+        render: this.renderFractalAurora.bind(this),
+        animationFrame: null,
+        options: {
+            iterations: 5,
+            baseSize: 150,
+            rotationSpeed: 0.001,
+            rotation: 0,
+            noiseScale: 0.01,
+            noiseOffset: 0,
+            fractalOffset: {x: 0, y: 0},
+            julia: {real: -0.8, imag: 0.156},
+            colorOffset: 0,
+            maxIterations: 100,
+            audioMultiplier: 2,
+            lastBassEnergy: 0,
+            lastMidEnergy: 0
+        }
+    };
+    
+    // Spectral Bloom visualizer
+    this.visualizers.bloom = {
+        render: this.renderSpectralBloom.bind(this),
+        animationFrame: null,
+        options: {
+            petals: 8,
+            maxLayers: 6,
+            layerScale: 0.85,
+            rotation: 0,
+            rotationSpeed: 0.002,
+            bloomCenter: {x: 0, y: 0},
+            baseRadius: 150,
+            petalWidth: 0.5, // 0-1, where 1 is a full circle
+            bloomLayers: [],
+            init: () => {
+                const options = this.visualizers.bloom.options;
+                options.bloomLayers = [];
+                
+                const canvas = this.canvases.bloom;
+                if (canvas) {
+                    options.bloomCenter = {
+                        x: canvas.width / 2,
+                        y: canvas.height / 2
+                    };
+                }
+                
+                // Create the bloom layers
+                for (let layer = 0; layer < options.maxLayers; layer++) {
+                    const layerPetals = [];
+                    
+                    for (let p = 0; p < options.petals; p++) {
+                        layerPetals.push({
+                            angle: (p / options.petals) * Math.PI * 2,
+                            scale: 1,
+                            energy: 0
+                        });
+                    }
+                    
+                    options.bloomLayers.push({
+                        rotation: layer * (Math.PI / options.maxLayers),
+                        petals: layerPetals,
+                        radius: options.baseRadius * Math.pow(options.layerScale, layer),
+                        hueOffset: layer * 30
+                    });
+                }
+            }
+        }
+    };
+    
+    // Holographic Spectrum (inspired by sci-fi holographic displays)
+    this.visualizers.holographic = {
+        render: this.renderHolographicSpectrum.bind(this),
+        animationFrame: null,
+        options: {
+            bars: 128,
+            maxHeight: 120,
+            barWidth: 3,
+            spacing: 1,
+            hologramLines: 20,
+            lineSpacing: 4,
+            rotationY: 0,
+            rotationSpeed: 0.01,
+            perspective: 800,
+            glitchIntensity: 0.05,
+            lastGlitch: 0,
+            glitchInterval: 1000,
+            scanlineOffset: 0,
+            scanlineSpeed: 0.5
+        }
+    };
+    
+    // Caustic Water ripple effect
+    this.visualizers.caustics = {
+        render: this.renderCaustics.bind(this),
+        animationFrame: null,
+        options: {
+            width: 128,
+            height: 128,
+            ripples: [],
+            buffer1: null,
+            buffer2: null,
+            damping: 0.98,
+            maxRipples: 10,
+            rippleRadius: 3,
+            rippleStrength: 5,
+            causticIntensity: 1.2,
+            time: 0,
+            init: () => {
+                const options = this.visualizers.caustics.options;
+                const size = options.width * options.height;
+                
+                // Create water simulation buffers
+                options.buffer1 = new Float32Array(size);
+                options.buffer2 = new Float32Array(size);
+                
+                // Reset everything
+                options.ripples = [];
+                options.buffer1.fill(0);
+                options.buffer2.fill(0);
+                options.time = 0;
+            }
+        }
+    };
+    
+    // Initialize the new visualizers if needed
+    this.visualizers.neural.options.init();
+    this.visualizers.terrain.options.init();
+    this.visualizers.vortex.options.init();
+    this.visualizers.bloom.options.init();
+    this.visualizers.caustics.options.init();
+};
+
+// Update the createToolbar method to include our new visualizers
+const originalCreateToolbar = EnhancedVisualizers.prototype.createToolbar;
+EnhancedVisualizers.prototype.createToolbar = function() {
+    // Call the original method first
+    originalCreateToolbar.call(this);
+    
+    // Now update the selector with our new options
+    const visualizerSelector = this.container.querySelector('.visualizer-selector');
+    
+    if (visualizerSelector) {
+        // Add our new visualizer options
+        const newOptions = [
+            { id: 'neural', label: 'Neural Network' },
+            // { id: 'terrain', label: 'Audio Terrain' },
+            { id: 'vortex', label: 'Vortex Tunnel' },
+            // { id: 'fractal', label: 'Fractal Aurora' },
+            { id: 'bloom', label: 'Spectral Bloom' },
+            { id: 'holographic', label: 'Holographic UI' },
+            { id: 'caustics', label: 'Caustic Waters' }
+        ];
+        
+        newOptions.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option.id;
+            optionElement.textContent = option.label;
+            visualizerSelector.appendChild(optionElement);
+        });
+    }
+};
+
+// Update the initCanvases method to create canvases for the new visualizers
+const originalInitCanvases = EnhancedVisualizers.prototype.initCanvases;
+EnhancedVisualizers.prototype.initCanvases = function() {
+    // Call the original method first
+    originalInitCanvases.call(this);
+    
+    // Add canvases for our new visualizers
+    const newVisualizerIds = ['neural', 'terrain', 'vortex', 'fractal', 'bloom', 'holographic', 'caustics'];
+    
+    newVisualizerIds.forEach(id => {
+        const canvas = document.createElement('canvas');
+        canvas.id = `visualizer-${id}`;
+        canvas.className = 'visualizer-canvas';
+        
+        // Style the canvas
+        Object.assign(canvas.style, {
+            position: 'absolute',
+            top: '0',
+            left: '0',
+            width: '100%',
+            height: '100%',
+            display: 'none'
+        });
+        
+        // Set initial canvas dimensions
+        canvas.width = this.container.clientWidth;
+        canvas.height = this.container.clientHeight;
+        
+        // Store canvas and context
+        this.canvases[id] = canvas;
+        this.contexts[id] = canvas.getContext('2d');
+        
+        // Add canvas to container
+        this.container.appendChild(canvas);
+    });
+};
+
+// 1. Neural Network Visualization
+EnhancedVisualizers.prototype.renderNeuralNetwork = function() {
+    const canvas = this.canvases.neural;
+    const ctx = this.contexts.neural;
+    const options = this.visualizers.neural.options;
+    
+    // Get audio data
+    const fftData = this.fft.getValue();
+    
+    // Calculate energy in different frequency bands
+    const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
+    const midEnergy = this.getFrequencyBandEnergy(fftData, 20, 60);
+    const trebleEnergy = this.getFrequencyBandEnergy(fftData, 80, 120);
+    const overallEnergy = (bassEnergy * 3 + midEnergy + trebleEnergy) / 5;
+    
+    // Clear canvas with fade effect
+    ctx.fillStyle = `rgba(${parseInt(this.colorScheme.background.slice(1, 3), 16)}, 
+                          ${parseInt(this.colorScheme.background.slice(3, 5), 16)}, 
+                          ${parseInt(this.colorScheme.background.slice(5, 7), 16)}, 0.1)`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Update node pulses
+    options.nodes.forEach((node, i) => {
+        node.pulsePhase += options.pulseSpeed * (1 + overallEnergy);
+        
+        // Get specific frequency data for this node
+        const fftIndex = Math.floor((i / options.nodes.length) * (fftData.length / 4));
+        const value = this.normalizeFFTValue(fftData[fftIndex]);
+        
+        // Update node energy
+        node.energy = node.energy * 0.9 + value * 0.1;
+        
+        // Detect audio peaks to activate nodes
+        if (value > 0.7 && Math.random() < value * 0.2) {
+            node.isActive = true;
+            
+            // Activate random connections from this node
+            const nodeConnections = options.connections.filter(c => c.from === i || c.to === i);
+            if (nodeConnections.length > 0) {
+                const connection = nodeConnections[Math.floor(Math.random() * nodeConnections.length)];
+                connection.active = true;
+                connection.pulsePosition = 0;
+            }
+        } else {
+            node.isActive = node.isActive && Math.random() > 0.05;
+        }
+    });
+    
+    // Update connections and draw them first (so they're behind the nodes)
+    options.connections.forEach(connection => {
+        const nodeA = options.nodes[connection.from];
+        const nodeB = options.nodes[connection.to];
+        
+        // Calculate distance
+        const dx = nodeB.x - nodeA.x;
+        const dy = nodeB.y - nodeA.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Update pulse position
+        if (connection.active) {
+            connection.pulsePosition += connection.speed * (1 + overallEnergy);
+            if (connection.pulsePosition >= 1) {
+                connection.pulsePosition = 0;
+                connection.active = Math.random() < 0.3; // 30% chance to keep active
+            }
+        }
+        
+        // Draw connection
+        ctx.beginPath();
+        
+        // Create gradient based on nodes
+        const gradient = ctx.createLinearGradient(nodeA.x, nodeA.y, nodeB.x, nodeB.y);
+        gradient.addColorStop(0, this.hexToRgba(nodeA.color, 0.1 + nodeA.energy * 0.3));
+        gradient.addColorStop(1, this.hexToRgba(nodeB.color, 0.1 + nodeB.energy * 0.3));
+        
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 1 + connection.strength * 2 * overallEnergy;
+        
+        ctx.moveTo(nodeA.x, nodeA.y);
+        ctx.lineTo(nodeB.x, nodeB.y);
+        ctx.stroke();
+        
+        // Draw pulse on active connections
+        if (connection.active) {
+            const pulsePos = connection.direction > 0 ? 
+                             connection.pulsePosition : 
+                             1 - connection.pulsePosition;
+            
+            const pulseX = nodeA.x + dx * pulsePos;
+            const pulseY = nodeA.y + dy * pulsePos;
+            
+            // Create pulse gradient
+            const pulseSize = 2 + 4 * overallEnergy;
+            const pulseGradient = ctx.createRadialGradient(
+                pulseX, pulseY, 0,
+                pulseX, pulseY, pulseSize * 2
+            );
+            
+            const pulseColor = connection.direction > 0 ? nodeA.color : nodeB.color;
+            pulseGradient.addColorStop(0, this.hexToRgba(pulseColor, 0.8));
+            pulseGradient.addColorStop(1, this.hexToRgba(pulseColor, 0));
+            
+            ctx.fillStyle = pulseGradient;
+            ctx.beginPath();
+            ctx.arc(pulseX, pulseY, pulseSize * 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+    
+    // Draw nodes
+    options.nodes.forEach(node => {
+        // Calculate pulsing effect
+        const pulse = Math.sin(node.pulsePhase) * 0.5 + 0.5;
+        const size = node.size * (1 + pulse * 0.5 + node.energy * 2);
+        
+        // Create node gradient
+        const gradient = ctx.createRadialGradient(
+            node.x, node.y, 0,
+            node.x, node.y, size * 2
+        );
+        
+        const alpha = 0.2 + node.energy * 0.8 + (node.isActive ? 0.5 : 0);
+        
+        gradient.addColorStop(0, this.hexToRgba(node.color, alpha));
+        gradient.addColorStop(0.5, this.hexToRgba(node.color, alpha * 0.5));
+        gradient.addColorStop(1, this.hexToRgba(node.color, 0));
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, size * 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw node core
+        ctx.fillStyle = this.hexToRgba(node.color, 0.8 + node.energy * 0.2);
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, size * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add highlight
+        if (node.isActive) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.beginPath();
+            ctx.arc(node.x - size * 0.3, node.y - size * 0.3, size * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+    
+    // Create new random connections occasionally based on audio energy
+    if (Math.random() < 0.01 + bassEnergy * 0.1 && options.connections.length < options.maxConnections) {
+        const nodeA = Math.floor(Math.random() * options.nodes.length);
+        let nodeB = Math.floor(Math.random() * options.nodes.length);
+        
+        // Avoid self-connections
+        while (nodeB === nodeA) {
+            nodeB = Math.floor(Math.random() * options.nodes.length);
+        }
+        
+        // Check if this connection already exists
+        const connectionExists = options.connections.some(c => 
+            (c.from === nodeA && c.to === nodeB) || 
+            (c.from === nodeB && c.to === nodeA)
+        );
+        
+        if (!connectionExists) {
+            options.connections.push({
+                from: nodeA,
+                to: nodeB,
+                strength: 0.3 + Math.random() * 0.7,
+                active: true,
+                pulsePosition: 0,
+                direction: Math.random() > 0.5 ? 1 : -1,
+                speed: 0.01 + Math.random() * 0.05
+            });
+        }
+    }
+    
+    // Remove random connections occasionally
+    if (options.connections.length > options.initialConnectionCount && Math.random() < 0.005) {
+        const randomIndex = Math.floor(Math.random() * options.connections.length);
+        options.connections.splice(randomIndex, 1);
+    }
+    
+    // Draw FPS counter
+    this.drawFPS(ctx, canvas.width, canvas.height);
+};
+
+// 2. Audio Terrain (3D landscape) Visualization
+EnhancedVisualizers.prototype.renderAudioTerrain = function() {
+    const canvas = this.canvases.terrain;
+    const ctx = this.contexts.terrain;
+    const options = this.visualizers.terrain.options;
+    
+    // Get audio data
+    const fftData = this.fft.getValue();
+    
+    // Clear canvas
+    ctx.fillStyle = this.colorScheme.background;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Update the height map based on audio
+    const newHeightMap = new Array(options.gridSize).fill(0)
+        .map(() => new Array(options.gridSize).fill(0));
+    
+    for (let x = 0; x < options.gridSize; x++) {
+        // Get frequency data for this column
+        const fftIndex = Math.floor((x / options.gridSize) * (fftData.length / 4));
+        const value = this.normalizeFFTValue(fftData[fftIndex]);
+        
+        // Set height value based on audio
+        const height = value * options.terrainHeight;
+        
+        for (let z = 0; z < options.gridSize; z++) {
+            // Add noise to create more variation
+            const noise = Math.sin(x * 0.1 + z * 0.1) * 10 + 
+                         Math.cos(x * 0.05 - z * 0.05) * 5;
+                         
+            newHeightMap[x][z] = height + noise;
+        }
+    }
+    
+    // Add to height history
+    options.heightHistory.unshift(newHeightMap);
+    
+    // Limit history length
+    if (options.heightHistory.length > options.maxHistory) {
+        options.heightHistory.pop();
+    }
+    
+    // Average height maps for smoother transitions
+    const smoothedHeightMap = new Array(options.gridSize).fill(0)
+        .map(() => new Array(options.gridSize).fill(0));
+    
+    for (let x = 0; x < options.gridSize; x++) {
+        for (let z = 0; z < options.gridSize; z++) {
+            let totalHeight = 0;
+            let weightSum = 0;
+            
+            for (let h = 0; h < options.heightHistory.length; h++) {
+                const weight = options.heightHistory.length - h;
+                totalHeight += options.heightHistory[h][x][z] * weight;
+                weightSum += weight;
+            }
+            
+            smoothedHeightMap[x][z] = totalHeight / weightSum;
+        }
+    }
+    
+    // Update current height map
+    options.heightMap = smoothedHeightMap;
+    
+    // Calculate center of the grid
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    // Calculate bass energy for water animation
+    const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
+    const waterLevel = options.waterLevel + bassEnergy * 20;
+    
+    // Function to project 3D point to 2D screen
+    const project = (x, y, z) => {
+        // Apply rotation
+        const rotX = x - options.gridSize / 2;
+        const rotZ = z - options.gridSize / 2;
+        
+        const sinY = Math.sin(options.angleY);
+        const cosY = Math.cos(options.angleY);
+        
+        const x1 = rotX * cosY - rotZ * sinY;
+        const z1 = rotX * sinY + rotZ * cosY;
+        
+        const sinX = Math.sin(options.angleX);
+        const cosX = Math.cos(options.angleX);
+        
+        const y1 = y;
+        const z2 = z1 * cosX - y1 * sinX;
+        const y2 = z1 * sinX + y1 * cosX;
+        
+        // Scale and position
+        const scale = options.scale;
+        const screenX = centerX + x1 * scale;
+        const screenY = centerY + y2 * scale - z2 * 0.3; // Add depth perspective
+        
+        return { x: screenX, y: screenY, depth: z2 };
+    };
+    
+    // Prepare cells for sorting and rendering
+    const cells = [];
+    
+    for (let x = 0; x < options.gridSize - 1; x++) {
+        for (let z = 0; z < options.gridSize - 1; z++) {
+            const height00 = options.heightMap[x][z];
+            const height10 = options.heightMap[x + 1][z];
+            const height01 = options.heightMap[x][z + 1];
+            const height11 = options.heightMap[x + 1][z + 1];
+            
+            const point00 = project(x, height00, z);
+            const point10 = project(x + 1, height10, z);
+            const point01 = project(x, height01, z + 1);
+            const point11 = project(x + 1, height11, z + 1);
+            
+            // Calculate average height for color
+            const avgHeight = (height00 + height10 + height01 + height11) / 4;
+            
+            // Determine color based on height
+            let color;
+            if (avgHeight < waterLevel) {
+                // Water color
+                const alpha = 0.6 + bassEnergy * 0.4;
+                color = this.hexToRgba(this.colorScheme.secondary, alpha);
+            } else {
+                // Terrain color
+                const normalizedHeight = (avgHeight - waterLevel) / (options.terrainHeight - waterLevel);
+                color = this.lerpColor(this.colorScheme.primary, this.colorScheme.accent1, normalizedHeight);
+            }
+            
+            // Calculate depth for sorting
+            const avgDepth = (point00.depth + point10.depth + point01.depth + point11.depth) / 4;
+            
+            cells.push({
+                points: [point00, point10, point11, point01],
+                color: color,
+                height: avgHeight,
+                depth: avgDepth,
+                isWater: avgHeight < waterLevel
+            });
+        }
+    }
+    
+    // Sort cells by depth (painter's algorithm)
+    cells.sort((a, b) => b.depth - a.depth);
+    
+    // Draw cells
+    cells.forEach(cell => {
+        const points = cell.points;
+        
+        ctx.fillStyle = cell.color;
+        
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        ctx.lineTo(points[1].x, points[1].y);
+        ctx.lineTo(points[2].x, points[2].y);
+        ctx.lineTo(points[3].x, points[3].y);
+        ctx.closePath();
+        
+        // For water cells, add shimmer effect
+        if (cell.isWater) {
+            ctx.globalAlpha = 0.5 + Math.sin(performance.now() * 0.001 + cell.depth * 0.1) * 0.2 + bassEnergy * 0.3;
+        } else {
+            ctx.globalAlpha = 1;
+        }
+        
+        ctx.fill();
+        
+        // Add grid lines
+        if (!cell.isWater) {
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+        }
+        
+        // Reset alpha
+        ctx.globalAlpha = 1;
+    });
+    
+    // Draw FPS counter
+    this.drawFPS(ctx, canvas.width, canvas.height);
+};
+
+// 3. Vortex Tunnel Visualization
+EnhancedVisualizers.prototype.renderVortex = function() {
+    const canvas = this.canvases.vortex;
+    const ctx = this.contexts.vortex;
+    const options = this.visualizers.vortex.options;
+    
+    // Get audio data
+    const fftData = this.fft.getValue();
+    const waveData = this.waveform.getValue();
+    
+    // Calculate energy in different frequency bands
+    const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
+    const midEnergy = this.getFrequencyBandEnergy(fftData, 20, 60);
+    const trebleEnergy = this.getFrequencyBandEnergy(fftData, 80, 120);
+    
+    // Clear canvas
+    ctx.fillStyle = this.colorScheme.background;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Update time based on audio
+    options.time += options.rotationSpeed * (1 + bassEnergy * 2);
+    
+    // Calculate center of the tunnel
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    // Calculate amplitude modification from audio
+    const amplitude = options.waveAmplitude * (1 + bassEnergy * 3);
+    const waveFreq = options.waveFrequency * (1 + midEnergy);
+    const depthMod = 1 + trebleEnergy * 2;
+    
+    // Update all points
+    options.points.forEach((ring, ringIndex) => {
+        ring.forEach((point, pointIndex) => {
+            // Calculate Z position based on time and frequency
+            const phaseOffset = point.angle * waveFreq + options.time;
+            const waveValue = Math.sin(phaseOffset) * amplitude;
+            
+            const depthOffset = ringIndex / options.rings;
+            point.z = (Math.sin(options.time * options.waveSpeed + depthOffset * Math.PI * 2) + 1) * 0.5 * options.depthScale * depthMod;
+            
+            // Calculate 3D projection
+            const scale = options.depthScale / (options.depthScale + point.z);
+            const projectedX = centerX + (Math.cos(point.angle + options.time) * (point.radius + waveValue)) * scale;
+            const projectedY = centerY + (Math.sin(point.angle + options.time) * (point.radius + waveValue)) * scale;
+            
+            // Store projection
+            point.projection = {
+                x: projectedX,
+                y: projectedY,
+                scale: scale
+            };
+        });
+    });
+    
+    // Draw from back to front
+    for (let ringIndex = options.rings - 1; ringIndex >= 0; ringIndex--) {
+        const ring = options.points[ringIndex];
+        
+        // Get audio modulation for this ring
+        const ringAudioIndex = Math.floor((ringIndex / options.rings) * (fftData.length / 4));
+        const ringAudio = this.normalizeFFTValue(fftData[ringAudioIndex]);
+        
+        // Get color based on audio and ring
+        const hue = (270 + ringIndex * 20 + trebleEnergy * 60) % 360;
+        const saturation = 80 + ringAudio * 20;
+        const lightness = 30 + ringAudio * 30;
+        const ringColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        
+        // Connect points to form the ring
+        ctx.beginPath();
+        ctx.strokeStyle = ringColor;
+        ctx.lineWidth = 1 + 3 * ring[0].projection.scale * (1 + ringAudio);
+        
+        // Create lines between points
+        for (let i = 0; i < ring.length; i++) {
+            const point = ring[i];
+            
+            if (i === 0) {
+                ctx.moveTo(point.projection.x, point.projection.y);
+            } else {
+                ctx.lineTo(point.projection.x, point.projection.y);
+            }
+        }
+        
+        // Close the ring
+        ctx.closePath();
+        ctx.stroke();
+        
+        // Add glow effect based on audio
+        if (ringAudio > 0.5) {
+            ctx.shadowColor = ringColor;
+            ctx.shadowBlur = 10 * ringAudio;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+    }
+    
+    // Draw connecting lines between rings
+    if (bassEnergy > 0.4) {
+        for (let pointIndex = 0; pointIndex < options.pointsPerRing; pointIndex += 6) {
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(255, 255, 255, ${bassEnergy * 0.4})`;
+            ctx.lineWidth = 1;
+            
+            for (let ringIndex = 0; ringIndex < options.rings; ringIndex++) {
+                const point = options.points[ringIndex][pointIndex];
+                
+                if (ringIndex === 0) {
+                    ctx.moveTo(point.projection.x, point.projection.y);
+                } else {
+                    ctx.lineTo(point.projection.x, point.projection.y);
+                }
+            }
+            
+            ctx.stroke();
+        }
+    }
+    
+    // Add center glow
+    const centerGlow = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, 30 + bassEnergy * 50
+    );
+    
+    centerGlow.addColorStop(0, `rgba(255, 255, 255, ${0.4 + bassEnergy * 0.6})`);
+    centerGlow.addColorStop(0.5, `rgba(${parseInt(this.colorScheme.secondary.slice(1, 3), 16)}, 
+                                     ${parseInt(this.colorScheme.secondary.slice(3, 5), 16)}, 
+                                     ${parseInt(this.colorScheme.secondary.slice(5, 7), 16)}, 0.3)`);
+    centerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    ctx.fillStyle = centerGlow;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 100, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw FPS counter
+    this.drawFPS(ctx, canvas.width, canvas.height);
+};
+
+// 4. Fractal Aurora Visualization
+EnhancedVisualizers.prototype.renderFractalAurora = function() {
+    const canvas = this.canvases.fractal;
+    const ctx = this.contexts.fractal;
+    const options = this.visualizers.fractal.options;
+    
+    // Get audio data
+    const fftData = this.fft.getValue();
+    
+    // Calculate energy in different frequency bands
+    const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
+    const midEnergy = this.getFrequencyBandEnergy(fftData, 20, 60);
+    const trebleEnergy = this.getFrequencyBandEnergy(fftData, 80, 120);
+    
+    // Smooth transition for Julia set parameters
+    options.lastBassEnergy = options.lastBassEnergy * 0.8 + bassEnergy * 0.2;
+    options.lastMidEnergy = options.lastMidEnergy * 0.8 + midEnergy * 0.2;
+    
+    // Update Julia set parameters based on audio
+    options.julia.real = -0.8 + Math.sin(performance.now() * 0.0001) * 0.2 + options.lastBassEnergy * 0.4;
+    options.julia.imag = 0.156 + Math.cos(performance.now() * 0.0002) * 0.1 + options.lastMidEnergy * 0.3;
+    
+    // Update noise offset based on treble
+    options.noiseOffset += 0.01 + trebleEnergy * 0.05;
+    
+    // Update rotation
+    options.rotation += options.rotationSpeed * (1 + bassEnergy * 2);
+    
+    // Update color cycling
+    options.colorOffset = (options.colorOffset + 0.01 + bassEnergy * 0.1) % 360;
+    
+    // Clear canvas with fade effect
+    ctx.fillStyle = `rgba(${parseInt(this.colorScheme.background.slice(1, 3), 16)}, 
+                          ${parseInt(this.colorScheme.background.slice(3, 5), 16)}, 
+                          ${parseInt(this.colorScheme.background.slice(5, 7), 16)}, 0.1)`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Calculate the center of the canvas
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    // Create ImageData for direct pixel manipulation
+    const imageData = ctx.createImageData(canvas.width, canvas.height);
+    const data = imageData.data;
+    
+    // Render fractal
+    const size = options.baseSize * (1 + bassEnergy * options.audioMultiplier);
+    const zoom = 4 / size;
+    
+    // Offset from center
+    options.fractalOffset.x = Math.sin(performance.now() * 0.0005) * 50 * midEnergy;
+    options.fractalOffset.y = Math.cos(performance.now() * 0.0003) * 50 * bassEnergy;
+    
+    for (let y = 0; y < canvas.height; y += 2) {
+        for (let x = 0; x < canvas.width; x += 2) {
+            // Calculate coordinates relative to center with rotation
+            const dx = x - centerX - options.fractalOffset.x;
+            const dy = y - centerY - options.fractalOffset.y;
+            
+            // Apply rotation
+            const cos = Math.cos(options.rotation);
+            const sin = Math.sin(options.rotation);
+            const rotatedX = dx * cos - dy * sin;
+            const rotatedY = dx * sin + dy * cos;
+            
+            // Scale to fractal space
+            const zx = rotatedX * zoom;
+            const zy = rotatedY * zoom;
+            
+            // Julia set calculation
+            let cx = options.julia.real;
+            let cy = options.julia.imag;
+            
+            let iteration = 0;
+            let zx2 = zx * zx;
+            let zy2 = zy * zy;
+            
+            // Apply noise modulation
+            const noiseVal = Math.sin(zx * options.noiseScale + options.noiseOffset) * 
+                            Math.cos(zy * options.noiseScale + options.noiseOffset) * 0.1 * trebleEnergy;
+            
+            cx += noiseVal;
+            cy += noiseVal;
+            
+            // Iterate until escape or max iterations
+            while (iteration < options.maxIterations && zx2 + zy2 < 4) {
+                zy = 2 * zx * zy + cy;
+                zx = zx2 - zy2 + cx;
+                zx2 = zx * zx;
+                zy2 = zy * zy;
+                iteration++;
+            }
+            
+            // Color calculation
+            if (iteration < options.maxIterations) {
+                // Smooth coloring
+                const smoothColor = iteration + 1 - Math.log2(Math.log(zx2 + zy2));
+                
+                // Hue based on iteration count and audio energy
+                const hue = (smoothColor * 10 + options.colorOffset) % 360;
+                
+                // Saturation and lightness modulated by audio
+                const sat = 70 + midEnergy * 30;
+                const light = 30 + 40 * Math.pow(smoothColor / options.maxIterations, 0.5);
+                
+                // Convert HSL to RGB
+                const color = this.hslToRgb(hue / 360, sat / 100, light / 100);
+                
+                // Set the 2x2 pixel block (optimization)
+                for (let sy = 0; sy < 2 && y + sy < canvas.height; sy++) {
+                    for (let sx = 0; sx < 2 && x + sx < canvas.width; sx++) {
+                        const index = ((y + sy) * canvas.width + (x + sx)) * 4;
+                        data[index] = color.r;
+                        data[index + 1] = color.g;
+                        data[index + 2] = color.b;
+                        data[index + 3] = 255; // Alpha
+                    }
+                }
+            }
+        }
+    }
+    
+    // Draw the image data
+    ctx.putImageData(imageData, 0, 0);
+    
+    // Add glow effect with compositing
+    ctx.globalCompositeOperation = 'screen';
+    
+    // Create circular gradient for glow
+    const glowRadius = Math.min(canvas.width, canvas.height) * 0.7;
+    const glow = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, glowRadius
+    );
+    
+    glow.addColorStop(0, `rgba(${parseInt(this.colorScheme.secondary.slice(1, 3), 16)}, 
+                           ${parseInt(this.colorScheme.secondary.slice(3, 5), 16)}, 
+                           ${parseInt(this.colorScheme.secondary.slice(5, 7), 16)}, ${0.1 + bassEnergy * 0.2})`);
+    glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Reset composite operation
+    ctx.globalCompositeOperation = 'source-over';
+    
+    // Draw FPS counter
+    this.drawFPS(ctx, canvas.width, canvas.height);
+};
+
+// 5. Spectral Bloom Visualization
+EnhancedVisualizers.prototype.renderSpectralBloom = function() {
+    const canvas = this.canvases.bloom;
+    const ctx = this.contexts.bloom;
+    const options = this.visualizers.bloom.options;
+    
+    // Get audio data
+    const fftData = this.fft.getValue();
+    
+    // Calculate energy in different frequency bands
+    const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
+    const midEnergy = this.getFrequencyBandEnergy(fftData, 20, 60);
+    const trebleEnergy = this.getFrequencyBandEnergy(fftData, 80, 120);
+    
+    // Clear canvas
+    ctx.fillStyle = this.colorScheme.background;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Update bloom center position
+    options.bloomCenter = {
+        x: canvas.width / 2 + Math.sin(performance.now() * 0.001) * 50 * midEnergy,
+        y: canvas.height / 2 + Math.cos(performance.now() * 0.001) * 50 * bassEnergy
+    };
+    
+    // Update rotation
+    options.rotation += options.rotationSpeed * (1 + bassEnergy);
+    
+    // Draw bloom layers from back to front
+    for (let layerIndex = options.maxLayers - 1; layerIndex >= 0; layerIndex--) {
+        const layer = options.bloomLayers[layerIndex];
+        
+        // Calculate layer-specific audio response
+        const fftIndex = Math.floor((layerIndex / options.maxLayers) * (fftData.length / 4));
+        const layerEnergy = this.normalizeFFTValue(fftData[fftIndex]);
+        
+        // Update layer rotation
+        layer.rotation += options.rotationSpeed * (layerIndex + 1) * (1 + layerEnergy);
+        
+        // Get layer-specific color
+        const hue = (270 + layer.hueOffset + performance.now() * 0.01) % 360;
+        const saturation = 70 + layerEnergy * 30;
+        const lightness = 40 + layerEnergy * 30;
+        
+        // Draw each petal
+        layer.petals.forEach((petal, petalIndex) => {
+            // Update petal energy
+            petal.energy = petal.energy * 0.9 + layerEnergy * 0.1;
+            
+            // Calculate audio-modulated petal properties
+            const petalFftIndex = Math.floor((petalIndex / options.petals) * (fftData.length / 2));
+            const petalAudio = this.normalizeFFTValue(fftData[petalFftIndex]);
+            
+            // Calculate petal scale
+            petal.scale = 0.8 + petal.energy * 0.5 + Math.sin(performance.now() * 0.001 + petalIndex) * 0.2 * petalAudio;
+            
+            // Calculate petal angle including layer rotation
+            const angle = petal.angle + layer.rotation;
+            
+            // Calculate start and end angles for the petal arc
+            const arcWidth = options.petalWidth * Math.PI * (0.5 + petalAudio * 0.5);
+            const startAngle = angle - arcWidth / 2;
+            const endAngle = angle + arcWidth / 2;
+            
+            // Calculate petal radius
+            const radius = layer.radius * petal.scale * (1 + bassEnergy * 0.2);
+            
+            // Create gradient for petal
+            const innerX = options.bloomCenter.x + Math.cos(angle) * radius * 0.5;
+            const innerY = options.bloomCenter.y + Math.sin(angle) * radius * 0.5;
+            const outerX = options.bloomCenter.x + Math.cos(angle) * radius;
+            const outerY = options.bloomCenter.y + Math.sin(angle) * radius;
+            
+            const gradient = ctx.createRadialGradient(
+                innerX, innerY, radius * 0.1,
+                outerX, outerY, radius * 0.9
+            );
+            
+            // Custom petal color based on audio and layer
+            const petalHue = (hue + petalIndex * 10 * petalAudio) % 360;
+            gradient.addColorStop(0, `hsla(${petalHue}, ${saturation}%, ${lightness}%, ${0.3 + petal.energy * 0.7})`);
+            gradient.addColorStop(1, `hsla(${petalHue}, ${saturation}%, ${lightness + 20}%, 0)`);
+            
+            ctx.fillStyle = gradient;
+            
+            // Draw petal
+            ctx.beginPath();
+            ctx.moveTo(options.bloomCenter.x, options.bloomCenter.y);
+            ctx.arc(options.bloomCenter.x, options.bloomCenter.y, radius, startAngle, endAngle);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Add glow for petals with high energy
+            if (petal.energy > 0.7) {
+                ctx.save();
+                ctx.shadowColor = `hsl(${petalHue}, ${saturation}%, ${lightness + 20}%)`;
+                ctx.shadowBlur = 20 * petal.energy;
+                ctx.fill();
+                ctx.restore();
+            }
+            
+            // Add highlights
+            if (petalAudio > 0.8) {
+                ctx.strokeStyle = `hsla(${petalHue}, 20%, 90%, ${petalAudio * 0.5})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        });
+    }
+    
+    // Draw center of the bloom
+    const centerGlow = ctx.createRadialGradient(
+        options.bloomCenter.x, options.bloomCenter.y, 0,
+        options.bloomCenter.x, options.bloomCenter.y, 30 + bassEnergy * 40
+    );
+    
+    centerGlow.addColorStop(0, `rgba(255, 255, 255, ${0.5 + bassEnergy * 0.5})`);
+    centerGlow.addColorStop(0.3, `rgba(${parseInt(this.colorScheme.secondary.slice(1, 3), 16)}, 
+                                  ${parseInt(this.colorScheme.secondary.slice(3, 5), 16)}, 
+                                  ${parseInt(this.colorScheme.secondary.slice(5, 7), 16)}, 0.7)`);
+    centerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    ctx.fillStyle = centerGlow;
+    ctx.beginPath();
+    ctx.arc(options.bloomCenter.x, options.bloomCenter.y, 30 + bassEnergy * 40, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw FPS counter
+    this.drawFPS(ctx, canvas.width, canvas.height);
+};
+
+// 6. Holographic Spectrum Visualization
+EnhancedVisualizers.prototype.renderHolographicSpectrum = function() {
+    const canvas = this.canvases.holographic;
+    const ctx = this.contexts.holographic;
+    const options = this.visualizers.holographic.options;
+    
+    // Get audio data
+    const fftData = this.fft.getValue();
+    
+    // Calculate energy in different frequency bands
+    const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
+    const midEnergy = this.getFrequencyBandEnergy(fftData, 20, 60);
+    const trebleEnergy = this.getFrequencyBandEnergy(fftData, 80, 120);
+    
+    // Update rotation
+    options.rotationY += options.rotationSpeed * (1 + bassEnergy);
+    
+    // Update scanline position
+    options.scanlineOffset = (options.scanlineOffset + options.scanlineSpeed * (1 + midEnergy * 2)) % canvas.height;
+    
+    // Clear canvas
+    ctx.fillStyle = this.colorScheme.background;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Calculate the center of the canvas
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    // Calculate total width of the spectrum
+    const totalWidth = options.bars * (options.barWidth + options.spacing);
+    
+    // Calculate when to create a glitch effect
+    const now = performance.now();
+    let isGlitching = false;
+    
+    if (now - options.lastGlitch > options.glitchInterval) {
+        // Random chance to glitch based on treble energy
+        if (Math.random() < options.glitchIntensity + trebleEnergy * 0.1) {
+            isGlitching = true;
+            options.lastGlitch = now;
+        }
+    }
+    
+    // Draw 3D grid (floor)
+    this.drawHolographicGrid(ctx, canvas.width, canvas.height, options.rotationY, bassEnergy);
+    
+    // Prepare bars
+    const barData = [];
+    
+    for (let i = 0; i < options.bars; i++) {
+        // Get frequency data for this bar
+        const fftIndex = Math.floor((i / options.bars) * (fftData.length / 4));
+        const value = this.normalizeFFTValue(fftData[fftIndex]);
+        
+        // Apply smoothing
+        const smoothedValue = value; // You could implement a smoothing algorithm here
+        
+        barData.push({
+            index: i,
+            value: smoothedValue,
+            height: smoothedValue * options.maxHeight,
+            // Add glitch effect
+            glitchOffset: isGlitching && Math.random() < 0.1 ? 
+                         (Math.random() - 0.5) * 20 * trebleEnergy : 0
+        });
+    }
+    
+    // Function to project 3D point to 2D
+    const project = (x, y, z) => {
+        // Apply Y rotation
+        const cosY = Math.cos(options.rotationY);
+        const sinY = Math.sin(options.rotationY);
+        
+        const x1 = x * cosY - z * sinY;
+        const z1 = x * sinY + z * cosY;
+        
+        // Apply perspective
+        const scale = options.perspective / (options.perspective + z1);
+        
+        return {
+            x: centerX + x1 * scale,
+            y: centerY + y * scale,
+            scale: scale
+        };
+    };
+    
+    // Draw holographic bars
+    barData.forEach(bar => {
+        // Calculate 3D coordinates
+        const barX = (bar.index - options.bars / 2) * (options.barWidth + options.spacing);
+        const barHeight = bar.height;
+        const barZ = 0;
+        
+        // Project the corners
+        const bottomLeft = project(barX, 0, barZ);
+        const bottomRight = project(barX + options.barWidth, 0, barZ);
+        const topLeft = project(barX, -barHeight, barZ);
+        const topRight = project(barX + options.barWidth, -barHeight, barZ);
+        
+        // Get bar-specific color
+        const hue = 180 + bar.index % 60;
+        const saturation = 80 + bar.value * 20;
+        const lightness = 40 + bar.value * 40;
+        
+        // Apply glitch offset
+        const glitchY = bar.glitchOffset;
+        
+        // Draw bar
+        ctx.beginPath();
+        ctx.moveTo(bottomLeft.x, bottomLeft.y + glitchY);
+        ctx.lineTo(bottomRight.x, bottomRight.y + glitchY);
+        ctx.lineTo(topRight.x, topRight.y + glitchY);
+        ctx.lineTo(topLeft.x, topLeft.y + glitchY);
+        ctx.closePath();
+        
+        // Calculate alpha based on audio
+        const alpha = 0.4 + bar.value * 0.6;
+        
+        // Fill with gradient
+        const gradient = ctx.createLinearGradient(
+            0, bottomLeft.y, 
+            0, topLeft.y
+        );
+        
+        gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha * 0.7})`);
+        gradient.addColorStop(1, `hsla(${hue}, ${saturation}%, ${lightness + 20}%, ${alpha})`);
+        
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        
+        // Add holographic scan line effect
+        ctx.globalCompositeOperation = 'screen';
+        ctx.strokeStyle = `hsla(${hue}, 50%, 80%, 0.4)`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        // Add highlight at the top
+        ctx.strokeStyle = `hsla(${hue}, 80%, 90%, 0.8)`;
+        ctx.beginPath();
+        ctx.moveTo(topLeft.x, topLeft.y + glitchY);
+        ctx.lineTo(topRight.x, topRight.y + glitchY);
+        ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+    });
+    
+    // Draw scanlines
+    this.drawHolographicScanlines(ctx, canvas.width, canvas.height, options.scanlineOffset, options.hologramLines, options.lineSpacing);
+    
+    // Draw holographic UI elements (circles, lines, etc.)
+    this.drawHolographicUI(ctx, canvas.width, canvas.height, bassEnergy, midEnergy, trebleEnergy);
+    
+    // Add glitch effect
+    if (isGlitching) {
+        this.applyGlitchEffect(ctx, canvas.width, canvas.height, trebleEnergy);
+    }
+    
+    // Draw FPS counter
+    this.drawFPS(ctx, canvas.width, canvas.height);
+};
+
+// Helper for drawing holographic grid
+EnhancedVisualizers.prototype.drawHolographicGrid = function(ctx, width, height, rotationY, bassEnergy) {
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const gridSize = 1000; // Large grid
+    const cellSize = 50;
+    const gridOpacity = 0.15 + bassEnergy * 0.1;
+    
+    // Function to project a point with the current rotation
+    const project = (x, y, z) => {
+        // Apply Y rotation
+        const cosY = Math.cos(rotationY);
+        const sinY = Math.sin(rotationY);
+        
+        const x1 = x * cosY - z * sinY;
+        const z1 = x * sinY + z * cosY;
+        
+        // Apply perspective
+        const perspective = 800; // Larger value for more subtle perspective
+        const scale = perspective / (perspective + z1);
+        
+        return {
+            x: centerX + x1 * scale,
+            y: centerY + y * scale,
+            scale: scale
+        };
+    };
+    
+    // Draw grid lines
+    ctx.strokeStyle = `rgba(0, 180, 255, ${gridOpacity})`;
+    ctx.lineWidth = 1;
+    
+    // Draw horizontal grid lines
+    for (let z = -gridSize / 2; z <= gridSize / 2; z += cellSize) {
+        ctx.beginPath();
+        
+        for (let x = -gridSize / 2; x <= gridSize / 2; x += 10) {
+            const point = project(x, 0, z);
+            
+            if (x === -gridSize / 2) {
+                ctx.moveTo(point.x, point.y);
+            } else {
+                ctx.lineTo(point.x, point.y);
+            }
+        }
+        
+        ctx.stroke();
+    }
+    
+    // Draw vertical grid lines
+    for (let x = -gridSize / 2; x <= gridSize / 2; x += cellSize) {
+        ctx.beginPath();
+        
+        for (let z = -gridSize / 2; z <= gridSize / 2; z += 10) {
+            const point = project(x, 0, z);
+            
+            if (z === -gridSize / 2) {
+                ctx.moveTo(point.x, point.y);
+            } else {
+                ctx.lineTo(point.x, point.y);
+            }
+        }
+        
+        ctx.stroke();
+    }
+    
+    // Add subtle glow
+    ctx.shadowColor = 'rgba(0, 180, 255, 0.5)';
+    ctx.shadowBlur = 10 * bassEnergy;
+    
+    // Draw center horizontal and vertical lines with stronger color
+    ctx.strokeStyle = `rgba(0, 200, 255, ${0.4 + bassEnergy * 0.3})`;
+    ctx.lineWidth = 2;
+    
+    // Center horizontal line
+    ctx.beginPath();
+    for (let x = -gridSize / 2; x <= gridSize / 2; x += 10) {
+        const point = project(x, 0, 0);
+        
+        if (x === -gridSize / 2) {
+            ctx.moveTo(point.x, point.y);
+        } else {
+            ctx.lineTo(point.x, point.y);
+        }
+    }
+    ctx.stroke();
+    
+    // Center vertical line
+    ctx.beginPath();
+    for (let z = -gridSize / 2; z <= gridSize / 2; z += 10) {
+        const point = project(0, 0, z);
+        
+        if (z === -gridSize / 2) {
+            ctx.moveTo(point.x, point.y);
+        } else {
+            ctx.lineTo(point.x, point.y);
+        }
+    }
+    ctx.stroke();
+    
+    // Reset shadow
+    ctx.shadowBlur = 0;
+};
+
+// Helper for drawing holographic scanlines
+EnhancedVisualizers.prototype.drawHolographicScanlines = function(ctx, width, height, offset, lineCount, lineSpacing) {
+    ctx.globalCompositeOperation = 'screen';
+    
+    // Draw horizontal scan lines
+    for (let i = 0; i < lineCount; i++) {
+        const y = (offset + i * lineSpacing) % height;
+        const opacity = 0.3 - Math.abs(y - height / 2) / height * 0.3; // Fade out from center
+        
+        ctx.strokeStyle = `rgba(100, 200, 255, ${opacity})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
+    
+    // Reset composite operation
+    ctx.globalCompositeOperation = 'source-over';
+};
+
+// Helper for drawing holographic UI elements
+EnhancedVisualizers.prototype.drawHolographicUI = function(ctx, width, height, bassEnergy, midEnergy, trebleEnergy) {
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const time = performance.now() * 0.001;
+    
+    // Draw circular meter
+    const radius = 100 + bassEnergy * 30;
+    const segments = 32;
+    const segmentAngle = (Math.PI * 2) / segments;
+    
+    ctx.strokeStyle = `rgba(0, 210, 255, ${0.4 + midEnergy * 0.4})`;
+    ctx.lineWidth = 2;
+    
+    for (let i = 0; i < segments; i++) {
+        const startAngle = i * segmentAngle;
+        const endAngle = (i + 0.9) * segmentAngle; // 0.9 to create gaps
+        
+        // Modulate segment length with audio
+        const segmentRadius = radius * (0.9 + Math.sin(time * 2 + i * 0.3) * 0.1 * trebleEnergy);
+        
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, segmentRadius, startAngle, endAngle);
+        ctx.stroke();
+    }
+    
+    // Add light glow
+    ctx.shadowColor = 'rgba(0, 200, 255, 0.8)';
+    ctx.shadowBlur = 15 * midEnergy;
+    
+    // Draw center circle
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 5 + bassEnergy * 10, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Draw pulsing circle
+    ctx.strokeStyle = `rgba(0, 255, 200, ${0.2 + bassEnergy * 0.5})`;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 20 + Math.sin(time * 3) * 10, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Reset shadow
+    ctx.shadowBlur = 0;
+    
+    // Draw floating text and symbols
+    ctx.font = '14px monospace';
+    ctx.fillStyle = `rgba(0, 230, 255, ${0.7 + trebleEnergy * 0.3})`;
+    ctx.textAlign = 'center';
+    
+    // Level indicator
+    ctx.fillText(`LEVEL: ${Math.floor(bassEnergy * 100)}%`, centerX, centerY - radius - 20);
+    
+    // Time code (fake)
+    const minutes = Math.floor(time / 60).toString().padStart(2, '0');
+    const seconds = Math.floor(time % 60).toString().padStart(2, '0');
+    const deciseconds = Math.floor((time % 1) * 10).toString();
+    ctx.fillText(`T:${minutes}:${seconds}.${deciseconds}`, centerX, centerY + radius + 25);
+    
+    // Draw arcs with dynamic angles
+    const arcRadius = radius * 1.2;
+    ctx.strokeStyle = `rgba(0, 200, 255, ${0.3 + midEnergy * 0.3})`;
+    ctx.lineWidth = 3;
+    
+    // Top arc
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, arcRadius, Math.PI * 1.2 - midEnergy * 0.5, Math.PI * 1.8 + midEnergy * 0.5);
+    ctx.stroke();
+    
+    // Bottom arc
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, arcRadius, Math.PI * 0.2 - trebleEnergy * 0.5, Math.PI * 0.8 + trebleEnergy * 0.5);
+    ctx.stroke();
+};
+
+// Helper for applying glitch effect
+EnhancedVisualizers.prototype.applyGlitchEffect = function(ctx, width, height, intensity) {
+    const glitchIntensity = intensity * 0.3; // Scale down for subtlety
+    
+    // Create several horizontal glitch slices
+    const sliceCount = Math.floor(3 + Math.random() * 5);
+    
+    for (let i = 0; i < sliceCount; i++) {
+        // Random y position and height
+        const y = Math.random() * height;
+        const sliceHeight = 5 + Math.random() * 20;
+        
+        // Random x offset
+        const xOffset = (Math.random() - 0.5) * width * 0.1 * glitchIntensity;
+        
+        // Copy and shift a slice of the canvas
+        const imageData = ctx.getImageData(0, y, width, sliceHeight);
+        ctx.putImageData(imageData, xOffset, y);
+        
+        // Add color shift occasionally
+        if (Math.random() < 0.3) {
+            ctx.fillStyle = `rgba(255, 0, 128, ${Math.random() * 0.1 * glitchIntensity})`;
+            ctx.fillRect(0, y, width, sliceHeight);
+        }
+    }
+    
+    // Add random noise pixels
+    const noiseCount = Math.floor(100 * glitchIntensity);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    
+    for (let i = 0; i < noiseCount; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const size = 1 + Math.random() * 3;
+        
+        ctx.fillRect(x, y, size, size);
+    }
+};
+
+// 7. Caustic Waters Visualization
+EnhancedVisualizers.prototype.renderCaustics = function() {
+    const canvas = this.canvases.caustics;
+    const ctx = this.contexts.caustics;
+    const options = this.visualizers.caustics.options;
+    
+    // Get audio data
+    const fftData = this.fft.getValue();
+    const waveData = this.waveform.getValue();
+    
+    // Calculate energy in different frequency bands
+    const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
+    const midEnergy = this.getFrequencyBandEnergy(fftData, 20, 60);
+    const trebleEnergy = this.getFrequencyBandEnergy(fftData, 80, 120);
+    
+    // Initialize buffers if needed
+    if (!options.buffer1 || !options.buffer2) {
+        options.init();
+    }
+    
+    // Update time
+    options.time += 0.01 + bassEnergy * 0.05;
+    
+    // Clear canvas
+    ctx.fillStyle = this.colorScheme.background;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Add ripples based on audio
+    if (bassEnergy > 0.1 && options.ripples.length < options.maxRipples) {
+        // Add a ripple at a random position
+        const x = Math.floor(Math.random() * options.width);
+        const y = Math.floor(Math.random() * options.height);
+        const strength = options.rippleStrength * (0.5 + bassEnergy * 2);
+        
+        options.ripples.push({
+            x: x,
+            y: y,
+            radius: options.rippleRadius,
+            strength: strength,
+            age: 0,
+            maxAge: 20 + Math.random() * 30
+        });
+    }
+    
+    // Apply ripples to the water simulation
+    options.ripples.forEach(ripple => {
+        ripple.age++;
+        
+        // Fade out ripple strength with age
+        const currentStrength = ripple.strength * (1 - ripple.age / ripple.maxAge);
+        
+        // Apply ripple to the buffer
+        this.applyRipple(options.buffer1, options.width, options.height, 
+                        ripple.x, ripple.y, ripple.radius, currentStrength);
+    });
+    
+    // Remove old ripples
+    options.ripples = options.ripples.filter(ripple => ripple.age < ripple.maxAge);
+    
+    // Update water simulation
+    this.updateWaterSimulation(options.buffer1, options.buffer2, options.width, options.height, options.damping);
+    
+    // Swap buffers
+    [options.buffer1, options.buffer2] = [options.buffer2, options.buffer1];
+    
+    // Render water to canvas with caustics effect
+    const imageData = ctx.createImageData(canvas.width, canvas.height);
+    const data = imageData.data;
+    
+    // Calculate scaling from simulation to canvas
+    const scaleX = canvas.width / options.width;
+    const scaleY = canvas.height / options.height;
+    
+    // Generate caustics
+    for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+            // Map canvas coordinates to simulation coordinates
+            const simX = Math.floor(x / scaleX);
+            const simY = Math.floor(y / scaleY);
+            
+            // Get height and calculate derivatives (normals)
+            const idx = simY * options.width + simX;
+            const height = options.buffer1[idx] || 0;
+            
+            // Calculate caustics intensity
+            const causticFactor = height * options.causticIntensity;
+            
+            // Get caustic color
+            let r, g, b;
+            
+            // Create color shifts based on height
+            if (causticFactor > 0) {
+                // Bright caustics with color variation
+                const hue = (180 + causticFactor * 20 + options.time * 10) % 360;
+                const saturation = 60 + midEnergy * 40;
+                const brightness = 50 + causticFactor * 50;
+                
+                const rgb = this.hslToRgb(hue / 360, saturation / 100, brightness / 100);
+                r = rgb.r;
+                g = rgb.g;
+                b = rgb.b;
+            } else {
+                // Darker water with different color
+                const depth = bassEnergy * 0.5;
+                
+                // Deep water color
+                r = 0;
+                g = 10 + 40 * depth;
+                b = 30 + 100 * depth;
+            }
+            
+            // Add subtle movement to the water
+            const time = options.time;
+            const movement = Math.sin(x * 0.01 + time) * Math.cos(y * 0.01 + time * 0.7) * 10 * midEnergy;
+            
+            // Apply movement to colors
+            r = Math.max(0, Math.min(255, r + movement));
+            g = Math.max(0, Math.min(255, g + movement));
+            b = Math.max(0, Math.min(255, b + movement));
+            
+            // Set pixel color
+            const pixelIndex = (y * canvas.width + x) * 4;
+            data[pixelIndex] = r;
+            data[pixelIndex + 1] = g;
+            data[pixelIndex + 2] = b;
+            data[pixelIndex + 3] = 255; // Alpha
+        }
+    }
+    
+    // Draw the image data
+    ctx.putImageData(imageData, 0, 0);
+    
+    // Add depth and underwater effect
+    ctx.fillStyle = `rgba(0, 10, 40, ${0.2 + bassEnergy * 0.2})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Add light rays
+    this.drawWaterLightRays(ctx, canvas.width, canvas.height, bassEnergy, midEnergy);
+    
+    // Draw particles floating in the water
+    this.drawWaterParticles(ctx, canvas.width, canvas.height, options.time, bassEnergy, trebleEnergy);
+    
+    // Draw FPS counter
+    this.drawFPS(ctx, canvas.width, canvas.height);
+};
+
+// Helper for applying ripple to water simulation
+EnhancedVisualizers.prototype.applyRipple = function(buffer, width, height, centerX, centerY, radius, strength) {
+    const radiusSq = radius * radius;
+    
+    for (let y = Math.max(0, centerY - radius); y < Math.min(height, centerY + radius); y++) {
+        for (let x = Math.max(0, centerX - radius); x < Math.min(width, centerX + radius); x++) {
+            const dx = x - centerX;
+            const dy = y - centerY;
+            const distSq = dx * dx + dy * dy;
+            
+            if (distSq < radiusSq) {
+                const idx = y * width + x;
+                buffer[idx] += strength;
+            }
+        }
+    }
+};
+
+// Helper for updating water simulation
+EnhancedVisualizers.prototype.updateWaterSimulation = function(buffer1, buffer2, width, height, damping) {
+    // Simple wave equation simulation
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            const idx = y * width + x;
+            
+            // Apply wave equation
+            const val = (
+                buffer1[idx - 1] + // left
+                buffer1[idx + 1] + // right
+                buffer1[idx - width] + // top
+                buffer1[idx + width] - // bottom
+                4 * buffer1[idx] // center
+            ) * 0.5;
+            
+            // Apply damping
+            buffer2[idx] = val * damping;
+        }
+    }
+};
+
+// Helper for drawing light rays in water
+EnhancedVisualizers.prototype.drawWaterLightRays = function(ctx, width, height, bassEnergy, midEnergy) {
+    ctx.save();
+    
+    // Use additive blending for light rays
+    ctx.globalCompositeOperation = 'screen';
+    
+    // Number of rays based on audio
+    const rayCount = 5 + Math.floor(bassEnergy * 10);
+    
+    for (let i = 0; i < rayCount; i++) {
+        // Calculate ray properties
+        const x = Math.random() * width;
+        const rayWidth = 20 + Math.random() * 80 + bassEnergy * 100;
+        const rayHeight = height * (0.5 + Math.random() * 0.5);
+        const intensity = 0.05 + Math.random() * 0.1 + midEnergy * 0.2;
+        
+        // Create light ray gradient
+        const gradient = ctx.createLinearGradient(x, 0, x, rayHeight);
+        gradient.addColorStop(0, `rgba(180, 230, 255, ${intensity})`);
+        gradient.addColorStop(1, 'rgba(180, 230, 255, 0)');
+        
+        // Draw ray
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(x - rayWidth / 2, 0);
+        ctx.lineTo(x + rayWidth / 2, 0);
+        ctx.lineTo(x + rayWidth / 4, rayHeight);
+        ctx.lineTo(x - rayWidth / 4, rayHeight);
+        ctx.closePath();
+        ctx.fill();
+    }
+    
+    ctx.restore();
+};
+
+// Helper for drawing floating particles in water
+EnhancedVisualizers.prototype.drawWaterParticles = function(ctx, width, height, time, bassEnergy, trebleEnergy) {
+    ctx.save();
+    
+    // Use screen blending for bright particles
+    ctx.globalCompositeOperation = 'screen';
+    
+    // Number of particles
+    const particleCount = 100 + Math.floor(bassEnergy * 100);
+    
+    for (let i = 0; i < particleCount; i++) {
+        // Calculate particle positions using perlin-like noise
+        const seed = i * 0.1;
+        const x = (Math.sin(seed + time * 0.1) * 0.5 + 0.5) * width;
+        const y = (Math.cos(seed * 1.3 + time * 0.07) * 0.5 + 0.5) * height;
+        
+        // Calculate size and opacity based on audio and position
+        const size = 1 + Math.random() * 3 * trebleEnergy;
+        const depth = y / height; // 0 at top, 1 at bottom
+        const opacity = 0.1 + Math.random() * 0.2 + trebleEnergy * 0.3;
+        
+        // Get particle color
+        const colorOffset = Math.random();
+        let color;
+        
+        if (colorOffset < 0.5) {
+            // Small bright particles
+            color = `rgba(200, 240, 255, ${opacity})`;
+        } else if (colorOffset < 0.8) {
+            // Medium cyan particles
+            color = `rgba(100, 200, 255, ${opacity * 0.7})`;
+        } else {
+            // Larger blue particles
+            color = `rgba(50, 100, 200, ${opacity * 0.5})`;
+        }
+        
+        // Draw particle
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.restore();
+};
+
+// Utility function: Convert hex color to rgba string
+EnhancedVisualizers.prototype.hexToRgba = function(hexColor, alpha) {
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+    
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+// Utility function: Linear interpolation between two hex colors
+EnhancedVisualizers.prototype.lerpColor = function(color1, color2, factor) {
+    // Extract RGB components
+    const r1 = parseInt(color1.slice(1, 3), 16);
+    const g1 = parseInt(color1.slice(3, 5), 16);
+    const b1 = parseInt(color1.slice(5, 7), 16);
+    
+    const r2 = parseInt(color2.slice(1, 3), 16);
+    const g2 = parseInt(color2.slice(3, 5), 16);
+    const b2 = parseInt(color2.slice(5, 7), 16);
+    
+    // Interpolate each component
+    const r = Math.round(r1 + factor * (r2 - r1));
+    const g = Math.round(g1 + factor * (g2 - g1));
+    const b = Math.round(b1 + factor * (b2 - b1));
+    
+    // Convert back to hex
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+};
+
+// Utility function: Convert HSL to RGB
+EnhancedVisualizers.prototype.hslToRgb = function(h, s, l) {
+    let r, g, b;
+
+    if (s === 0) {
+        r = g = b = l; // achromatic
+    } else {
+        const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1/6) return p + (q - p) * 6 * t;
+            if (t < 1/2) return q;
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        };
+
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+    }
+
+    return {
+        r: Math.round(r * 255),
+        g: Math.round(g * 255),
+        b: Math.round(b * 255)
+    };
+};
 // Export the function for manual initialization
 window.initEnhancedVisualizers = initEnhancedVisualizers;

@@ -1503,11 +1503,6 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-
-        /* Mastering module styles */
-        .mastering-module {
-            max-height: 200px;
-        }
         
         .compact-controls {
             display: flex;
@@ -2811,19 +2806,6 @@
                 <div class="visualizer-toggle" id="visualizerToggle">
                     <i class="fas fa-chevron-down"></i>
                     <span>Show Advanced Visualizations</span>
-                </div>
-                
-                <!-- Advanced visualizers (hidden by default) -->
-                <div class="advanced-visualizers" id="advancedVisualizers" style="max-height: 0;">
-                    <div class="spectrum-analyzer">
-                        <div class="visualizer-title">Frequency Spectrum</div>
-                        <canvas id="spectrumAnalyzer"></canvas>
-                    </div>
-                                    
-                    <div class="particle-system">
-                        <div class="visualizer-title">Particle System</div>
-                        <canvas id="particleSystem"></canvas>
-                    </div>
                 </div>
             </div>
         </div>
@@ -4361,29 +4343,6 @@
                 
                 // Set up drum volume controls
                 setupDrumVolumeControls();
-                
-                // Set up visualizers toggle
-                document.getElementById('visualizerToggle').addEventListener('click', function() {
-                    const advancedVisualizers = document.getElementById('advancedVisualizers');
-                    const isExpanded = this.classList.toggle('active');
-                    
-                    if (isExpanded) {
-                        // Show visualizers
-                        advancedVisualizers.style.maxHeight = '500px';
-                        this.querySelector('span').textContent = 'Hide Advanced Visualizations';
-                        
-                        // Short delay to ensure the container is visible before initializing
-                        setTimeout(() => {
-                            // Initialize visualizers when shown
-                            setupSpectrumAnalyzer();
-                            setupParticleSystem();
-                        }, 100);
-                    } else {
-                        // Hide visualizers
-                        advancedVisualizers.style.maxHeight = '0';
-                        this.querySelector('span').textContent = 'Show Advanced Visualizations';
-                    }
-                });
                 
                 // Initialize LFO scope
                 initLfoScope();
