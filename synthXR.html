@@ -18,6 +18,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="js/enhanced-visualizers.js"></script>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script type="module">
         import { builtInPresets } from './js/presets.js';
@@ -2572,32 +2574,42 @@
                                 <!-- LFO Control -->
                                 <option value="off" selected>Off</option>
                                 
-                                <!-- Oscillator Destinations -->
-                                <option value="oscillatorLevel">Oscillator Level</option>
+                                <optgroup label="Oscillator">
+                                    <option value="oscillatorLevel">Oscillator Level</option>
+                                    <option value="detune">Detune</option>
+                                </optgroup>
                                 
-                                <!-- Filter Destinations -->
-                                <option value="filterCutoff">Filter Cutoff</option>
-                                <option value="filterRes">Filter Resonance</option>
+                                <optgroup label="Filter">
+                                    <option value="filterCutoff">Filter Cutoff</option>
+                                    <option value="filterRes">Filter Resonance</option>
+                                </optgroup>
                                 
-                                <!-- Effects Destinations -->
-                                <option value="reverbMix">Reverb Mix</option>
-                                <option value="reverbDecay">Reverb Decay</option>
-                                <option value="delayTime">Delay Time</option>
-                                <option value="delayFeedback">Delay Feedback</option>
-                                <option value="chorusMix">Chorus Mix</option>
-                                <option value="flangerMix">Flanger Mix</option>
-                                <option value="distortionMix">Distortion</option>
-                                <option value="phaserMix">Phaser Mix</option>
+                                <optgroup label="ADSR">
+                                    <option value="attack">Attack Time</option>
+                                    <option value="decay">Decay Time</option>
+                                    <option value="sustain">Sustain Level</option>
+                                    <option value="release">Release Time</option>
+                                </optgroup>
                                 
-                                <!-- ADSR Destinations -->
-                                <option value="attack">Attack Time</option>
-                                <option value="decay">Decay Time</option>
-                                <option value="sustain">Sustain Level</option>
-                                <option value="release">Release Time</option>
+                                <optgroup label="Time-Based Effects">
+                                    <option value="reverbMix">Reverb Mix</option>
+                                    <option value="reverbDecay">Reverb Decay</option>
+                                    <option value="delayTime">Delay Time</option>
+                                    <option value="delayFeedback">Delay Feedback</option>
+                                </optgroup>
                                 
-                                <!-- Other Destinations -->
-                                <option value="masterVolume">Main Volume</option>
-                                <option value="pan">Pan Position</option>
+                                <optgroup label="Modulation Effects">
+                                    <option value="chorusMix">Chorus Mix</option>
+                                    <option value="flangerMix">Flanger Mix</option>
+                                    <option value="phaserMix">Phaser Mix</option>
+                                    <option value="distortionMix">Distortion</option>
+                                </optgroup>
+                                
+                                <optgroup label="Master">
+                                    <option value="masterVolume">Main Volume</option>
+                                    <option value="pan">Stereo Pan</option>
+                                    <option value="stereoWidth">Stereo Width</option>
+                                </optgroup>
                             </select>
                         </div>
                     </div>
