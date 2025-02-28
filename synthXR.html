@@ -1958,7 +1958,7 @@
             
             /* Move master controls to the bottom */
             .master-controls {
-                grid-row: 8; /* Place at the end */
+                grid-row: 7; /* Place at the end */
                 margin-top: 20px;
                 margin-bottom: 0;
                 padding-top: 15px;
@@ -1977,9 +1977,13 @@
                     justify-content: center;
                     border: none;
                 }
+
+                .spacer {
+                    display: none;
+                }
                 
                 .master-button {
-                    flex: 1 0 45%; /* Two per row on very small screens */
+                    flex: 1 0 50%;
                     padding: 12px 8px;
                 }
             }
@@ -2604,7 +2608,7 @@
                                 <div class="knob-inner"></div>
                                 <div class="tooltip">Adjust LFO speed</div>
                             </div>
-                            <input type="range" id="lfoRate" min="0.1" max="5" step="0.1" value="0.5">
+                            <input type="range" id="lfoRate" min="0.01" max="5" step="0.01" value="0.5">
                             <span class="knob-value" id="lfoRateValue">1.0 Hz</span>
                         </div>
                         <div class="knob-container">
@@ -2615,14 +2619,6 @@
                             </div>
                             <input type="range" id="lfoAmount" min="0" max="100" value="50">
                             <span class="knob-value" id="lfoAmountValue">50%</span>
-                        </div>
-                        <div class="toggle-container">
-                            <label class="toggle-label">Sync</label>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="lfoSyncToggle">
-                                <span class="toggle-slider"></span>
-                            </label>
-                            <span class="toggle-state" id="lfoSyncState">Free</span>
                         </div>
                     </div>
                     
@@ -4802,6 +4798,10 @@
                 eqHigh: "0",
                 eqMidFreq: "1000",
                 eqQ: "1",
+                compressor: "0",
+                stereoWidth: "0.5", 
+                masterVolume: "0.8",
+                masterPan: "0",
                 sequencer: [
                     {"note": "C4", "active": true},
                     {"note": "C4", "active": false},
@@ -5063,7 +5063,6 @@
                 const lfoRateInput = document.getElementById('lfoRate');
                 const lfoAmountInput = document.getElementById('lfoAmount');
                 const lfoWaveformSelect = document.getElementById('lfoWaveform');
-                const lfoSyncToggle = document.getElementById('lfoSyncToggle');
 
                 // Default to off if no LFO settings found
                 const lfoDestination = settings.lfoDestination || 'off';
@@ -5077,14 +5076,12 @@
                 lfoRateInput.value = lfoRate;
                 lfoAmountInput.value = lfoAmount;
                 lfoWaveformSelect.value = lfoWaveform;
-                lfoSyncToggle.checked = lfoSync;
 
                 // Trigger change events to ensure proper initialization
                 lfoDestinationSelect.dispatchEvent(new Event('change'));
                 lfoRateInput.dispatchEvent(new Event('input'));
                 lfoAmountInput.dispatchEvent(new Event('input'));
                 lfoWaveformSelect.dispatchEvent(new Event('change'));
-                lfoSyncToggle.dispatchEvent(new Event('change'));
             }
 
 
@@ -5131,13 +5128,16 @@
                     lfoRate: document.getElementById('lfoRate').value,
                     lfoAmount: document.getElementById('lfoAmount').value,
                     lfoWaveform: document.getElementById('lfoWaveform').value,
-                    lfoSync: document.getElementById('lfoSyncToggle').checked,
                     droneOctave: document.getElementById('droneOctave').value,
                     eqLow: document.getElementById('eqLow').value,
                     eqMid: document.getElementById('eqMid').value,
                     eqHigh: document.getElementById('eqHigh').value,
                     eqMidFreq: document.getElementById('eqMidFreq').value,
                     eqQ: document.getElementById('eqQ').value,
+                    compressor: document.getElementById('compressor').value,
+                    stereoWidth: document.getElementById('stereoWidth').value,
+                    masterVolume: document.getElementById('masterVolume').value,
+                    masterPan: document.getElementById('masterPan').value,
                     sequencer: Array.from(document.querySelectorAll('.step')).map(step => ({
                         note: step.querySelector('select').value,
                         active: step.querySelector('.step-toggle').classList.contains('active')
@@ -5565,11 +5565,11 @@
             // Connect LFO controls
             // Update these handlers to restart LFO when changed
             document.getElementById('lfoRate').addEventListener('input', function(e) {
-                const rate = parseFloat(e.target.value);
-                document.getElementById('lfoRateValue').textContent = `${rate.toFixed(1)} Hz`;
+                const value = parseFloat(e.target.value);
+                document.getElementById('lfoRateValue').textContent = value.toFixed(2) + ' Hz';
                 
-                // Only restart if LFO is active
-                if (lfoDestination !== 'off') {
+                // If LFO is running, restart it to apply new rate
+                if (lfoActive) {
                     restartLfo();
                 }
             });
@@ -5878,37 +5878,6 @@
                 }
             }        
             
-            // Sync toggle
-            document.getElementById('lfoSyncToggle').addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    // When synced, use note values instead of frequency
-                    // Save the current frequency for when we uncheck
-                    lfo._savedFrequency = lfo.frequency.value;
-                    
-                    // Using 4n, 8n, etc. for note values
-                    // Convert current frequency to rough note value
-                    let noteValue = "4n"; // Default to quarter note
-                    const freq = lfo.frequency.value;
-                    
-                    if (freq > 8) noteValue = "32n";
-                    else if (freq > 4) noteValue = "16n";
-                    else if (freq > 2) noteValue = "8n";
-                    else if (freq > 1) noteValue = "4n";
-                    else if (freq > 0.5) noteValue = "2n";
-                    else noteValue = "1n";
-                    
-                    // Switch to transport sync
-                    lfo.sync().frequency.value = noteValue;
-                    document.getElementById('lfoSyncState').textContent = "Synced";
-                } else {
-                    // When not synced, revert to frequency in Hz
-                    lfo.unsync();
-                    
-                    // Restore saved frequency or use default
-                    lfo.frequency.value = lfo._savedFrequency || 1;
-                    document.getElementById('lfoSyncState').textContent = "Free";
-                }
-            });
     
             // Replace your LFO destination handler with this implementation
             document.getElementById('lfoDestination').addEventListener('change', function(e) {
