@@ -4915,35 +4915,13 @@
                                 step.classList.add('active');
                             }
                         });
-
-                        // Add LFO settings loading near the end of the function
-                        if (settings.lfoDestination) {
-                            loadLfoPresetSettings(settings);
-                        }
-
-                        // IMPORTANT: Special handling for LFO - needs full reinitialization
-                        if (settings.lfoDestination && settings.lfoDestination !== 'off' && settings.lfoAmount > 0) {
-                            // Store required values for proper LFO initialization
-                            const destination = settings.lfoDestination;
-                            const lfoSelect = document.getElementById('lfoDestination');
-                            
-                            // First set to "off" to reset any existing LFO connections
-                            lfoSelect.value = "off";
-                            lfoSelect.dispatchEvent(new Event('change'));
-                            
-                            // Small delay to ensure cleanup completes
-                            setTimeout(() => {
-                                // Now set to the desired destination and force initialization
-                                lfoSelect.value = destination;
-                                lfoSelect.dispatchEvent(new Event('change'));
-                                
-                                // If that doesn't trigger it, try manually calling lfoDestination handler
-                                if (typeof lfoDestinationChange === 'function') {
-                                    lfoDestinationChange({ target: { value: destination } });
-                                }
-                            }, 50);
-                        }
+         
                     });
+                }
+
+                // Add LFO settings loading near the end of the function
+                if (settings.lfoDestination) {
+                    loadLfoPresetSettings(settings);
                 }
                 
                 // Ensure synth settings is updated for recreating synths
