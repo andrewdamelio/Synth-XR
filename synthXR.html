@@ -2592,7 +2592,7 @@
                                 <option value="release">Release Time</option>
                                 
                                 <!-- Other Destinations -->
-                                <option value="amplitude">Main Volume</option>
+                                <option value="masterVolume">Main Volume</option>
                                 <option value="pan">Pan Position</option>
                             </select>
                         </div>
@@ -2662,7 +2662,7 @@
                             <div class="small-knob" id="masterVolumeKnob">
                                 <div class="small-knob-inner"></div>
                             </div>
-                            <input type="range" id="masterVolume" min="0" max="1" step="0.01" value="0.8">
+                            <input type="range" id="masterVolume" min="0" max="2" step="0.01" value="0.8">
                             <span class="knob-value" id="masterVolumeValue">0.80</span>
                         </div>
                         <div class="small-knob-container">
@@ -2678,8 +2678,8 @@
                             <div class="small-knob" id="stereoWidthKnob">
                                 <div class="small-knob-inner"></div>
                             </div>
-                            <input type="range" id="stereoWidth" min="0" max="2" step="0.01" value="1">
-                            <span class="knob-value" id="stereoWidthValue">1.00</span>
+                            <input type="range" id="stereoWidth" min="0" max="1" step="0.01" value="0.5">
+                            <span class="knob-value" id="stereoWidthValue">0.50</span>
                         </div>
                         <div class="small-knob-container">
                             <label class="knob-label">Comp</label>
@@ -2874,12 +2874,35 @@
                 highFrequency: 2500
             });
             
-            let masterPanner = new Tone.Panner(0).toDestination(); // Create panner at center position
+            // Initialize compressor with default settings
+            let masterCompressor = new Tone.Compressor({
+                threshold: 0,     // dB, will be adjusted by knob
+                ratio: 1,         // will be adjusted by knob
+                attack: 0.003,    // seconds
+                release: 0.25,    // seconds
+                knee: 30          // dB
+            });
+
+            // Initialize stereo widener
+            let stereoWidener = new Tone.StereoWidener({
+                width: 0.5,  // Default to normal stereo
+                wet: 1       // Fully active
+            });
+
+            let widthCompensation = new Tone.Gain(1);  // Default gain of 1 (no change)
+
+            let masterVolume = new Tone.Gain(0.8);
+            let masterPanner = new Tone.Panner(0);
+
+            masterPanner.connect(masterVolume);
+            masterVolume.toDestination();
 
             let lfoActive = false;
             let lfoDestination = 'off';
             let lfoBaseValues = {};
             lfoBaseValues.pan = 0; // Default to center
+            lfoBaseValues.masterVolume = parseFloat(document.getElementById('masterVolume').value) // Current master volume
+
             let lfoAnimationFrame = null;        
     
             // Initialize wet values to 0 (effects off)
@@ -2899,11 +2922,15 @@
             phaser.connect(reverb);
             reverb.connect(delay);
             delay.connect(eq); // Connect delay to EQ
-            eq.connect(waveform); // Connect EQ to waveform analyzer
-            eq.connect(fft); // Connect EQ to FFT analyzer
-            eq.connect(masterPanner); // Connect EQ to panner instead of directly to destination
+            eq.connect(masterCompressor);
+            masterCompressor.connect(stereoWidener);
+            stereoWidener.connect(widthCompensation);
+            widthCompensation.connect(masterPanner);
 
-    
+
+            masterVolume.connect(waveform); // Connect compressor to waveform analyzer
+            stereoWidener.connect(fft);
+
             // Initialize synth variables
             let synth;
             let currentMode = "poly";
@@ -3576,7 +3603,11 @@
                 ['kickVolumeKnob', 'kickVolume'],
                 ['snareVolumeKnob', 'snareVolume'],
                 ['hihatVolumeKnob', 'hihatVolume'],
-                ['clapVolumeKnob', 'clapVolume']
+                ['clapVolumeKnob', 'clapVolume'],
+                ['compressorKnob', 'compressor'],
+                ['stereoWidthKnob', 'stereoWidth'],
+                ['masterVolumeKnob', 'masterVolume'],
+                ['masterPanKnob', 'masterPan']
             ];
             
             // Add detune and voices knobs to the knobs array
@@ -3606,6 +3637,9 @@
                 });
             };
             
+            knobUpdaters.masterVolume = setupKnob('masterVolumeKnob', 'masterVolume');
+            knobUpdaters.masterPan = setupKnob('masterPanKnob', 'masterPan');
+
             // Apply knob setup to all knobs at once
             knobs.forEach(([knobId, inputId]) => {
                 knobUpdaters[inputId] = setupKnob(knobId, inputId);
@@ -4660,7 +4694,82 @@
                     drumSequencerRunning = false;
                 }
             });
+
+            document.getElementById('compressor').addEventListener('input', e => {
+                const value = parseFloat(e.target.value);
+                document.getElementById('compressorValue').textContent = value.toFixed(2);
+                
+                // Map 0-1 to appropriate compression settings
+                // When value is 0: no compression (threshold 0, ratio 1)
+                // When value is 1: heavy compression (threshold -30, ratio 20)
+                
+                // Adjust threshold: 0 to -30 dB
+                masterCompressor.threshold.value = value * -30;
+                
+                // Adjust ratio: 1 to 20
+                masterCompressor.ratio.value = 1 + (value * 19);
+                
+                // For visual feedback, update VU meter slightly
+                if (value > 0) {
+                    updateVUMeter(value * 0.5);
+                }
+            });
             
+            // Add an event listener for the stereo width knob (add with other event listeners)
+            document.getElementById('stereoWidth').addEventListener('input', e => {
+                const value = parseFloat(e.target.value);
+                document.getElementById('stereoWidthValue').textContent = value.toFixed(2);
+                
+                // Map the 0-2 range of the UI knob directly to the 0-1 range of the StereoWidener
+                // 0 = mono (width of 0)
+                // 1 = normal stereo (width of 0.5)
+                // 2 = extra wide stereo (width of 1)
+                stereoWidener.width.value = value / 2;
+                
+                // Simple compensation formula
+                const compensation = 1 + (value * 0.3); // Adjust the 0.3 multiplier as needed
+                widthCompensation.gain.value = compensation;
+                
+                // For visual feedback
+                updateVUMeter(0.3);
+            });
+
+            document.getElementById('masterVolume').addEventListener('input', e => {
+                const value = parseFloat(e.target.value);
+                document.getElementById('masterVolumeValue').textContent = value.toFixed(2);
+                
+                // Set the gain value directly (values from 0-1 work as-is with Tone.Gain)
+                masterVolume.gain.value = value;
+                
+                // For visual feedback
+                updateVUMeter(value * 0.5);
+            });
+
+            document.getElementById('masterPan').addEventListener('input', e => {
+                const value = parseFloat(e.target.value);
+                
+                // Update the panner
+                masterPanner.pan.value = value;
+                
+                // Create a more descriptive pan display
+                let displayText = "C"; // Center by default
+                
+                if (value < -0.05) {
+                    // Left side
+                    const leftAmount = Math.abs(Math.round(value * 100));
+                    displayText = `L${leftAmount}`;
+                } else if (value > 0.05) {
+                    // Right side
+                    const rightAmount = Math.round(value * 100);
+                    displayText = `R${rightAmount}`;
+                }
+                
+                document.getElementById('masterPanValue').textContent = displayText;
+                
+                // Optional: Visual feedback
+                updateVUMeter(0.3);
+            });            
+
             // The init patch with basic settings
             const initPatch = {
                 voiceMode: "poly",
@@ -5717,10 +5826,46 @@
                     case 'pan':
                         masterPanner.pan.value = value;
                         let displayText = "C"; // Center by default
-                        if (value < -0.05) displayText = `L${Math.abs(Math.round(value * 100))}`;
-                        else if (value > 0.05) displayText = `R${Math.round(value * 100)}`;
+                        if (value < -0.05) {
+                            displayText = `L${Math.abs(Math.round(value * 100))}`;
+                        } else if (value > 0.05) {
+                            displayText = `R${Math.round(value * 100)}`;
+                        }
                         document.getElementById('masterPanValue').textContent = displayText;
                         break;
+                    case 'compressor':
+                        const compValue = value;
+                        masterCompressor.threshold.value = compValue * -30;
+                        masterCompressor.ratio.value = 1 + (compValue * 19);
+                        document.getElementById('compressorValue').textContent = compValue.toFixed(2);
+                        break;                        
+                    case 'stereoWidth':
+                        const widthValue = value;
+                        
+                        // Map 0-2 range to 0-1 width parameter
+                        if (widthValue <= 1) {
+                            // 0-1 range maps to mono-normal (0-0.5 width)
+                            stereoWidener.width.value = widthValue * 0.5;
+                        } else {
+                            // 1-2 range maps to normal-extra wide (0.5-1 width)
+                            stereoWidener.width.value = 0.5 + (widthValue - 1) * 0.5;
+                        }
+                        
+                        // Apply compensation gain
+                        if (widthValue > 1) {
+                            const compensation = 1 + (widthValue - 1) * 0.5;
+                            widthCompensation.gain.value = compensation;
+                        } else {
+                            widthCompensation.gain.value = 1;
+                        }
+                        
+                        document.getElementById('stereoWidthValue').textContent = widthValue.toFixed(2);
+                        break;                 
+                    case 'masterVolume':
+                        const volumeValue = value;
+                        masterVolume.gain.value = volumeValue;
+                        document.getElementById('masterVolumeValue').textContent = volumeValue.toFixed(2);
+                        break;                        
                 }
                 
                 // Update visualizations if needed
