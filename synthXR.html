@@ -4611,12 +4611,18 @@
             document.getElementById('startSequencer').addEventListener('click', async function() {
                 if (!isPlaying) {
                     await Tone.start();
-                    Tone.Transport.start();
+                    // Start the transport if it's not already running
+                    if (Tone.Transport.state !== "started") {
+                        Tone.Transport.start();
+                    }
                     isPlaying = true;
                     this.innerHTML = '<i class="fas fa-stop"></i><span>Stop</span>';
                     this.classList.add('playing');
                 } else {
-                    Tone.Transport.stop();
+                    // Only stop Transport if drum loop is not running
+                    if (!drumSequencerRunning) {
+                        Tone.Transport.stop();
+                    }
                     isPlaying = false;
                     this.innerHTML = '<i class="fas fa-play"></i><span>Start</span>';
                     this.classList.remove('playing');
@@ -4624,8 +4630,8 @@
                     clearSequencerKeyHighlights();
                 }
             });
-            
-            // Drum Loop Start/Stop
+
+            // 3. Update the drum loop start/stop button handler
             document.getElementById('startDrumLoop').addEventListener('click', async function() {
                 if (!drumSequencerRunning) {
                     // Initialize Tone.js context if not already done
@@ -4643,7 +4649,7 @@
                     // Set drum sequencer as running
                     drumSequencerRunning = true;
                 } else {
-                    // Keep the transport running for the main sequencer if it's active
+                    // Only stop Transport if sequencer is not playing
                     if (!isPlaying) {
                         Tone.Transport.stop();
                     }
@@ -5732,33 +5738,38 @@
             
             // Set up sequencer loop
             Tone.Transport.scheduleRepeat((time) => {
-                const steps = document.querySelectorAll('.step');
-                const step = steps[currentStep];
-                const select = step.querySelector('select');
-                const toggle = step.querySelector('.step-toggle');
-                
-                if (toggle.classList.contains('active')) {
-                    // Both mono and poly synths can use triggerAttackRelease in the same way for sequencer notes
-                    const note = select.value;
-                    synth.triggerAttackRelease(note, '8n', time);
-                    updateVUMeter(0.8);
-                    
-                    // Highlight the corresponding key on the keyboard
-                    highlightKeyFromSequencer(note, 0.25); // 250ms highlight duration
-                    
-                    // Visual feedback
-                    gsap.to(step, {
-                        scale: 1.03,
-                        duration: 0.1,
-                        yoyo: true,
-                        repeat: 1
-                    });
-                }
-                
-                updateSequencer(currentStep);
+                // Increment the step counter (shared between sequencer and drums)
                 currentStep = (currentStep + 1) % 16;
                 
-                // Also update drum loop if it's running
+                // Only update and play the sequencer if isPlaying is true
+                if (isPlaying) {
+                    const steps = document.querySelectorAll('.step');
+                    const step = steps[currentStep];
+                    const select = step.querySelector('select');
+                    const toggle = step.querySelector('.step-toggle');
+                    
+                    if (toggle.classList.contains('active')) {
+                        // Both mono and poly synths can use triggerAttackRelease in the same way for sequencer notes
+                        const note = select.value;
+                        synth.triggerAttackRelease(note, '8n', time);
+                        updateVUMeter(0.8);
+                        
+                        // Highlight the corresponding key on the keyboard
+                        highlightKeyFromSequencer(note, 0.25); // 250ms highlight duration
+                        
+                        // Visual feedback
+                        gsap.to(step, {
+                            scale: 1.03,
+                            duration: 0.1,
+                            yoyo: true,
+                            repeat: 1
+                        });
+                    }
+                    
+                    updateSequencer(currentStep);
+                }
+                
+                // Only update and play the drum loop if drumSequencerRunning is true
                 if (drumSequencerRunning) {
                     updateDrumLoop(currentStep);
                 }
