@@ -4131,3 +4131,53 @@ document.addEventListener('DOMContentLoaded', function() {
         return notes[index];
     }
 });
+
+// Add module collapsible functionality
+function setupCollapsibleModules() {
+    const modules = ['oscillator'];
+    
+    modules.forEach(moduleName => {
+        const moduleEl = document.querySelector(`.${moduleName}-module`);
+        if (!moduleEl) return;
+        
+        const headerEl = moduleEl.querySelector('.module-header');
+        if (!headerEl) return;
+        
+        // Add collapse button to header
+        const collapseBtn = document.createElement('button');
+        collapseBtn.className = 'module-collapse-btn';
+        collapseBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+        headerEl.appendChild(collapseBtn);
+        
+        // Add click handler
+        collapseBtn.addEventListener('click', () => {
+            moduleEl.classList.toggle('collapsed');
+            collapseBtn.querySelector('i').classList.toggle('fa-chevron-up');
+            collapseBtn.querySelector('i').classList.toggle('fa-chevron-down');
+        });
+    });
+}
+
+// Add after DOM content is loaded, likely in your initialization code
+document.addEventListener('DOMContentLoaded', function() {
+    // Your existing initialization code
+    
+    // Initialize collapse functionality for oscillator module
+    const oscModule = document.querySelector('.oscillator-module');
+    const collapseBtn = oscModule.querySelector('.module-collapse-btn');
+    
+    collapseBtn.addEventListener('click', function() {
+        oscModule.classList.toggle('collapsed');
+        // Update icon direction
+        const icon = this.querySelector('i');
+        if (oscModule.classList.contains('collapsed')) {
+            icon.classList.remove('fa-chevron-up');
+            icon.classList.add('fa-chevron-down');
+            this.setAttribute('title', 'Expand module');
+        } else {
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-up');
+            this.setAttribute('title', 'Collapse module');
+        }
+    });
+});

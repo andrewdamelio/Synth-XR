@@ -1952,3 +1952,87 @@ input[type="range"] {
         }
     }
 }
+
+/* Add collapsible module functionality */
+.module-collapse-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition-fast);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+}
+
+.module-collapse-btn:hover {
+    color: var(--secondary);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.module-collapse-btn i {
+    font-size: 0.9rem;
+    transition: transform var(--transition-normal);
+}
+
+.module.collapsed .module-collapse-btn i {
+    transform: rotate(180deg);
+}
+
+.module.collapsed .control-group,
+.module.collapsed .oscillator-visualizer,
+.module.collapsed .filter-response,
+.module.collapsed .eq-response,
+.module.collapsed .lfo-scope,
+.module.collapsed .chord-controls-container,
+.module.collapsed .preset-list,
+.module.collapsed .preset-actions,
+.module.collapsed .oscilloscope,
+.module.collapsed .vu-meter,
+.module.collapsed .drone-visualizer {
+    display: none;
+}
+
+.module.collapsed {
+    min-height: auto;
+}
+
+/* Keep the module in the grid when collapsed */
+.module.collapsed {
+    transition: all var(--transition-normal);
+    flex-shrink: 1;
+    height: auto;
+}
+
+/* Ensure proper spacing when collapsed */
+.module-header {
+    margin-bottom: 0;
+}
+
+.module:not(.collapsed) .module-header {
+    margin-bottom: 16px;
+}
+
+/* Responsive adjustments for collapsed modules */
+@media (max-width: 768px) {
+    .module-collapse-btn {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+@media (max-width: 480px) {
+    .module-collapse-btn {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .module-collapse-btn i {
+        font-size: 0.8rem;
+    }
+}
