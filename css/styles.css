@@ -1193,6 +1193,29 @@ input[type="range"] {
     .key {
         min-width: 30px;
     }
+    
+    /* Fix for step sequencer dropdowns on mobile */
+    .step select {
+        /* Increase tap area and improve visibility */
+        width: 100%;
+        min-width: 60px;
+        padding: 8px 5px;
+        font-size: 0.75rem;
+        text-overflow: ellipsis;
+        /* Fix for dropdown arrows */
+        background-position: right 5px center;
+        background-size: 12px;
+        padding-right: 20px;
+        /* Prevent text overflow issues */
+        white-space: nowrap;
+        overflow: hidden;
+    }
+    
+    /* Ensure dropdown options are readable */
+    .step select option {
+        font-size: 14px;
+        padding: 10px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1240,6 +1263,14 @@ input[type="range"] {
     .knob {
         width: 40px;
         height: 40px;
+    }
+    
+    .step select {
+        /* Even smaller screens need more compact controls */
+        padding: 6px 3px;
+        font-size: 0.7rem;
+        background-position: right 3px center;
+        padding-right: 16px;
     }
 }
 
