@@ -209,14 +209,14 @@ const builtInPresets = [
             {"note": "A3", "active": false},
             {"note": "C4", "active": true},
             {"note": "F4", "active": false},
-            {"note": "D#3", "active": true},
+            {"note": "D#3", "active": true}, // Changed from Eb3
             {"note": "G3", "active": false},
-            {"note": "A#3", "active": true},
-            {"note": "D#4", "active": false},
-            {"note": "A#2", "active": true},
+            {"note": "A#3", "active": true}, // Changed from Bb3
+            {"note": "D#4", "active": false}, // Changed from Eb4
+            {"note": "A#2", "active": true}, // Changed from Bb2
             {"note": "D3", "active": false},
             {"note": "F3", "active": true},
-            {"note": "A#3", "active": false},
+            {"note": "A#3", "active": false}, // Changed from Bb3
             {"note": "C3", "active": true},
             {"note": "E3", "active": false},
             {"note": "G3", "active": true},
@@ -1083,20 +1083,20 @@ const professionalPresets = [
         sequencer: [
             {"note": "F3", "active": true},
             {"note": "C4", "active": false},
-            {"note": "Eb4", "active": true},
+            {"note": "D#4", "active": true}, // Changed from Eb4
             {"note": "F4", "active": false},
-            {"note": "Ab3", "active": true},
+            {"note": "G#3", "active": true}, // Changed from Ab3
             {"note": "C4", "active": false},
-            {"note": "Eb4", "active": true},
+            {"note": "D#4", "active": true}, // Changed from Eb4
             {"note": "F4", "active": false},
             {"note": "G3", "active": true},
-            {"note": "Bb3", "active": false},
+            {"note": "A#3", "active": false}, // Changed from Bb3
             {"note": "D4", "active": true},
             {"note": "G4", "active": false},
-            {"note": "Eb3", "active": true},
+            {"note": "D#3", "active": true}, // Changed from Eb3
             {"note": "G3", "active": false},
-            {"note": "Bb3", "active": true},
-            {"note": "Eb4", "active": false}
+            {"note": "A#3", "active": true}, // Changed from Bb3
+            {"note": "D#4", "active": false} // Changed from Eb4
         ]
     }),
     
@@ -1141,15 +1141,15 @@ const professionalPresets = [
             {"note": "G1", "active": true},
             {"note": "C1", "active": false},
             {"note": "C1", "active": true},
-            {"note": "Eb1", "active": false},
+            {"note": "D#1", "active": false}, // Changed from Eb1
             {"note": "G1", "active": true},
-            {"note": "Eb1", "active": false},
+            {"note": "D#1", "active": false}, // Changed from Eb1
             {"note": "F1", "active": true},
             {"note": "F1", "active": false},
             {"note": "G1", "active": true},
             {"note": "G1", "active": false},
             {"note": "C1", "active": true},
-            {"note": "Eb1", "active": false},
+            {"note": "D#1", "active": false}, // Changed from Eb1
             {"note": "F1", "active": true},
             {"note": "G1", "active": false}
         ]
@@ -1470,10 +1470,10 @@ const professionalPresets = [
             {"note": "C4", "active": true},
             {"note": "G4", "active": true},
             {"note": "C4", "active": true},
-            {"note": "Eb4", "active": true},
+            {"note": "D#4", "active": true}, // Changed from Eb4
             {"note": "C4", "active": true},
             {"note": "G4", "active": true},
-            {"note": "Eb4", "active": false},
+            {"note": "D#4", "active": false}, // Changed from Eb4
             {"note": "C4", "active": true},
             {"note": "C4", "active": true},
             {"note": "G4", "active": true},
@@ -1584,10 +1584,10 @@ const professionalPresets = [
             {"note": "C2", "active": false},
             {"note": "C2", "active": true},
             {"note": "C2", "active": false},
-            {"note": "Eb2", "active": true},
-            {"note": "Eb2", "active": false},
-            {"note": "Eb2", "active": true},
-            {"note": "Eb2", "active": false},
+            {"note": "D#2", "active": true}, // Changed from Eb2
+            {"note": "D#2", "active": false}, // Changed from Eb2
+            {"note": "D#2", "active": true}, // Changed from Eb2
+            {"note": "D#2", "active": false}, // Changed from Eb2
             {"note": "G2", "active": true},
             {"note": "G2", "active": false},
             {"note": "G2", "active": true},
@@ -1689,18 +1689,18 @@ const professionalPresets = [
             {"note": "C3", "active": true},
             {"note": "G3", "active": false},
             {"note": "C4", "active": true},
-            {"note": "Eb4", "active": false},
+            {"note": "D#4", "active": false}, // Changed from Eb4
             {"note": "G4", "active": true},
-            {"note": "Bb4", "active": false},
+            {"note": "A#4", "active": false}, // Changed from Bb4
             {"note": "C5", "active": true},
             {"note": "G4", "active": false},
-            {"note": "Eb4", "active": true},
+            {"note": "D#4", "active": true}, // Changed from Eb4
             {"note": "C4", "active": false},
             {"note": "G3", "active": true},
             {"note": "C3", "active": false},
-            {"note": "Eb3", "active": true},
+            {"note": "D#3", "active": true}, // Changed from Eb3
             {"note": "G3", "active": false},
-            {"note": "Bb3", "active": true},
+            {"note": "A#3", "active": true}, // Changed from Bb3
             {"note": "C4", "active": false}
         ]
     })
