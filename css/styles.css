@@ -1209,8 +1209,13 @@ input[type="range"] {
         max-height: 100vh;
     }
     
-    .module-title {
-        font-size: 0.9rem;
+    .module-title, .master-button  {
+        font-size: 0.6rem;
+    }
+    
+    .octave-pagination {
+        padding-left: 0 !important;
+        margin-left: 2rem  !important;
     }
     
     .lfo-module .control-group {
@@ -1620,6 +1625,7 @@ input[type="range"] {
     border-radius: 4px;
     padding: 2px;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+    margin-left: 3rem;
 }
 
 .octave-page-btn {
