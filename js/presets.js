@@ -6,13 +6,6 @@ const createPreset = (name, category, settings) => ({
     settings
 });
 
-const generateDrumLoop = (kickSteps, snareSteps, hihatSteps, clapSteps, kickVol = 0.8, snareVol = 0.7, hihatVol = 0.6, clapVol = 0.65) => ({
-    kick: { volume: kickVol, steps: kickSteps },
-    snare: { volume: snareVol, steps: snareSteps },
-    hihat: { volume: hihatVol, steps: hihatSteps },
-    clap: { volume: clapVol, steps: clapSteps }
-});
-
 const builtInPresets = [
     createPreset("Default", "pad", {
         voiceMode: "poly",
@@ -66,12 +59,6 @@ const builtInPresets = [
             {"note": "E3", "active": true},
             {"note": "B3", "active": true}
         ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]
-        )
     }),
 
     // ==== PAD PRESETS ====
@@ -127,13 +114,6 @@ const builtInPresets = [
             {"note": "B3", "active": true},
             {"note": "E4", "active": false}
         ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, false, false, true, false, false, false, false, false, true, false, false, false],
-            [false, false, false, false, true, false, false, false, false, false, true, false, false, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false],
-            0.6, 0.5, 0.4, 0.5
-        )
     }),
     
     createPreset("Cosmic Atmosphere", "pad", {
@@ -188,13 +168,6 @@ const builtInPresets = [
             {"note": "G4", "active": true},
             {"note": "C5", "active": false}
         ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            [false, false, true, false, false, true, false, true, false, false, true, false, false, true, false, true],
-            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true],
-            0.5, 0.4, 0.35, 0.5
-        )
     }),
     
     createPreset("Floating Dreams", "pad", {
@@ -249,13 +222,6 @@ const builtInPresets = [
             {"note": "G3", "active": true},
             {"note": "C4", "active": false}
         ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, false, false, true, false, true, false, false, false, false, false, true, false],
-            [false, false, false, false, true, false, false, false, false, false, false, true, false, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [false, false, false, false, false, false, false, false, false, false, false, true, false, false, false, false],
-            0.6, 0.45, 0.4, 0.5
-        )
     }),
 
     // ==== KEYS PRESETS ====
@@ -310,13 +276,7 @@ const builtInPresets = [
             {"note": "A3", "active": false},
             {"note": "C4", "active": true},
             {"note": "F4", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]
-        )
+        ]
     }),
     
     createPreset("Vintage Electric", "keys", {
@@ -370,14 +330,7 @@ const builtInPresets = [
             {"note": "C4", "active": true},
             {"note": "E4", "active": false},
             {"note": "G4", "active": true}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, true],
-            [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            0.6, 0.5, 0.4, 0.5
-        )
+        ]
     }),
     
     createPreset("Warm Rhodes", "keys", {
@@ -431,13 +384,7 @@ const builtInPresets = [
             {"note": "A3", "active": false},
             {"note": "C#4", "active": true},
             {"note": "F#4", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, true, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]
-        )
+        ]
     }),
 
     // ==== PLUCK PRESETS ====
@@ -492,13 +439,7 @@ const builtInPresets = [
             {"note": "E4", "active": true},
             {"note": "D4", "active": true},
             {"note": "C4", "active": true}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false]
-        )
+        ]
     }),
     
     createPreset("Techno Plucky", "pluck", {
@@ -552,14 +493,7 @@ const builtInPresets = [
             {"note": "E4", "active": true},
             {"note": "A3", "active": true},
             {"note": "C4", "active": true}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            0.9, 0.8, 0.7, 0.75
-        )
+        ]
     }),
     
     createPreset("Ethereal Guitar", "pluck", {
@@ -613,14 +547,7 @@ const builtInPresets = [
             {"note": "A3", "active": false},
             {"note": "D4", "active": true},
             {"note": "F#4", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, false, false, false, false, true, false, false, false, false, false, true, false],
-            [false, false, false, true, false, false, false, false, false, false, false, true, false, false, false, false],
-            [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false],
-            0.6, 0.5, 0.4, 0.5
-        )
+        ]
     }),
 
     // ==== BASS PRESETS ====
@@ -675,14 +602,7 @@ const builtInPresets = [
             {"note": "F2", "active": false},
             {"note": "G2", "active": true},
             {"note": "G2", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            0.9, 0.7, 0.5, 0.6
-        )
+        ]
     }),
     
     createPreset("Acid Wobble", "bass", {
@@ -736,14 +656,7 @@ const builtInPresets = [
             {"note": "G2", "active": true},
             {"note": "G2", "active": true},
             {"note": "G2", "active": true}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, true, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, true],
-            0.9, 0.7, 0.6, 0.7
-        )
+        ]
     }),
     
     createPreset("Synth Funk", "bass", {
@@ -797,14 +710,7 @@ const builtInPresets = [
             {"note": "G2", "active": false},
             {"note": "G2", "active": true},
             {"note": "G2", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, true, false, false, true, false, true, false, false, true, false, false, true, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            0.85, 0.7, 0.65, 0.7
-        )
+        ]
     }),
 
     // ==== LEAD PRESETS ====
@@ -859,14 +765,7 @@ const builtInPresets = [
             {"note": "G5", "active": true},
             {"note": "E5", "active": true},
             {"note": "B4", "active": true}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            0.8, 0.7, 0.6, 0.7
-        )
+        ]
     }),
     
     createPreset("Smooth Solo", "lead", {
@@ -920,14 +819,7 @@ const builtInPresets = [
             {"note": "G4", "active": true},
             {"note": "A4", "active": true},
             {"note": "E4", "active": true}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            0.7, 0.6, 0.5, 0.6
-        )
+        ]
     }),
     
     createPreset("Retro Arpeggios", "lead", {
@@ -982,14 +874,7 @@ const builtInPresets = [
             {"note": "A3", "active": true},
             {"note": "C4", "active": true},
             {"note": "E4", "active": true}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            0.8, 0.7, 0.6, 0.7
-        )
+        ]
     }),
 
     // ==== FX PRESETS ====
@@ -1044,14 +929,7 @@ const builtInPresets = [
             {"note": "B5", "active": true},
             {"note": "A#5", "active": true},
             {"note": "A5", "active": true}
-        ],
-        drumMachine: generateDrumLoop(
-            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-            [false, true, false, true, false, false, true, false, true, false, false, true, false, true, false, true],
-            [true, false, true, false, true, false, false, true, false, true, false, false, true, false, true, false],
-            0.5, 0.4, 0.7, 0.6
-        )
+        ]
     }),
     
     createPreset("Glitch Machine", "fx", {
@@ -1105,14 +983,7 @@ const builtInPresets = [
             {"note": "C4", "active": true},
             {"note": "G3", "active": true},
             {"note": "G3", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, true, false, false, false, true, false, true, false, true, false, false, false, true, false],
-            [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true],
-            [true, true, false, true, true, true, false, true, true, true, false, true, true, true, false, true],
-            [false, false, true, false, false, false, true, false, false, false, false, false, true, false, false, false],
-            0.7, 0.7, 0.7, 0.7
-        )
+        ]
     }),
     
     createPreset("Haunted Voices", "fx", {
@@ -1166,261 +1037,8 @@ const builtInPresets = [
             {"note": "F3", "active": true},
             {"note": "G3", "active": false},
             {"note": "A#3", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-            [false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false],
-            [false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false],
-            [false, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false],
-            0.4, 0.3, 0.3, 0.4
-        )
+        ]
     }),
-
-    // ==== SPECIAL DRUM PRESETS ====
-    createPreset("Drum Loop 1", "drums", {
-        voiceMode: "poly",
-        waveform: "triangle",
-        filterCutoff: "5000",
-        filterRes: "1",
-        filterType: false,
-        reverbMix: "0.2",
-        reverbDecay: "1.0",
-        delayTime: "0",
-        delayFeedback: "0",
-        tempo: "120",
-        attack: "0.001",
-        decay: "0.2",
-        sustain: "0.1",
-        release: "0.3",
-        oscillatorOctave: "0",
-        oscillatorSemi: "0",
-        oscillatorLevel: "0.8",
-        chorusMix: "0",
-        distortionMix: "0",
-        flangerMix: "0",
-        phaserMix: "0",
-        lfoRate: "0",
-        lfoAmount: "0",
-        lfoDestination: "off",
-        lfoWaveform: "sine",
-        lfoSync: false,
-        droneOctave: "-1",
-        eqLow: "2",
-        eqMid: "0",
-        eqHigh: "1.5",
-        eqMidFreq: "1000",
-        eqQ: "1",
-        compressor: "0.3",
-        sequencer: [
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, true, false, true, false, false, false, true, false, false, true],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-            [false, false, false, false, true, false, false, false, false, false, false, true, true, false, false, false],
-            0.85, 0.75, 0.7, 0.75
-        )
-    }),
-    
-    createPreset("Drum Loop 2", "drums", {
-        voiceMode: "poly",
-        waveform: "triangle",
-        filterCutoff: "5000",
-        filterRes: "1",
-        filterType: false,
-        reverbMix: "0.3",
-        reverbDecay: "1.2",
-        delayTime: "0",
-        delayFeedback: "0",
-        tempo: "95",
-        attack: "0.001",
-        decay: "0.2",
-        sustain: "0.1",
-        release: "0.3",
-        oscillatorOctave: "0",
-        oscillatorSemi: "0",
-        oscillatorLevel: "0.8",
-        chorusMix: "0",
-        distortionMix: "0",
-        flangerMix: "0",
-        phaserMix: "0",
-        lfoRate: "0",
-        lfoAmount: "0",
-        lfoDestination: "off",
-        lfoWaveform: "sine",
-        lfoSync: false,
-        droneOctave: "-1",
-        eqLow: "3",
-        eqMid: "-1",
-        eqHigh: "2",
-        eqMidFreq: "1000",
-        eqQ: "1",
-        compressor: "0.3",
-        sequencer: [
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, true, false, true, false, false, true, false, false, true],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, true],
-            [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true],
-            [false, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            0.9, 0.7, 0.6, 0.7
-        )
-    }),
-    
-    createPreset("Drum Loop 3", "drums", {
-        voiceMode: "poly",
-        waveform: "triangle",
-        filterCutoff: "5000",
-        filterRes: "1",
-        filterType: false,
-        reverbMix: "0.4",
-        reverbDecay: "1.5",
-        delayTime: "0",
-        delayFeedback: "0",
-        tempo: "135",
-        attack: "0.001",
-        decay: "0.2",
-        sustain: "0.1",
-        release: "0.3",
-        oscillatorOctave: "0",
-        oscillatorSemi: "0",
-        oscillatorLevel: "0.8",
-        chorusMix: "0",
-        distortionMix: "0",
-        flangerMix: "0",
-        phaserMix: "0",
-        lfoRate: "0",
-        lfoAmount: "0",
-        lfoDestination: "off",
-        lfoWaveform: "sine",
-        lfoSync: false,
-        droneOctave: "-1",
-        eqLow: "4",
-        eqMid: "0",
-        eqHigh: "2",
-        eqMidFreq: "1000",
-        eqQ: "1",
-        compressor: "0.3",
-        sequencer: [
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, true, false, true],
-            [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false],
-            [false, false, false, true, false, false, false, false, false, false, false, true, false, false, false, false],
-            0.9, 0.75, 0.65, 0.8
-        )
-    }),
-    
-    createPreset("Drum Loop 4", "drums", {
-        voiceMode: "poly",
-        waveform: "triangle",
-        filterCutoff: "5000",
-        filterRes: "1",
-        filterType: false,
-        reverbMix: "0.5",
-        reverbDecay: "2.0",
-        delayTime: "0",
-        delayFeedback: "0",
-        tempo: "80",
-        attack: "0.001",
-        decay: "0.2",
-        sustain: "0.1",
-        release: "0.3",
-        oscillatorOctave: "0",
-        oscillatorSemi: "0",
-        oscillatorLevel: "0.8",
-        chorusMix: "0",
-        distortionMix: "0",
-        flangerMix: "0",
-        phaserMix: "0",
-        lfoRate: "0",
-        lfoAmount: "0",
-        lfoDestination: "off",
-        lfoWaveform: "sine",
-        lfoSync: false,
-        droneOctave: "-1",
-        eqLow: "3.5",
-        eqMid: "-1",
-        eqHigh: "1.5",
-        eqMidFreq: "1000",
-        eqQ: "1",
-        compressor: "0.3",
-        sequencer: [
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false},
-            {"note": "C4", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, false, false, false, false, true, false, false, true, false, false, true, false],
-            [false, false, false, false, true, false, false, false, false, false, true, false, false, false, false, true],
-            [false, false, true, false, false, true, false, true, false, true, false, true, false, true, false, true],
-            [true, false, false, false, false, false, true, false, false, false, false, false, true, false, false, false],
-            0.85, 0.7, 0.5, 0.7
-        )
-    })
 ];
 
 // 10 Professional Synth XR Presets
@@ -1479,14 +1097,7 @@ const professionalPresets = [
             {"note": "G3", "active": false},
             {"note": "Bb3", "active": true},
             {"note": "Eb4", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true],
-            0.45, 0.35, 0.3, 0.4
-        )
+        ]
     }),
     
     // ==== ANALOG BASS ====
@@ -1541,14 +1152,7 @@ const professionalPresets = [
             {"note": "Eb1", "active": false},
             {"note": "F1", "active": true},
             {"note": "G1", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, true, true, false, false, false, true, false, true, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            0.9, 0.7, 0.65, 0.7
-        )
+        ]
     }),
     
     // ==== EXPRESSIVE LEAD ====
@@ -1603,14 +1207,7 @@ const professionalPresets = [
             {"note": "G5", "active": true},
             {"note": "E5", "active": true},
             {"note": "C5", "active": true}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            0.75, 0.65, 0.55, 0.6
-        )
+        ]
     }),
     
     // ==== CINEMATIC KEYS ====
@@ -1665,14 +1262,7 @@ const professionalPresets = [
             {"note": "G4", "active": false},
             {"note": "D4", "active": true},
             {"note": "B3", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false],
-            0.6, 0.5, 0.45, 0.55
-        )
+        ]
     }),
     
     // ==== TEXTURED PLUCK ====
@@ -1727,14 +1317,7 @@ const professionalPresets = [
             {"note": "G5", "active": true},
             {"note": "D5", "active": true},
             {"note": "B4", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            0.7, 0.6, 0.5, 0.65
-        )
+        ]
     }),
     
     // ==== EXPERIMENTAL FX ====
@@ -1789,14 +1372,7 @@ const professionalPresets = [
             {"note": "A4", "active": false},
             {"note": "C5", "active": true},
             {"note": "F5", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, false, true],
-            [true, false, false, false, false, false, false, true, false, false, false, false, false, true, false, false],
-            0.4, 0.4, 0.45, 0.5
-        )
+        ]
     }),
     
     // ==== 80s RETRO SYNTH ====
@@ -1851,14 +1427,7 @@ const professionalPresets = [
             {"note": "B3", "active": true},
             {"note": "D4", "active": true},
             {"note": "G4", "active": true}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            0.85, 0.7, 0.6, 0.75
-        )
+        ]
     }),
     
     // ==== MODERN EDM PLUCK ====
@@ -1913,14 +1482,7 @@ const professionalPresets = [
             {"note": "C4", "active": true},
             {"note": "G4", "active": true},
             {"note": "F4", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, true, false],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, true],
-            0.9, 0.75, 0.65, 0.7
-        )
+        ]
     }),
     
     // ==== CINEMATIC ATMOSPHERIC ====
@@ -1975,14 +1537,7 @@ const professionalPresets = [
             {"note": "E4", "active": false},
             {"note": "A4", "active": true},
             {"note": "C#5", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-            [false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false],
-            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-            [false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
-            0.3, 0.25, 0.2, 0.3
-        )
+        ]
     }),
     
     // ==== TECHNO SEQUENCE ====
@@ -2037,14 +1592,7 @@ const professionalPresets = [
             {"note": "G2", "active": false},
             {"note": "G2", "active": true},
             {"note": "F2", "active": true}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, true],
-            [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
-            [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            0.95, 0.8, 0.7, 0.75
-        )
+        ]
     }),
     
     // ==== HYBRID ORCHESTRAL LEAD ====
@@ -2099,14 +1647,7 @@ const professionalPresets = [
             {"note": "F4", "active": true},
             {"note": "C4", "active": true},
             {"note": "A3", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [true, false, false, false, false, false, false, false, true, false, false, false, false, false, true, false],
-            [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
-            [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true],
-            [false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false],
-            0.6, 0.5, 0.45, 0.55
-        )
+        ]
     }),
     
     // ==== PSYCHEDELIC DRONE ====
@@ -2161,14 +1702,7 @@ const professionalPresets = [
             {"note": "G3", "active": false},
             {"note": "Bb3", "active": true},
             {"note": "C4", "active": false}
-        ],
-        drumMachine: generateDrumLoop(
-            [false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false],
-            [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-            [false, false, true, false, false, false, false, false, false, false, true, false, false, false, false, false],
-            [true, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false],
-            0.4, 0.3, 0.35, 0.45
-        )
+        ]
     })
 ];
 
@@ -2176,4 +1710,4 @@ const professionalPresets = [
 builtInPresets.push(...professionalPresets);
 
 // Export the presets for use in other modules
-export { builtInPresets, createPreset, generateDrumLoop };
+export { builtInPresets, createPreset };
