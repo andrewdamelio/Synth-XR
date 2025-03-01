@@ -1724,208 +1724,100 @@ input[type="range"] {
     }
 }
 
-/* Drum Loop Module Styles */
-.drum-loop-module {
+/* Drum Pad Module Styles */
+.drum-pad-module {
     grid-column: 1 / 13;
     margin-top: 20px;
 }
 
-.drum-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 15px;
+.drum-pads-container {
+    padding: 10px 0;
 }
 
-.drum-row {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.drum-label {
-    width: 80px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text);
-    text-align: right;
-}
-
-.drum-volume-control {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 60px;
-    margin-right: 10px;
-}
-
-.drum-steps {
+.drum-pads-grid {
     display: grid;
-    grid-template-columns: repeat(16, 1fr);
-    gap: 5px;
-    flex-grow: 1;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 15px;
+    margin-top: 10px;
 }
 
-.drum-step {
+.drum-pad {
     background: var(--surface-dark);
-    border-radius: 4px;
-    height: 35px;
+    border-radius: 8px;
+    height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     transition: all var(--transition-fast);
     box-shadow: var(--shadow-small);
     position: relative;
+    overflow: hidden;
 }
 
-.drum-step:hover {
+.drum-pad:hover {
     background: var(--surface-light);
     transform: translateY(-2px);
 }
 
-.drum-step.active {
+.drum-pad:active, .drum-pad.active {
     background: var(--primary);
-    box-shadow: 0 0 10px var(--primary-light);
+    box-shadow: 0 0 15px var(--primary-light);
+    transform: scale(0.97);
 }
 
-.drum-step.playing {
-    background: var(--secondary);
-    box-shadow: 0 0 15px var(--secondary);
-    transform: scale(1.05);
+.drum-pad-label {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text);
 }
 
-/* Beat markers for better visual rhythm */
-.drum-step:nth-child(4n+1) {
-    border-left: 2px solid rgba(255, 255, 255, 0.2);
-}
-
-/* Kick specific styling */
-.drum-row[data-drum="kick"] .drum-step.active {
-    background: var(--primary);
-}
-
-/* Snare specific styling */
-.drum-row[data-drum="snare"] .drum-step.active {
-    background: tomato;
-}
-
-/* Hihat specific styling */
-.drum-row[data-drum="hihat"] .drum-step.active {
-    background: var(--warning);
-}
-
-/* Clap specific styling */
-.drum-row[data-drum="clap"] .drum-step.active {
-    background: var(--success);
-}
-
-/* Drum volume knob */
-.drum-volume-knob {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: var(--knob-bg);
-    position: relative;
-    cursor: pointer;
-    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3),
-                inset 0 2px 3px rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-
-.drum-volume-knob-inner {
-    width: 72%;
-    height: 72%;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #444, #222);
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.drum-volume-knob::before {
-    content: '';
+.drum-volume-range {
+    width: 80%;
     position: absolute;
-    width: 3px;
-    height: 12px;
-    background: var(--knob-indicator);
-    top: 5px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 10px;
+    background: var(--surface);
+    height: 3px;
+    -webkit-appearance: none;
     border-radius: 2px;
-    box-shadow: 0 0 5px var(--knob-indicator);
 }
 
-.drum-volume-value {
-    margin-top: 4px;
-    font-family: 'Roboto Mono', monospace;
-    font-size: 0.7rem;
-    color: var(--secondary);
-    text-shadow: 0 0 5px rgba(0, 229, 255, 0.3);
+.drum-volume-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    background: var(--secondary);
+    border-radius: 50%;
+    cursor: pointer;
 }
 
-/* Responsive adjustments for drum module */
-@media (max-width: 992px) {
-    .drum-steps {
-        gap: 3px;
-    }
-    
-    /* Turn off select arrow for step sequencer on mobile */
-    .step select {
-        appearance: none;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        background-image: none;
-        padding-right: 6px; /* Reduce padding since we're removing the arrow */
-    }
-}
-
+/* Responsive styles for drum pads */
 @media (max-width: 768px) {
-    .drum-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-        margin-bottom: 15px;
-    }
-    
-    .drum-label-container {
-        display: flex;
-        width: 100%;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 5px;
-    }
-    
-    .drum-label {
-        width: auto;
-        text-align: left;
-        margin-right: 10px;
-    }
-    
-    .drum-volume-control {
-        width: auto;
-        flex-direction: row;
-        align-items: center;
+    .drum-pads-grid {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(4, 1fr);
         gap: 10px;
-        margin-bottom: 0;
     }
     
-    .drum-steps {
-        width: 100%;
+    .drum-pad {
+        height: 80px;
     }
     
-    .drum-step {
-        height: 30px;
+    .drum-pad-label {
+        font-size: 0.9rem;
     }
 }
 
 @media (max-width: 480px) {
-    .drum-steps {
-        grid-template-columns: repeat(8, 1fr);
-        grid-template-rows: repeat(2, 1fr);
-        gap: 3px;
+    .drum-pad {
+        height: 70px;
     }
     
-    .drum-step {
-        height: 25px;
+    .drum-pad-label {
+        font-size: 0.8rem;
     }
 }
 
@@ -2036,7 +1928,9 @@ input[type="range"] {
 .module.collapsed .sequencer-container,
 .module.collapsed .drum-grid,
 .module.collapsed .drum-steps,
-.module.collapsed .drum-row {
+.module.collapsed .drum-row,
+.module.collapsed .drum-pads-container,
+.module.collapsed .drum-pads-grid {
     display: none;
 }
 

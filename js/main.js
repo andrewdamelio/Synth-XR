@@ -114,8 +114,6 @@ const lfo = new Tone.LFO({
 let isDroneActive = false;
 let droneSynth = null;
 
-// Initialize drum machine variables
-let drumSequencerRunning = false;
 const drumSounds = {};
 
 
@@ -1551,44 +1549,11 @@ document.getElementById('eqQ').addEventListener('input', function(e) {
     updateEqResponse();
 });
 
-// Create Drum Loop Grid
-function createDrumSteps() {
-    const drumTypes = ['kick', 'snare', 'hihat', 'clap'];
-
-    drumTypes.forEach(type => {
-        const container = document.getElementById(`${type}Steps`);
-        container.innerHTML = '';
-
-        // Create 16 steps for each drum type
-        for (let i = 0; i < 16; i++) {
-            const step = document.createElement('div');
-            step.className = 'drum-step';
-
-            // Set default patterns
-            if (type === 'kick' && (i % 4 === 0)) {
-                step.classList.add('active');
-            } else if (type === 'snare' && (i % 4 === 2)) {
-                step.classList.add('active');
-            } else if (type === 'hihat' && (i % 2 === 0)) {
-                step.classList.add('active');
-            } else if (type === 'clap' && (i % 8 === 4)) {
-                step.classList.add('active');
-            }
-
-            // Add click handler to toggle active state
-            step.addEventListener('click', () => {
-                step.classList.toggle('active');
-            });
-
-            container.appendChild(step);
-        }
-    });
-}
-
 // Create and initialize drum sounds
 function initializeDrumSounds() {
+    console.log("Initializing drum sounds...");
+    
     // Create the drum sounds using Tone.js synthesizer components
-
     // Kick Drum
     drumSounds.kick = new Tone.MembraneSynth({
         pitchDecay: 0.05,
@@ -1631,7 +1596,6 @@ function initializeDrumSounds() {
         resonance: 4000,
         octaves: 1.5
     }).connect(eq);
-
     // Adjust hi-hat settings for a more realistic sound
     drumSounds.hihat.volume.value = -20; // Quieter by default
 
@@ -1648,15 +1612,87 @@ function initializeDrumSounds() {
         }
     }).connect(eq);
 
-    // Add some effects to make the clap more realistic
-    const clapFilter = new Tone.Filter(1000, "bandpass").connect(eq);
-    drumSounds.clap.connect(clapFilter);
+    // Tom
+    drumSounds.tom = new Tone.MembraneSynth({
+        pitchDecay: 0.2,
+        octaves: 3,
+        envelope: {
+            attack: 0.001,
+            decay: 0.2,
+            sustain: 0.01,
+            release: 0.8
+        }
+    }).connect(eq);
+
+    // Rimshot
+    drumSounds.rimshot = new Tone.MetalSynth({
+        frequency: 800,
+        envelope: {
+            attack: 0.001,
+            decay: 0.05,
+            release: 0.05
+        },
+        harmonicity: 3,
+        modulationIndex: 40,
+        resonance: 3000,
+        octaves: 1
+    }).connect(eq);
+
+    // Cowbell
+    drumSounds.cowbell = new Tone.MetalSynth({
+        frequency: 800,
+        envelope: {
+            attack: 0.001,
+            decay: 0.4,
+            release: 0.4
+        },
+        harmonicity: 5.1,
+        modulationIndex: 16,
+        resonance: 600,
+        octaves: 0.4
+    }).connect(eq);
+
+    // Cymbal
+    drumSounds.cymbal = new Tone.MetalSynth({
+        frequency: 250,
+        envelope: {
+            attack: 0.001,
+            decay: 0.8,
+            release: 1.4
+        },
+        harmonicity: 8,
+        modulationIndex: 40,
+        resonance: 1000,
+        octaves: 1.5
+    }).connect(eq);
+
+    console.log("Drum sounds initialized:", Object.keys(drumSounds));
 }
 
 // Function to trigger a specific drum sound with volume adjustment
 function triggerDrumSound(type) {
-    const volume = parseFloat(document.getElementById(`${type}Volume`).value);
+    console.log("Triggering drum sound:", type);
+    
+    // Make sure Tone.js is started
+    if (Tone.context.state !== 'running') {
+        Tone.start().then(() => {
+            console.log("Tone.js started");
+            playDrumSound(type);
+        });
+    } else {
+        playDrumSound(type);
+    }
+}
 
+function playDrumSound(type) {
+    if (!drumSounds[type]) {
+        console.error(`Drum sound '${type}' not initialized!`, Object.keys(drumSounds));
+        return;
+    }
+    
+    const volume = parseFloat(document.getElementById(`${type}Volume`).value);
+    console.log(`Playing ${type} with volume ${volume}`);
+    
     switch (type) {
         case 'kick':
             drumSounds.kick.triggerAttackRelease('C1', '8n');
@@ -1668,11 +1704,27 @@ function triggerDrumSound(type) {
             break;
         case 'hihat':
             drumSounds.hihat.triggerAttackRelease('32n');
-            drumSounds.hihat.volume.value = Tone.gainToDb(volume * 0.6); // Keep hi-hats a bit quieter
+            drumSounds.hihat.volume.value = Tone.gainToDb(volume * 0.6);
             break;
         case 'clap':
             drumSounds.clap.triggerAttackRelease('16n');
             drumSounds.clap.volume.value = Tone.gainToDb(volume);
+            break;
+        case 'tom':
+            drumSounds.tom.triggerAttackRelease('E2', '8n');
+            drumSounds.tom.volume.value = Tone.gainToDb(volume);
+            break;
+        case 'rimshot':
+            drumSounds.rimshot.triggerAttackRelease('32n');
+            drumSounds.rimshot.volume.value = Tone.gainToDb(volume);
+            break;
+        case 'cowbell':
+            drumSounds.cowbell.triggerAttackRelease('8n');
+            drumSounds.cowbell.volume.value = Tone.gainToDb(volume);
+            break;
+        case 'cymbal':
+            drumSounds.cymbal.triggerAttackRelease('16n');
+            drumSounds.cymbal.volume.value = Tone.gainToDb(volume);
             break;
     }
 
@@ -1680,51 +1732,8 @@ function triggerDrumSound(type) {
     updateVUMeter(volume * 0.7);
 }
 
-// Update the drum loop to highlight the current step and play sounds
-function updateDrumLoop(currentStep) {
-    const drumTypes = ['kick', 'snare', 'hihat', 'clap'];
-
-    // Remove playing class from all steps
-    document.querySelectorAll('.drum-step').forEach(step => {
-        step.classList.remove('playing');
-    });
-
-    // Highlight current step for each drum type and trigger sound if active
-    drumTypes.forEach(type => {
-        const steps = document.querySelectorAll(`#${type}Steps .drum-step`);
-        if (steps[currentStep] && steps[currentStep].classList.contains('active')) {
-            steps[currentStep].classList.add('playing');
-            triggerDrumSound(type);
-        }
-
-        // Add the 'playing' class to the current step in each row for visual cue
-        if (steps[currentStep]) {
-            steps[currentStep].classList.add('playing');
-        }
-    });
-}
-
-// Drum volume control listeners
-function setupDrumVolumeControls() {
-    const drumTypes = ['kick', 'snare', 'hihat', 'clap'];
-
-    drumTypes.forEach(type => {
-        const volumeControl = document.getElementById(`${type}Volume`);
-        const volumeDisplay = document.getElementById(`${type}VolumeValue`);
-
-        volumeControl.addEventListener('input', (e) => {
-            const value = parseFloat(e.target.value);
-            volumeDisplay.textContent = value.toFixed(2);
-
-            // If we have the drum sound initialized, update its volume
-            if (drumSounds[type]) {
-                drumSounds[type].volume.value = Tone.gainToDb(value);
-            }
-        });
-    });
-}
-
 createSequencer();
+initializeDrumSounds(); // Add this line to initialize drum sounds
 
 // Create keyboard after DOM is fully loaded
 window.addEventListener('DOMContentLoaded', () => {
@@ -1747,14 +1756,8 @@ window.addEventListener('DOMContentLoaded', () => {
     // Initialize EQ Response Visualization
     updateEqResponse();
 
-    // Create the drum step sequencer
-    createDrumSteps();
-
     // Initialize drum sounds
     initializeDrumSounds();
-
-    // Set up drum volume controls
-    setupDrumVolumeControls();
 
     // Initialize LFO scope
     initLfoScope();
@@ -2086,10 +2089,6 @@ document.getElementById('startSequencer').addEventListener('click', async functi
         this.innerHTML = '<i class="fas fa-stop"></i><span>Stop</span>';
         this.classList.add('playing');
     } else {
-        // Only stop Transport if drum loop is not running
-        if (!drumSequencerRunning) {
-            Tone.Transport.stop();
-        }
         isPlaying = false;
         this.innerHTML = '<i class="fas fa-play"></i><span>Start</span>';
         this.classList.remove('playing');
@@ -2098,42 +2097,6 @@ document.getElementById('startSequencer').addEventListener('click', async functi
     }
 });
 
-// 3. Update the drum loop start/stop button handler
-document.getElementById('startDrumLoop').addEventListener('click', async function() {
-    if (!drumSequencerRunning) {
-        // Initialize Tone.js context if not already done
-        await Tone.start();
-
-        // Start the transport if it's not already running
-        if (Tone.Transport.state !== "started") {
-            Tone.Transport.start();
-        }
-
-        // Change button appearance
-        this.innerHTML = '<i class="fas fa-stop"></i><span>Stop</span>';
-        this.classList.add('playing');
-
-        // Set drum sequencer as running
-        drumSequencerRunning = true;
-    } else {
-        // Only stop Transport if sequencer is not playing
-        if (!isPlaying) {
-            Tone.Transport.stop();
-        }
-
-        // Change button appearance
-        this.innerHTML = '<i class="fas fa-play"></i><span>Start</span>';
-        this.classList.remove('playing');
-
-        // Remove any playing highlights
-        document.querySelectorAll('.drum-step').forEach(step => {
-            step.classList.remove('playing');
-        });
-
-        // Set drum sequencer as stopped
-        drumSequencerRunning = false;
-    }
-});
 
 document.getElementById('compressor').addEventListener('input', e => {
     const value = parseFloat(e.target.value);
@@ -2452,75 +2415,6 @@ function applyPreset(settings) {
         });
     }
 
-    // Update drum machine settings
-    if (settings.drumMachine) {
-        const drumTypes = ['kick', 'snare', 'hihat', 'clap'];
-
-        drumTypes.forEach(type => {
-            const volumeControl = document.getElementById(`${type}Volume`);
-            const volumeDisplay = document.getElementById(`${type}VolumeValue`);
-            const steps = document.querySelectorAll(`#${type}Steps .drum-step`);
-
-            // Set volume if provided
-            if (settings.drumMachine[type] && settings.drumMachine[type].volume !== undefined) {
-                const volume = settings.drumMachine[type].volume;
-                volumeControl.value = volume;
-                volumeDisplay.textContent = volume.toFixed(2);
-
-                // Update drum sound volume
-                if (drumSounds && drumSounds[type]) {
-                    drumSounds[type].volume.value = Tone.gainToDb(volume);
-                }
-            }
-
-            // Set step states
-            if (settings.drumMachine[type] && settings.drumMachine[type].steps) {
-                steps.forEach((step, i) => {
-                    if (i < settings.drumMachine[type].steps.length) {
-                        step.classList.toggle('active', settings.drumMachine[type].steps[i]);
-                    }
-                });
-            }
-        });
-    } else {
-        // Reset drum machine to default if no settings provided
-        const drumTypes = ['kick', 'snare', 'hihat', 'clap'];
-
-        drumTypes.forEach(type => {
-            const volumeControl = document.getElementById(`${type}Volume`);
-            const volumeDisplay = document.getElementById(`${type}VolumeValue`);
-            const steps = document.querySelectorAll(`#${type}Steps .drum-step`);
-
-            // Reset volume to default
-            const defaultVolume = type === 'kick' ? 0.8 :
-                type === 'snare' ? 0.7 :
-                type === 'hihat' ? 0.6 : 0.65;
-
-            volumeControl.value = defaultVolume;
-            volumeDisplay.textContent = defaultVolume.toFixed(2);
-
-            // Update drum sound volume
-            if (drumSounds && drumSounds[type]) {
-                drumSounds[type].volume.value = Tone.gainToDb(defaultVolume);
-            }
-
-            // Reset step states (default pattern)
-            steps.forEach((step, i) => {
-                step.classList.remove('active');
-                if (type === 'kick' && (i % 4 === 0)) {
-                    step.classList.add('active');
-                } else if (type === 'snare' && (i % 4 === 2)) {
-                    step.classList.add('active');
-                } else if (type === 'hihat' && (i % 2 === 0)) {
-                    step.classList.add('active');
-                } else if (type === 'clap' && (i % 8 === 4)) {
-                    step.classList.add('active');
-                }
-            });
-
-        });
-    }
-
     // Add LFO settings loading near the end of the function
     if (settings.lfoDestination) {
         loadLfoPresetSettings(settings);
@@ -2579,20 +2473,6 @@ function loadLfoPresetSettings(settings) {
 
 // Get the current setup
 function getCurrentSetup() {
-    // Collect drum machine settings
-    const drumTypes = ['kick', 'snare', 'hihat', 'clap'];
-    const drumMachineSettings = {};
-
-    drumTypes.forEach(type => {
-        const steps = document.querySelectorAll(`#${type}Steps .drum-step`);
-        const volume = parseFloat(document.getElementById(`${type}Volume`).value);
-
-        drumMachineSettings[type] = {
-            volume: volume,
-            steps: Array.from(steps).map(step => step.classList.contains('active'))
-        };
-    });
-
     return {
         voiceMode: "poly", // Always return "poly" regardless of UI selection
         waveform: document.getElementById('waveform').value,
@@ -2633,7 +2513,6 @@ function getCurrentSetup() {
             note: step.querySelector('select').value,
             active: step.querySelector('.step-toggle').classList.contains('active')
         })),
-        drumMachine: drumMachineSettings
     };
 }
 
@@ -2738,180 +2617,6 @@ document.getElementById('deletePresetBtn').addEventListener('click', () => {
     }
 });
 
-// This function will randomize the drum pattern in a musically pleasing way
-function randomizeDrumPattern() {
-    const drumTypes = ['kick', 'snare', 'hihat', 'clap'];
-
-    // Choose a random pattern style
-    const patternStyles = ['basic', 'offbeat', 'breakbeat', 'techno', 'sparse', 'dense'];
-    const randomStyle = patternStyles[Math.floor(Math.random() * patternStyles.length)];
-
-    drumTypes.forEach(type => {
-        const steps = document.querySelectorAll(`#${type}Steps .drum-step`);
-
-        // Clear current pattern
-        steps.forEach(step => step.classList.remove('active'));
-
-        // Apply a musically interesting pattern based on the type and chosen style
-        switch (type) {
-            case 'kick':
-                // Kick drum patterns
-                switch (randomStyle) {
-                    case 'basic':
-                        // Standard 4/4 kick pattern (beats 1, 5, 9, 13)
-                        [0, 4, 8, 12].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'offbeat':
-                        // Offbeat kicks
-                        [2, 6, 10, 14].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'breakbeat':
-                        // Syncopated kick pattern
-                        [0, 3, 8, 10].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'techno':
-                        // Four-on-the-floor with ghost notes
-                        [0, 4, 7, 8, 12, 14].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'sparse':
-                        // Minimal kick
-                        [0, 8].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'dense':
-                        // Busy kick pattern
-                        [0, 3, 4, 7, 8, 11, 12, 14].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                }
-                break;
-
-            case 'snare':
-                // Snare drum patterns
-                switch (randomStyle) {
-                    case 'basic':
-                        // Standard backbeat (beats 5, 13)
-                        [4, 12].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'offbeat':
-                        // Offbeat snares
-                        [2, 6, 10, 14].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'breakbeat':
-                        // Breakbeat snare
-                        [4, 12, 14].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'techno':
-                        // Techno snare pattern
-                        [4, 12].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'sparse':
-                        // Just the backbeat
-                        [4, 12].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'dense':
-                        // Ghost notes snare pattern
-                        [1, 4, 7, 10, 12, 14].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                }
-                break;
-
-            case 'hihat':
-                // Hi-hat patterns
-                switch (randomStyle) {
-                    case 'basic':
-                        // Eighth notes
-                        [0, 2, 4, 6, 8, 10, 12, 14].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'offbeat':
-                        // Sixteenth notes on offbeats
-                        [1, 3, 5, 7, 9, 11, 13, 15].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'breakbeat':
-                        // Open/close pattern
-                        [0, 2, 3, 4, 6, 8, 10, 11, 12, 14].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'techno':
-                        // Classic techno hi-hat
-                        Array.from({
-                            length: 16
-                        }).forEach((_, i) => {
-                            if (i % 2 === 0 || i === 7 || i === 15) steps[i]?.classList.add('active');
-                        });
-                        break;
-                    case 'sparse':
-                        // Quarter notes
-                        [0, 4, 8, 12].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'dense':
-                        // Sixteenth notes with some gaps
-                        Array.from({
-                            length: 16
-                        }).forEach((_, i) => {
-                            if (Math.random() < 0.75) steps[i]?.classList.add('active');
-                        });
-                        break;
-                }
-                break;
-
-            case 'clap':
-                // Clap patterns
-                switch (randomStyle) {
-                    case 'basic':
-                        // Just on beats 2 and 4
-                        [4, 12].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'offbeat':
-                        // Offbeat claps
-                        [2, 10].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'breakbeat':
-                        // Breakbeat style
-                        [7, 15].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'techno':
-                        // Techno clap pattern
-                        [4, 12, 14].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'sparse':
-                        // Just one clap per bar
-                        [4].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                    case 'dense':
-                        // Multiple claps
-                        [4, 7, 12, 15].forEach(i => steps[i]?.classList.add('active'));
-                        break;
-                }
-                break;
-        }
-
-        // Add some randomization to make it more interesting (10% chance per step to toggle)
-        if (Math.random() > 0.5) { // 50% chance to add some randomness
-            steps.forEach((step, i) => {
-                // Skip the first beat for kick to preserve the downbeat in most cases
-                if (type === 'kick' && i === 0) return;
-
-                // 10% chance to toggle each step
-                if (Math.random() < 0.1) {
-                    step.classList.toggle('active');
-                }
-            });
-        }
-    });
-
-    // Visual feedback
-    const randomizeButton = document.getElementById('randomizeDrumPattern');
-    if (randomizeButton) {
-        gsap.to(randomizeButton, {
-            scale: 1.1,
-            duration: 0.1,
-            yoyo: true,
-            repeat: 1
-        });
-    }
-
-    // Update VU meter for visual feedback
-    updateVUMeter(0.6);
-}
-
 document.getElementById('chaosButton').addEventListener('click', () => {
     // Randomize waveform
     const waveforms = ['sine', 'square', 'sawtooth', 'triangle', 'pulse', 'fmsine']; // removed , 'amsine', 'fatsawtooth', 'fatsquare'
@@ -2980,9 +2685,6 @@ document.getElementById('chaosButton').addEventListener('click', () => {
         toggle.textContent = shouldBeActive ? 'On' : 'Off';
     });
 
-    // Use the dedicated drum pattern randomization function
-    randomizeDrumPattern();
-
     // Visual feedback
     const chaosButton = document.getElementById('chaosButton');
     gsap.to(chaosButton, {
@@ -3003,33 +2705,6 @@ document.getElementById('chaosButton').addEventListener('click', () => {
         }
     }
 });
-
-// Add the randomize button to the drum module header
-document.addEventListener('DOMContentLoaded', function() {
-    // Find the drum module header
-    const drumHeader = document.querySelector('.drum-loop-module .module-header');
-
-    if (drumHeader) {
-        // Create new randomize button
-        const randomizeButton = document.createElement('button');
-        randomizeButton.className = 'master-button';
-        randomizeButton.id = 'randomizeDrumPattern';
-        randomizeButton.innerHTML = '<i class="fas fa-random"></i><span></span>';
-
-        // Add click event listener
-        randomizeButton.addEventListener('click', randomizeDrumPattern);
-
-        // Insert after the start button
-        const startButton = drumHeader.querySelector('#startDrumLoop');
-        if (startButton) {
-            startButton.parentNode.insertBefore(randomizeButton, startButton.nextSibling);
-        } else {
-            // Fallback: just append to the header
-            drumHeader.querySelector('.module-title').appendChild(randomizeButton);
-        }
-    }
-});
-
 
 // Nudge button functionality - Improved to include LFO, drone, ADSR, and drum patterns
 document.getElementById('nudgeButton').addEventListener('click', () => {
@@ -3083,11 +2758,6 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
             elements: ['droneOctave', 'droneVolume'],
             dropdowns: ['droneType']
         },
-        // Added drum patterns (implemented as a special type)
-        {
-            type: 'drums',
-            drumTypes: ['kick', 'snare', 'hihat', 'clap']
-        }
     ];
 
     // Randomly select 1-3 parameter groups to modify (slightly increased from original 1-2)
@@ -3134,63 +2804,6 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
                 yoyo: true,
                 repeat: 1
             });
-        } else if (param.type === 'drums') {
-            // Handling drum patterns with subtle changes
-            // Instead of replacing patterns completely, we'll just toggle a few steps
-
-            // Select one random drum type to modify
-            const drumType = param.drumTypes[Math.floor(Math.random() * param.drumTypes.length)];
-            const steps = document.querySelectorAll(`#${drumType}Steps .drum-step`);
-
-            // Randomly toggle 1-3 steps (much more subtle than CHAOS button)
-            const numToggles = Math.floor(Math.random() * 3) + 1;
-            const stepsToToggle = Array.from({
-                    length: steps.length
-                }, (_, i) => i)
-                .sort(() => Math.random() - 0.5)
-                .slice(0, numToggles);
-
-            stepsToToggle.forEach(index => {
-                if (steps[index]) {
-                    steps[index].classList.toggle('active');
-
-                    // Visual feedback
-                    gsap.to(steps[index], {
-                        backgroundColor: 'rgba(0, 229, 255, 0.3)',
-                        duration: 0.2,
-                        yoyo: true,
-                        repeat: 1
-                    });
-                }
-            });
-
-            // Sometimes also gently adjust a drum volume (25% chance)
-            if (Math.random() < 0.25) {
-                const volumeControl = document.getElementById(`${drumType}Volume`);
-                if (volumeControl) {
-                    const currentValue = parseFloat(volumeControl.value);
-                    const range = parseFloat(volumeControl.max) - parseFloat(volumeControl.min);
-                    // Smaller variation for volume (±5%)
-                    const variation = (Math.random() * 0.1 - 0.05) * range;
-                    const newValue = Math.max(
-                        parseFloat(volumeControl.min),
-                        Math.min(parseFloat(volumeControl.max), currentValue + variation)
-                    );
-                    volumeControl.value = newValue;
-                    volumeControl.dispatchEvent(new Event('input'));
-
-                    // Visual feedback
-                    const knob = document.getElementById(`${drumType}VolumeKnob`);
-                    if (knob) {
-                        gsap.to(knob, {
-                            boxShadow: '0 0 15px rgba(0, 229, 255, 0.8)',
-                            duration: 0.3,
-                            yoyo: true,
-                            repeat: 1
-                        });
-                    }
-                }
-            }
         } else if (param.dropdowns && param.dropdowns.length > 0) {
             // Handle parameters with both sliders and dropdowns (LFO and drone)
 
@@ -3326,11 +2939,6 @@ Tone.Transport.scheduleRepeat((time) => {
         }
 
         updateSequencer(currentStep);
-    }
-
-    // Only update and play the drum loop if drumSequencerRunning is true
-    if (drumSequencerRunning) {
-        updateDrumLoop(currentStep);
     }
 }, '8n');
 
@@ -4451,4 +4059,33 @@ window.addEventListener('resize', function() {
         
         console.log('Canvas dimensions updated after resize');
     }, 250); // 250ms debounce
+});
+
+// Add drum pad click event listeners
+function setupDrumPads() {
+    // Get all drum pads
+    const drumPads = document.querySelectorAll('.drum-pad');
+    console.log(`Found ${drumPads.length} drum pads`);
+    
+    // Add click event listeners to each drum pad
+    drumPads.forEach(pad => {
+        const sound = pad.getAttribute('data-sound');
+        pad.addEventListener('click', () => {
+            console.log(`Drum pad clicked: ${sound}`);
+            triggerDrumSound(sound);
+        });
+    });
+}
+
+// On DOMContentLoaded, setup drum pads
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing code ...
+    
+    // Initialize drum sounds
+    initializeDrumSounds();
+    
+    // Setup drum pad click handlers
+    setupDrumPads();
+    
+    // ... rest of existing code ...
 });
