@@ -822,8 +822,12 @@ document.querySelector('.oscilloscope').addEventListener('click', () => {
 });
 drawOscilloscope();
 
+// Store timeouts by note in a map of arrays
+const sequencerActiveTimeouts = new Map(); // Note -> Array of timeout IDs
+
+
 // Helper function to highlight a key when a note plays in the sequencer
-function highlightKeyFromSequencer(note, duration = 0.25) {
+function highlightKeyFromSequencer(note, duration = 0.2) { // Slightly shorter duration
     // Only proceed if it's a valid note
     if (!note) return;
 
@@ -838,24 +842,45 @@ function highlightKeyFromSequencer(note, duration = 0.25) {
 
     // Store the timeout ID so we can clear it if needed
     const timeoutId = setTimeout(() => {
-        keyElement.classList.remove('active');
-        sequencerActiveKeys.delete(note);
+        // Get the current list of timeouts for this note
+        const timeouts = sequencerActiveTimeouts.get(note) || [];
+        
+        // Remove this timeout from the list
+        const index = timeouts.indexOf(timeoutId);
+        if (index !== -1) {
+            timeouts.splice(index, 1);
+        }
+        
+        // If this was the last timeout, remove the highlight
+        if (timeouts.length === 0) {
+            keyElement.classList.remove('active');
+            sequencerActiveTimeouts.delete(note);
+        } else {
+            // Otherwise, update the timeouts list
+            sequencerActiveTimeouts.set(note, timeouts);
+        }
     }, duration * 1000);
 
-    // Store the note and its timeout ID
-    sequencerActiveKeys.set(note, timeoutId);
+    // Add this timeout to the list for this note
+    const timeouts = sequencerActiveTimeouts.get(note) || [];
+    timeouts.push(timeoutId);
+    sequencerActiveTimeouts.set(note, timeouts);
 }
 
 // Clear any active key highlights
 function clearSequencerKeyHighlights() {
-    sequencerActiveKeys.forEach((timeoutId, note) => {
-        clearTimeout(timeoutId);
-        const keyElement = document.querySelector(`.key[data-note="${note}"]`);
+    sequencerActiveTimeouts.forEach((timeouts, note) => {
+        // Clear all timeouts for this note
+        timeouts.forEach(timeoutId => clearTimeout(timeoutId));
+        
+        // Remove the 'active' class
+        const keyElement = document.querySelector(`.key[data-note="${note}"]`) ||
+            document.querySelector(`.black-key[data-note="${note}"]`);
         if (keyElement) {
             keyElement.classList.remove('active');
         }
     });
-    sequencerActiveKeys.clear();
+    sequencerActiveTimeouts.clear();
 }
 
 // Generate notes from C3 to B4
@@ -2931,6 +2956,8 @@ document.getElementById('chaosButton').addEventListener('click', () => {
 
     // Randomize all knob values
     knobs.forEach(([knobId, inputId]) => {
+        if (inputId === 'voices') return; // Skip randomizing voices
+
         const input = document.getElementById(inputId);
         const min = parseFloat(input.min);
         const max = parseFloat(input.max);
@@ -3919,8 +3946,10 @@ function stopDrone() {
             droneSynth.triggerRelease();
             // Allow time for release to complete before disposal
             setTimeout(() => {
-                droneSynth.dispose();
-                droneSynth = null;
+                if (droneSynth) {
+                    droneSynth.dispose();
+                    droneSynth = null;
+                }
             }, 1000);
         }
         // For noise drone
