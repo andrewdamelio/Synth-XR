@@ -4134,50 +4134,205 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Add module collapsible functionality
 function setupCollapsibleModules() {
-    const modules = ['oscillator'];
+    // Basic modules with standard naming
+    const modules = ['oscillator', 'filter', 'effects', 'adsr', 'eq', 'drone', 'preset', 'lfo', 'mastering', 'oscilloscope'];
+    
+    // Add other special modules
+    const specialModules = {
+        'chord': '.chord-module, .quick-chord-module',
+        'sequencer': '.sequencer-module, .step-sequencer-module, [class*="sequencer"]',
+        'drum-loop': '.drum-loop-module, .drum-machine-module'
+    };
+    
+    // Process special modules
+    for (const [name, selector] of Object.entries(specialModules)) {
+        const moduleEl = document.querySelector(selector);
+        if (moduleEl) {
+            modules.push(name);
+            // Ensure the standard class is present
+            if (!moduleEl.classList.contains(`${name}-module`)) {
+                moduleEl.classList.add(`${name}-module`);
+            }
+        }
+    }
     
     modules.forEach(moduleName => {
-        const moduleEl = document.querySelector(`.${moduleName}-module`);
-        if (!moduleEl) return;
+        // Handle special case for drum-loop which has a dash in the name
+        const moduleSelector = moduleName === 'drum-loop' ? '.drum-loop-module' : `.${moduleName}-module`;
+        const moduleEl = document.querySelector(moduleSelector);
+        if (!moduleEl) {
+            console.log(`Module not found: ${moduleSelector}`);
+            return;
+        }
         
         const headerEl = moduleEl.querySelector('.module-header');
-        if (!headerEl) return;
+        if (!headerEl) {
+            console.log(`Header not found in module: ${moduleSelector}`);
+            return;
+        }
         
-        // Add collapse button to header
+        // First, remove any existing collapse buttons and their event listeners
+        const existingBtn = headerEl.querySelector('.module-collapse-btn');
+        if (existingBtn) {
+            existingBtn.remove();
+        }
+        
+        // Create a new collapse button
         const collapseBtn = document.createElement('button');
         collapseBtn.className = 'module-collapse-btn';
         collapseBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
+        collapseBtn.setAttribute('title', 'Collapse module');
         headerEl.appendChild(collapseBtn);
         
-        // Add click handler
-        collapseBtn.addEventListener('click', () => {
+        // Add click handler using a separate function to ensure clean event binding
+        const toggleCollapse = (event) => {
+            event.stopPropagation(); // Prevent event bubbling
             moduleEl.classList.toggle('collapsed');
-            collapseBtn.querySelector('i').classList.toggle('fa-chevron-up');
-            collapseBtn.querySelector('i').classList.toggle('fa-chevron-down');
-        });
+            
+            // For sequencer, manually hide specific child divs
+            if (moduleName === 'sequencer') {
+                const sequencerDiv = moduleEl.querySelector('.sequencer, [class*="sequencer-content"]');
+                const keyboardDiv = moduleEl.querySelector('.keyboard, [class*="keyboard"]');
+                
+                if (moduleEl.classList.contains('collapsed')) {
+                    // Hide specific divs
+                    if (sequencerDiv) sequencerDiv.style.display = 'none';
+                    if (keyboardDiv) keyboardDiv.style.display = 'none';
+                    
+                    // Hide ALL direct children except header using inline styles
+                    Array.from(moduleEl.children).forEach(child => {
+                        if (!child.classList.contains('module-header')) {
+                            child.style.display = 'none';
+                        }
+                    });
+                } else {
+                    // Show specific divs
+                    if (sequencerDiv) sequencerDiv.style.display = '';
+                    if (keyboardDiv) keyboardDiv.style.display = '';
+                    
+                    // Show all direct children
+                    Array.from(moduleEl.children).forEach(child => {
+                        if (!child.classList.contains('module-header')) {
+                            child.style.display = '';
+                        }
+                    });
+                }
+            }
+            
+            // Update icon direction
+            const icon = collapseBtn.querySelector('i');
+            if (moduleEl.classList.contains('collapsed')) {
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+                collapseBtn.setAttribute('title', 'Expand module');
+            } else {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+                collapseBtn.setAttribute('title', 'Collapse module');
+            }
+        };
+        
+        // Remove any existing event listeners (as best as we can)
+        collapseBtn.replaceWith(collapseBtn.cloneNode(true));
+        
+        // Re-select the button after replacing it
+        const newBtn = headerEl.querySelector('.module-collapse-btn');
+        newBtn.addEventListener('click', toggleCollapse);
+    });
+    // Add a global keyboard shortcut for toggling all modules
+    setupCollapseKeyboardShortcut();
+}
+
+// Function to toggle all module collapse states
+function toggleAllModules(collapse) {
+    // Get all modules
+    const allModules = document.querySelectorAll('.module');
+    
+    allModules.forEach(moduleEl => {
+        // Get the current state
+        const isCollapsed = moduleEl.classList.contains('collapsed');
+        
+        // Only change if needed
+        if (collapse && !isCollapsed) {
+            // Collapse this module
+            moduleEl.classList.add('collapsed');
+            
+            // Update the icon
+            const icon = moduleEl.querySelector('.module-collapse-btn i');
+            if (icon) {
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+                icon.parentElement.setAttribute('title', 'Expand module');
+            }
+            
+            // Handle sequencer specially
+            if (moduleEl.classList.contains('sequencer-module')) {
+                // Hide all direct children except header
+                Array.from(moduleEl.children).forEach(child => {
+                    if (!child.classList.contains('module-header')) {
+                        child.style.display = 'none';
+                    }
+                });
+            }
+        } 
+        else if (!collapse && isCollapsed) {
+            // Expand this module
+            moduleEl.classList.remove('collapsed');
+            
+            // Update the icon
+            const icon = moduleEl.querySelector('.module-collapse-btn i');
+            if (icon) {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+                icon.parentElement.setAttribute('title', 'Collapse module');
+            }
+            
+            // Handle sequencer specially
+            if (moduleEl.classList.contains('sequencer-module')) {
+                // Show all direct children
+                Array.from(moduleEl.children).forEach(child => {
+                    if (!child.classList.contains('module-header')) {
+                        child.style.display = '';
+                    }
+                });
+            }
+        }
     });
 }
 
-// Add after DOM content is loaded, likely in your initialization code
+// Setup the keyboard shortcut for collapsing all modules
+function setupCollapseKeyboardShortcut() {
+    // Remove any existing event listener
+    document.removeEventListener('keydown', handleCollapseKeypress);
+    
+    // Add a new event listener
+    document.addEventListener('keydown', handleCollapseKeypress);
+    
+    console.log('Collapse keyboard shortcut (c) setup complete');
+}
+
+// Handle the keypress event
+function handleCollapseKeypress(event) {
+    // Check if it's the 'c' key and not in an input field
+    if (event.key.toLowerCase() === 'c' && !['input', 'textarea', 'select'].includes(document.activeElement.tagName.toLowerCase())) {
+        event.preventDefault();
+        
+        // Determine the target state
+        // If any module is expanded, collapse everything
+        // If all modules are collapsed, expand everything
+        const anyExpanded = Array.from(document.querySelectorAll('.module')).some(
+            module => !module.classList.contains('collapsed')
+        );
+        
+        // Toggle all modules based on the determined state
+        toggleAllModules(anyExpanded);
+        
+        console.log(anyExpanded ? 'All modules collapsed' : 'All modules expanded');
+    }
+}
+
+// Make sure we call this function after the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Your existing initialization code
-    
-    // Initialize collapse functionality for oscillator module
-    const oscModule = document.querySelector('.oscillator-module');
-    const collapseBtn = oscModule.querySelector('.module-collapse-btn');
-    
-    collapseBtn.addEventListener('click', function() {
-        oscModule.classList.toggle('collapsed');
-        // Update icon direction
-        const icon = this.querySelector('i');
-        if (oscModule.classList.contains('collapsed')) {
-            icon.classList.remove('fa-chevron-up');
-            icon.classList.add('fa-chevron-down');
-            this.setAttribute('title', 'Expand module');
-        } else {
-            icon.classList.remove('fa-chevron-down');
-            icon.classList.add('fa-chevron-up');
-            this.setAttribute('title', 'Collapse module');
-        }
-    });
+    // Delay setup slightly to ensure other scripts have initialized
+    setTimeout(setupCollapsibleModules, 100);
 });

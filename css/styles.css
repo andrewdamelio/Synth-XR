@@ -1994,19 +1994,43 @@ input[type="range"] {
 .module.collapsed .preset-actions,
 .module.collapsed .oscilloscope,
 .module.collapsed .vu-meter,
-.module.collapsed .drone-visualizer {
+.module.collapsed .drone-visualizer,
+.module.collapsed .effect-group,
+.module.collapsed .adsr-graph,
+.module.collapsed .adsr-visualization,
+.module.collapsed .eq-slider-container,
+.module.collapsed .eq-visualization,
+.module.collapsed .drone-controls,
+.module.collapsed .drone-waveform,
+.module.collapsed .preset-grid,
+.module.collapsed .preset-manager,
+.module.collapsed .lfo-visualizer,
+.module.collapsed .lfo-controls,
+.module.collapsed .compact-controls,
+.module.collapsed .small-knob-container,
+.module.collapsed .waveform-display,
+.module.collapsed .oscilloscope-container,
+.module.collapsed .analyzer-container,
+.module.collapsed .chord-container,
+.module.collapsed .chord-buttons,
+.module.collapsed .chord-controls,
+.module.collapsed .sequencer-steps,
+.module.collapsed .sequencer-controls,
+.module.collapsed .sequencer-grid,
+.module.collapsed .sequencer-container,
+.module.collapsed .drum-grid,
+.module.collapsed .drum-steps,
+.module.collapsed .drum-row {
     display: none;
 }
 
 .module.collapsed {
-    min-height: auto;
-}
-
-/* Keep the module in the grid when collapsed */
-.module.collapsed {
     transition: all var(--transition-normal);
+    flex: 0 !important; /* Override any flex value */
     flex-shrink: 1;
     height: auto;
+    min-height: 80px;
+    overflow: hidden;
 }
 
 /* Ensure proper spacing when collapsed */
@@ -2035,4 +2059,33 @@ input[type="range"] {
     .module-collapse-btn i {
         font-size: 0.8rem;
     }
+}
+
+/* Add special styling for the chord module header */
+.chord-header-flex {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chord-header-flex .module-title {
+    flex: 0 0 auto;
+    margin-right: 10px;
+}
+
+.chord-header-flex .chord-switcher,
+.chord-header-flex .active-switcher {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: center;
+    margin: 0 10px;
+}
+
+.chord-header-flex .module-collapse-btn {
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+
+.flex-spacer {
+    flex: 1;
 }
