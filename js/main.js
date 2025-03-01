@@ -4187,6 +4187,7 @@ function setupCollapsibleModules() {
         // Add click handler using a separate function to ensure clean event binding
         const toggleCollapse = (event) => {
             event.stopPropagation(); // Prevent event bubbling
+            const wasCollapsed = moduleEl.classList.contains('collapsed');
             moduleEl.classList.toggle('collapsed');
             
             // For sequencer, manually hide specific child divs
@@ -4229,6 +4230,43 @@ function setupCollapsibleModules() {
                 icon.classList.remove('fa-chevron-down');
                 icon.classList.add('fa-chevron-up');
                 collapseBtn.setAttribute('title', 'Collapse module');
+                
+                // If we're expanding the EQ module, update the EQ visualization
+                if (moduleName === 'eq' && wasCollapsed) {
+                    // Give the DOM a moment to finish the expand transition
+                    setTimeout(() => {
+                        if (typeof updateEqResponse === 'function') {
+                            updateEqResponse();
+                        }
+                    }, 50);
+                }
+                
+                // If we're expanding the filter module, update filter visualization
+                if (moduleName === 'filter' && wasCollapsed) {
+                    setTimeout(() => {
+                        if (typeof updateFilterResponse === 'function') {
+                            updateFilterResponse();
+                        }
+                    }, 50);
+                }
+                
+                // If we're expanding the ADSR module, update ADSR visualization
+                if (moduleName === 'adsr' && wasCollapsed) {
+                    setTimeout(() => {
+                        if (typeof updateADSRVisualizer === 'function') {
+                            updateADSRVisualizer();
+                        }
+                    }, 50);
+                }
+                
+                // If we're expanding the LFO module, reinitialize LFO scope
+                if (moduleName === 'lfo' && wasCollapsed) {
+                    setTimeout(() => {
+                        if (typeof initLfoScope === 'function') {
+                            initLfoScope();
+                        }
+                    }, 50);
+                }
             }
         };
         
