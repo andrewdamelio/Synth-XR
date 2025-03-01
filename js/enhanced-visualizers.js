@@ -141,9 +141,11 @@ class EnhancedVisualizers {
         
         // Add click handler to container to cycle through visualizers
         this.container.addEventListener('click', (event) => {
-            // Check if click is on the container but not on the toolbar
+            // Check if click is on the container but not on the toolbar or fullscreen button
             const toolbar = this.container.querySelector('.visualizer-toolbar');
-            if (toolbar && !toolbar.contains(event.target)) {
+            const fullscreenButton = this.container.querySelector('.visualizer-fullscreen-button');
+            if (toolbar && !toolbar.contains(event.target) && 
+                fullscreenButton && !fullscreenButton.contains(event.target)) {
                 this.cycleToNextVisualizer();
             }
         });
@@ -283,31 +285,73 @@ class EnhancedVisualizers {
             this.setColorScheme(colorSchemeSelector.value);
         });
         
-        // Add fullscreen toggle
+        // Create left controls group
+        const leftControls = document.createElement('div');
+        leftControls.className = 'visualizer-left-controls';
+        leftControls.appendChild(visualizerSelector);
+        leftControls.appendChild(colorSchemeSelector);
+        
+        // Create right controls group
+        const rightControls = document.createElement('div');
+        rightControls.className = 'visualizer-right-controls';
+        
+        // Add controls to toolbar
+        toolbar.appendChild(leftControls);
+        toolbar.appendChild(rightControls);
+        
+        // Add toolbar to container
+        this.container.appendChild(toolbar);
+        
+        // Add fullscreen button separately
+        this.addFullscreenButton();
+    }
+    
+    // Add fullscreen button to bottom right corner
+    addFullscreenButton() {
+        // Create fullscreen button
         const fullscreenButton = document.createElement('button');
-        fullscreenButton.className = 'fullscreen-button';
+        fullscreenButton.className = 'visualizer-fullscreen-button';
         fullscreenButton.innerHTML = '<i class="fas fa-expand"></i>';
         
         // Style the fullscreen button
         Object.assign(fullscreenButton.style, {
+            position: 'absolute',
+            bottom: '15px',
+            right: '15px',
             background: 'rgba(30, 30, 30, 0.7)',
             color: '#fff',
             border: '1px solid rgba(255, 255, 255, 0.2)',
             borderRadius: '4px',
-            padding: '5px 10px',
-            fontSize: '14px',
-            marginLeft: '10px',
+            padding: '8px 12px',
+            fontSize: '16px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            zIndex: '100',
+            transition: 'opacity 0.3s ease, background 0.2s ease',
+            opacity: '0.5'
+        });
+        
+        // Make button more visible on hover
+        fullscreenButton.addEventListener('mouseenter', () => {
+            fullscreenButton.style.opacity = '1';
+            fullscreenButton.style.background = 'rgba(60, 60, 60, 0.8)';
+        });
+        
+        fullscreenButton.addEventListener('mouseleave', () => {
+            fullscreenButton.style.opacity = '0.5';
+            fullscreenButton.style.background = 'rgba(30, 30, 30, 0.7)';
         });
         
         // Handle fullscreen toggle
         let isFullscreen = false;
         let originalStyles = {};
 
-        fullscreenButton.addEventListener('click', () => {
+        fullscreenButton.addEventListener('click', (event) => {
+            // Prevent event propagation to stop the container click handler
+            event.stopPropagation();
+            
             if (isFullscreen) {
                 // Exit fullscreen
                 Object.keys(originalStyles).forEach(prop => {
@@ -381,23 +425,8 @@ class EnhancedVisualizers {
             }
         });
         
-        // Create left controls group
-        const leftControls = document.createElement('div');
-        leftControls.className = 'visualizer-left-controls';
-        leftControls.appendChild(visualizerSelector);
-        leftControls.appendChild(colorSchemeSelector);
-        
-        // Create right controls group
-        const rightControls = document.createElement('div');
-        rightControls.className = 'visualizer-right-controls';
-        rightControls.appendChild(fullscreenButton);
-        
-        // Add controls to toolbar
-        toolbar.appendChild(leftControls);
-        toolbar.appendChild(rightControls);
-        
-        // Add toolbar to container
-        this.container.appendChild(toolbar);
+        // Add button to container
+        this.container.appendChild(fullscreenButton);
     }
     
     // Initialize all canvas elements
@@ -1603,8 +1632,8 @@ visualizerStyles.textContent = `
     right: 10px;
     height: 40px;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    alignItems: center;
+    justifyContent: space-between;
     padding: 0 10px;
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.6);
@@ -1639,8 +1668,8 @@ visualizerStyles.textContent = `
     font-size: 14px;
     cursor: pointer;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    alignItems: center;
+    justifyContent: center;
 }
 
 .visualizer-left-controls,

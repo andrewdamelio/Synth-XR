@@ -116,7 +116,6 @@ let droneSynth = null;
 
 // Initialize drum machine variables
 let drumSequencerRunning = false;
-let currentDrumStep = 0;
 const drumSounds = {};
 
 
@@ -131,18 +130,6 @@ const animations = {
         lastUpdate: 0
     },
     lfoScope: {
-        active: true,
-        element: null,
-        context: null,
-        lastUpdate: 0
-    },
-    spectrum: {
-        active: true,
-        element: null,
-        context: null,
-        lastUpdate: 0
-    },
-    particles: {
         active: true,
         element: null,
         context: null,
@@ -178,13 +165,7 @@ function initAnimationSettings() {
     
     animations.lfoScope.element = document.getElementById('lfoScope');
     animations.lfoScope.context = animations.lfoScope.element?.getContext('2d');
-    
-    animations.spectrum.element = document.getElementById('spectrumAnalyzer'); // Make sure IDs match your HTML
-    animations.spectrum.context = animations.spectrum.element?.getContext('2d');
-
-    animations.particles.element = document.getElementById('particleSystem'); // Make sure IDs match your HTML
-    animations.particles.context = animations.particles.element?.getContext('2d');
-    
+        
     console.log(`Animation settings initialized: ${isMobile ? 'Mobile' : 'Desktop'} mode, ${animations.settings.fpsLimit}fps target`);
 }
 
@@ -211,15 +192,7 @@ function mainAnimationLoop(timestamp) {
     if (animations.lfoScope.active && isElementVisible(animations.lfoScope.element)) {
         updateLfoScope(timestamp);
     }
-    
-    if (animations.spectrum.active && isElementVisible(animations.spectrum.element)) {
-        updateSpectrumAnalyzer(timestamp);
-    }
-    
-    if (animations.particles.active && isElementVisible(animations.particles.element)) {
-        updateParticles(timestamp);
-    }
-    
+
     // If LFO is active, update it
     if (lfoActive && lfoDestination !== 'off') {
         updateLfoModulation(timestamp);
@@ -555,189 +528,6 @@ function updateLfoScope(timestamp) {
     animations.lfoScope.lastUpdate = timestamp;
 }
 
-// Update the spectrum analyzer
-function updateSpectrumAnalyzer(timestamp) {
-    const { element, context } = animations.spectrum;
-    if (!element || !context || !fft) return;
-    
-    function drawSpectrumAnalyzer() {
-        requestAnimationFrame(drawSpectrumAnalyzer);
-
-        if (!canvas.width || !fft) return; // Skip if canvas not visible or fft not available
-
-        const width = canvas.width;
-        const height = canvas.height;
-        const spectrumValues = fft.getValue();
-
-        // Clear canvas
-        ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = 'rgba(18, 18, 18, 0.2)';
-        ctx.fillRect(0, 0, width, height);
-
-        // Draw frequency bins
-        const binWidth = width / (spectrumValues.length / 2);
-
-        // Create gradient for bars
-        const gradient = ctx.createLinearGradient(0, height, 0, 0);
-        gradient.addColorStop(0, 'rgba(98, 0, 234, 0.8)');
-        gradient.addColorStop(0.5, 'rgba(0, 229, 255, 0.8)');
-        gradient.addColorStop(1, 'rgba(255, 23, 68, 0.8)');
-
-        ctx.fillStyle = gradient;
-
-        // Draw only the first half of FFT data (up to Nyquist frequency)
-        for (let i = 0; i < spectrumValues.length / 2; i++) {
-            // Convert dB value to height
-            // FFT values are typically in dB scale (-100 to 0)
-            const value = spectrumValues[i];
-            const dbValue = 20 * Math.log10(Math.abs(value) + 0.00001); // Avoid log(0)
-            const normalizedValue = (dbValue + 100) / 100; // Normalize -100dB..0dB to 0..1
-
-            const barHeight = normalizedValue * height;
-
-            // Draw bar
-            ctx.fillRect(i * binWidth, height - barHeight, binWidth * 0.8, barHeight);
-        }
-
-        // Add frequency markers
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.font = '10px sans-serif';
-
-        const freqMarkers = [100, 1000, 10000];
-        freqMarkers.forEach(freq => {
-            // Convert frequency to bin index
-            const binIndex = Math.floor((freq / (Tone.context.sampleRate / 2)) * (spectrumValues.length / 2));
-            const x = binIndex * binWidth;
-
-            // Draw marker line
-            ctx.fillRect(x, 0, 1, height);
-
-            // Draw label
-            let label;
-            if (freq >= 1000) {
-                label = `${freq/1000}kHz`;
-            } else {
-                label = `${freq}Hz`;
-            }
-            ctx.fillText(label, x + 3, 12);
-        });
-    }
-    
-    // Update tracking time
-    animations.spectrum.lastUpdate = timestamp;
-}
-
-// Update the particle system
-function updateParticles(timestamp) {
-    const { element, context } = animations.particles;
-    if (!element || !context) return;
-    
-    requestAnimationFrame(updateParticles);
-
-    if (!canvas.width) return; // Skip if canvas not visible
-
-    // Get audio data for reactivity
-    const waveformData = waveform.getValue();
-    const fftData = fft.getValue();
-
-    // Calculate overall amplitude
-    let sum = 0;
-    for (let i = 0; i < waveformData.length; i++) {
-        sum += Math.abs(waveformData[i]);
-    }
-    const averageAmplitude = sum / waveformData.length;
-
-    // Get bass and treble energy
-    const bassEnergy = Math.abs(fftData[5]) + Math.abs(fftData[10]) + Math.abs(fftData[15]);
-    const trebleEnergy = Math.abs(fftData[100]) + Math.abs(fftData[150]) + Math.abs(fftData[200]);
-
-    // Clear canvas with fade effect
-    ctx.fillStyle = 'rgba(18, 18, 18, 0.1)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Update and draw particles
-    particles.forEach(p => {
-        // Apply audio reactivity
-        p.size = p.size * 0.95 + (p.size * averageAmplitude * 5) * 0.05;
-        p.speedX += (Math.random() * 2 - 1) * bassEnergy * 0.02;
-        p.speedY += (Math.random() * 2 - 1) * trebleEnergy * 0.02;
-
-        // Update position
-        p.x += p.speedX;
-        p.y += p.speedY;
-
-        // Apply damping
-        p.speedX *= 0.99;
-        p.speedY *= 0.99;
-
-        // Wrap around edges
-        if (p.x < 0) p.x = canvas.width;
-        if (p.x > canvas.width) p.x = 0;
-        if (p.y < 0) p.y = canvas.height;
-        if (p.y > canvas.height) p.y = 0;
-
-        // Draw particle
-        ctx.globalAlpha = p.opacity;
-        ctx.fillStyle = `hsla(${p.hue}, 100%, 60%, ${p.opacity})`;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Draw connections between nearby particles
-        particles.forEach(p2 => {
-            const dx = p.x - p2.x;
-            const dy = p.y - p2.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < 50) {
-                ctx.globalAlpha = (1 - distance / 50) * 0.2;
-                ctx.strokeStyle = `hsla(${(p.hue + p2.hue) / 2}, 100%, 60%, ${ctx.globalAlpha})`;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
-            }
-        });
-    });
-
-    ctx.globalAlpha = 1; // Reset alpha
-    
-    // Option to reduce particles on mobile
-    const activeParticleCount = animations.settings.isMobile ? 
-        Math.floor(particles.length / 2) : particles.length;
-    
-    // Only process the active particles
-    for (let i = 0; i < activeParticleCount; i++) {
-        // Update particle i...
-    }
-    
-    // Optimize connections - limit the number of pairs checked
-    const connectionLimit = animations.settings.isMobile ? 50 : 200;
-    let connectionCount = 0;
-    
-    for (let i = 0; i < activeParticleCount; i++) {
-        const p = particles[i];
-        // Check only nearby particles instead of all particles
-        for (let j = i + 1; j < activeParticleCount; j++) {
-            if (connectionCount >= connectionLimit) break;
-            
-            const p2 = particles[j];
-            const dx = p.x - p2.x;
-            const dy = p.y - p2.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance < 50) {
-                // Draw connection
-                connectionCount++;
-            }
-        }
-    }
-    
-    // Update tracking time
-    animations.particles.lastUpdate = timestamp;
-}
-
 // Update LFO modulation
 function updateLfoModulation(timestamp) {
     if (!lfoActive || lfoDestination === 'off') return;
@@ -806,6 +596,19 @@ function applyLfoToParameter(paramId, lfoOutput) {
     
     // Update the parameter
     updateAudioParameter(paramId, clampedValue);
+    
+    // Update knob rotation using GSAP
+    const knob = document.getElementById(`${paramId}Knob`);
+    if (knob) {
+        const normalizedValue = (clampedValue - min) / range;
+        const rotation = normalizedValue * 270 - 135;
+        
+        gsap.to(knob, {
+            rotation: rotation,
+            duration: 0.05,
+            overwrite: true
+        });
+    }
 }
 
 
@@ -1930,6 +1733,38 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Initialize LFO scope
     initLfoScope();
+    
+    // Update LFO destination options to include EQ parameters
+    const lfoDestinationSelect = document.getElementById('lfoDestination');
+    if (lfoDestinationSelect) {
+        // Check if EQ options are already present
+        if (!lfoDestinationSelect.querySelector('option[value="eqLow"]')) {
+            const eqGroup = document.createElement('optgroup');
+            eqGroup.label = 'EQ';
+            
+            // Add all EQ-related parameters
+            const eqOptions = [
+                { value: 'eqLow', text: 'EQ Low' },
+                { value: 'eqMid', text: 'EQ Mid' },
+                { value: 'eqHigh', text: 'EQ High' },
+                { value: 'eqMidFreq', text: 'EQ Mid Freq' },
+                { value: 'eqQ', text: 'EQ Q' }
+            ];
+            
+            eqOptions.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.text;
+                eqGroup.appendChild(option);
+            });
+            
+            lfoDestinationSelect.appendChild(eqGroup);
+            console.log('Added EQ options to LFO destinations');
+        }
+    }
+    
+    // Trigger initial LFO destination setup (keep existing code)
+    document.getElementById('lfoDestination').dispatchEvent(new Event('change'));
 });
 
 
@@ -2376,6 +2211,8 @@ const initPatch = {
     phaserMix: "0",
     lfoRate: "1",
     lfoAmount: "50",
+    lfoDestination: "off",
+    lfoWaveform: "sine",
     droneOctave: "-1",
     eqLow: "0",
     eqMid: "0",
@@ -3052,7 +2889,7 @@ function randomizeDrumPattern() {
 
 document.getElementById('chaosButton').addEventListener('click', () => {
     // Randomize waveform
-    const waveforms = ['sine', 'square', 'sawtooth', 'triangle', 'pulse', 'fmsine', 'amsine', 'fatsawtooth', 'fatsquare'];
+    const waveforms = ['sine', 'square', 'sawtooth', 'triangle', 'pulse', 'fmsine']; // removed , 'amsine', 'fatsawtooth', 'fatsquare'
     const randomWaveform = waveforms[Math.floor(Math.random() * waveforms.length)];
     const waveformInput = document.getElementById('waveform');
     waveformInput.value = randomWaveform;
@@ -4376,38 +4213,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Add module collapsible functionality
 function setupCollapsibleModules() {
-    // Basic modules with standard naming
-    const modules = ['oscillator', 'filter', 'effects', 'adsr', 'eq', 'drone', 'preset', 'lfo', 'mastering', 'oscilloscope'];
+    const allModules = document.querySelectorAll('.module');
     
-    // Add other special modules
-    const specialModules = {
-        'chord': '.chord-module, .quick-chord-module',
-        'sequencer': '.sequencer-module, .step-sequencer-module, [class*="sequencer"]',
-        'drum-loop': '.drum-loop-module, .drum-machine-module'
-    };
-    
-    // Process special modules
-    for (const [name, selector] of Object.entries(specialModules)) {
-        const moduleEl = document.querySelector(selector);
-        if (moduleEl) {
-            modules.push(name);
-            // Ensure the standard class is present
-            if (!moduleEl.classList.contains(`${name}-module`)) {
-                moduleEl.classList.add(`${name}-module`);
-            }
-        }
-    }
-    
-    modules.forEach(moduleName => {
-        // Handle special case for drum-loop which has a dash in the name
-        const moduleSelector = moduleName === 'drum-loop' ? '.drum-loop-module' : `.${moduleName}-module`;
-        const moduleEl = document.querySelector(moduleSelector);
-        if (!moduleEl) {
-            console.log(`Module not found: ${moduleSelector}`);
-            return;
-        }
-        
+    allModules.forEach(moduleEl => {
+        const moduleName = moduleEl.className.split(' ').find(cls => cls.endsWith('-module') || cls.endsWith('-container'));
         const headerEl = moduleEl.querySelector('.module-header');
+        
         if (!headerEl) {
             console.log(`Header not found in module: ${moduleSelector}`);
             return;
@@ -4432,16 +4243,44 @@ function setupCollapsibleModules() {
             const wasCollapsed = moduleEl.classList.contains('collapsed');
             moduleEl.classList.toggle('collapsed');
             
-            // Existing code for handling module collapse...
+            // Update the icon
+            const icon = collapseBtn.querySelector('i');
+            if (moduleEl.classList.contains('collapsed')) {
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+                collapseBtn.setAttribute('title', 'Expand module');
+                
+                // Special handling for sequencer module
+                if (moduleEl.classList.contains('sequencer-container')) {
+                    // Also hide keyboard and sequencer elements
+                    const keyboard = document.getElementById('keyboard');
+                    const sequencer = document.getElementById('sequencer');
+                    
+                    if (keyboard) keyboard.style.display = 'none';
+                    if (sequencer) sequencer.style.display = 'none';
+                }
+            } else {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+                collapseBtn.setAttribute('title', 'Collapse module');
+                
+                // Special handling for sequencer module
+                if (moduleEl.classList.contains('sequencer-container')) {
+                    // Show keyboard and sequencer elements
+                    const keyboard = document.getElementById('keyboard');
+                    const sequencer = document.getElementById('sequencer');
+                    
+                    if (keyboard) keyboard.style.display = '';
+                    if (sequencer) sequencer.style.display = '';
+                }
+            }
             
             // Add this to update animation visibility based on module state
             // For modules with canvas animations
-            if (moduleName === 'oscilloscope' || moduleName === 'lfo' || 
-                moduleName === 'spectrum' || moduleName === 'particles') {
-                
-                // Get the animation key name - check these mappings match your HTML class names
+            if (moduleName === 'oscilloscope' || moduleName === 'lfo') {
+                // Get the animation key name
                 const animKey = moduleName === 'oscilloscope' ? 'oscilloscope' :
-                                moduleName === 'lfo' ? 'lfoScope' :
+                                moduleName === 'lfo' ? 'lfoScope' : 
                                 moduleName === 'spectrum' ? 'spectrum' : 'particles';
                 
                 // Update active state in the animation system
@@ -4459,6 +4298,7 @@ function setupCollapsibleModules() {
         const newBtn = headerEl.querySelector('.module-collapse-btn');
         newBtn.addEventListener('click', toggleCollapse);
     });
+    
     // Add a global keyboard shortcut for toggling all modules
     setupCollapseKeyboardShortcut();
 }
@@ -4486,13 +4326,13 @@ function toggleAllModules(collapse) {
             }
             
             // Handle sequencer specially
-            if (moduleEl.classList.contains('sequencer-module')) {
-                // Hide all direct children except header
-                Array.from(moduleEl.children).forEach(child => {
-                    if (!child.classList.contains('module-header')) {
-                        child.style.display = 'none';
-                    }
-                });
+            if (moduleEl.classList.contains('sequencer-container')) {
+                // Also hide keyboard and sequencer elements
+                const keyboard = document.getElementById('keyboard');
+                const sequencer = document.getElementById('sequencer');
+                
+                if (keyboard) keyboard.style.display = 'none';
+                if (sequencer) sequencer.style.display = 'none';
             }
         } 
         else if (!collapse && isCollapsed) {
@@ -4508,13 +4348,13 @@ function toggleAllModules(collapse) {
             }
             
             // Handle sequencer specially
-            if (moduleEl.classList.contains('sequencer-module')) {
-                // Show all direct children
-                Array.from(moduleEl.children).forEach(child => {
-                    if (!child.classList.contains('module-header')) {
-                        child.style.display = '';
-                    }
-                });
+            if (moduleEl.classList.contains('sequencer-container')) {
+                // Show keyboard and sequencer elements
+                const keyboard = document.getElementById('keyboard');
+                const sequencer = document.getElementById('sequencer');
+                
+                if (keyboard) keyboard.style.display = '';
+                if (sequencer) sequencer.style.display = '';
             }
         }
     });
@@ -4565,9 +4405,7 @@ window.addEventListener('resize', function() {
         // Update canvas dimensions
         const canvases = [
             animations.oscilloscope.element,
-            animations.lfoScope.element,
-            animations.spectrum.element,
-            animations.particles.element
+            animations.lfoScope.element
         ];
         
         canvases.forEach(canvas => {
@@ -4581,8 +4419,6 @@ window.addEventListener('resize', function() {
             if (animations.oscilloscope.element) updateOscilloscope(performance.now());
             if (animations.lfoScope.element) updateLfoScope(performance.now());
         }
-        updateSpectrumAnalyzer(performance.now());
-        updateParticles(performance.now());
         
         console.log('Canvas dimensions updated after resize');
     }, 250); // 250ms debounce

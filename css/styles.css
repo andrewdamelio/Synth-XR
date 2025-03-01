@@ -1142,8 +1142,8 @@ input[type="range"] {
         margin-bottom: 15px;
     }
     
-    .main-modules {
-        grid-template-columns: 1fr;
+    .main-modules-2 {
+        margin-bottom: -52px;
     }
     
     .oscillator-module,
@@ -1156,6 +1156,7 @@ input[type="range"] {
     
     .visualization {
         grid-template-columns: 1fr;
+        margin: 3.5rem 0 0 0;
     }
     
     .oscilloscope-module,
@@ -1866,6 +1867,15 @@ input[type="range"] {
     .drum-steps {
         gap: 3px;
     }
+    
+    /* Turn off select arrow for step sequencer on mobile */
+    .step select {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-image: none;
+        padding-right: 6px; /* Reduce padding since we're removing the arrow */
+    }
 }
 
 @media (max-width: 768px) {
@@ -2003,7 +2013,7 @@ input[type="range"] {
 .module.collapsed .drone-visualizer,
 .module.collapsed .effect-group,
 .module.collapsed .adsr-graph,
-.module.collapsed .adsr-visualization,
+.module.collapsed .adsr-visualizer,
 .module.collapsed .eq-slider-container,
 .module.collapsed .eq-visualization,
 .module.collapsed .drone-controls,
