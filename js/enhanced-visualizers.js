@@ -139,6 +139,15 @@ class EnhancedVisualizers {
         // Initialize all visualizers
         this.initVisualizers();
         
+        // Add click handler to container to cycle through visualizers
+        this.container.addEventListener('click', (event) => {
+            // Check if click is on the container but not on the toolbar
+            const toolbar = this.container.querySelector('.visualizer-toolbar');
+            if (toolbar && !toolbar.contains(event.target)) {
+                this.cycleToNextVisualizer();
+            }
+        });
+        
         // Add window resize handler
         window.addEventListener('resize', this.handleResize.bind(this));
         
@@ -148,6 +157,30 @@ class EnhancedVisualizers {
         this.showVisualizer(this.activeVisualizer);
         
         console.log('Enhanced visualizers initialized');
+    }
+    
+    // Cycle to the next visualizer
+    cycleToNextVisualizer() {
+        // Get all available visualizer options
+        const visualizerSelector = this.container.querySelector('.visualizer-selector');
+        if (!visualizerSelector) return;
+        
+        const options = Array.from(visualizerSelector.options);
+        
+        // Find the index of the current active visualizer
+        const currentIndex = options.findIndex(option => option.value === this.activeVisualizer);
+        
+        // Calculate the next index (with wrap-around)
+        const nextIndex = (currentIndex + 1) % options.length;
+        
+        // Get the next visualizer ID
+        const nextVisualizerId = options[nextIndex].value;
+        
+        // Show the next visualizer
+        this.showVisualizer(nextVisualizerId);
+        
+        // Update the dropdown value
+        visualizerSelector.value = nextVisualizerId;
     }
     
     // Create toolbar with controls
