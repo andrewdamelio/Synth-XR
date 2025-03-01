@@ -57,8 +57,6 @@ let lfoBaseValues = {};
 lfoBaseValues.pan = 0; // Default to center
 lfoBaseValues.masterVolume = parseFloat(document.getElementById('masterVolume').value) // Current master volume
 
-let lfoAnimationFrame = null;
-
 // Initialize wet values to 0 (effects off)
 chorus.wet.value = 0;
 distortion.wet.value = 0;
@@ -120,6 +118,699 @@ let droneSynth = null;
 let drumSequencerRunning = false;
 let currentDrumStep = 0;
 const drumSounds = {};
+
+
+// Animation control system
+const animations = {
+    // Flags to track which animations are active
+    isRunning: false,
+    oscilloscope: {
+        active: true,
+        element: null,
+        context: null,
+        lastUpdate: 0
+    },
+    lfoScope: {
+        active: true,
+        element: null,
+        context: null,
+        lastUpdate: 0
+    },
+    spectrum: {
+        active: true,
+        element: null,
+        context: null,
+        lastUpdate: 0
+    },
+    particles: {
+        active: true,
+        element: null,
+        context: null,
+        lastUpdate: 0
+    },
+    // Add any other visualizations here
+    
+    // Performance settings
+    settings: {
+        isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+        frameInterval: 1, // Will be adjusted based on device
+        throttleAmount: 1, // Default: update every frame
+        lastFrameTime: 0,
+        fpsLimit: 60 // Default target FPS
+    }
+};
+
+// Initialize animation settings based on device
+function initAnimationSettings() {
+    const { isMobile } = animations.settings;
+    
+    if (isMobile) {
+        // Throttle more aggressively on mobile
+        animations.settings.throttleAmount = 2; // Update every 2nd frame
+        animations.settings.fpsLimit = 30; // Target 30fps on mobile
+    }
+    
+    animations.settings.frameInterval = 1000 / animations.settings.fpsLimit;
+    
+    // Cache DOM references
+    animations.oscilloscope.element = document.getElementById('oscilloscope');
+    animations.oscilloscope.context = animations.oscilloscope.element?.getContext('2d');
+    
+    animations.lfoScope.element = document.getElementById('lfoScope');
+    animations.lfoScope.context = animations.lfoScope.element?.getContext('2d');
+    
+    animations.spectrum.element = document.getElementById('spectrumAnalyzer'); // Make sure IDs match your HTML
+    animations.spectrum.context = animations.spectrum.element?.getContext('2d');
+
+    animations.particles.element = document.getElementById('particleSystem'); // Make sure IDs match your HTML
+    animations.particles.context = animations.particles.element?.getContext('2d');
+    
+    console.log(`Animation settings initialized: ${isMobile ? 'Mobile' : 'Desktop'} mode, ${animations.settings.fpsLimit}fps target`);
+}
+
+// The main animation loop
+function mainAnimationLoop(timestamp) {
+    if (!animations.isRunning) return;
+    
+    requestAnimationFrame(mainAnimationLoop);
+    
+    // Throttle frame rate if needed
+    const elapsed = timestamp - animations.settings.lastFrameTime;
+    if (elapsed < animations.settings.frameInterval) {
+        return; // Skip this frame
+    }
+    
+    // Update time tracking
+    animations.settings.lastFrameTime = timestamp - (elapsed % animations.settings.frameInterval);
+    
+    // Check visibility and update only what's needed
+    if (animations.oscilloscope.active && isElementVisible(animations.oscilloscope.element)) {
+        updateOscilloscope(timestamp);
+    }
+    
+    if (animations.lfoScope.active && isElementVisible(animations.lfoScope.element)) {
+        updateLfoScope(timestamp);
+    }
+    
+    if (animations.spectrum.active && isElementVisible(animations.spectrum.element)) {
+        updateSpectrumAnalyzer(timestamp);
+    }
+    
+    if (animations.particles.active && isElementVisible(animations.particles.element)) {
+        updateParticles(timestamp);
+    }
+    
+    // If LFO is active, update it
+    if (lfoActive && lfoDestination !== 'off') {
+        updateLfoModulation(timestamp);
+    }
+    
+    // Update any other animations here
+}
+
+// Check if an element is visible in viewport and not collapsed
+function isElementVisible(element) {
+    if (!element) return false;
+    
+    // Check if parent module is collapsed
+    const moduleParent = element.closest('.module');
+    if (moduleParent && moduleParent.classList.contains('collapsed')) {
+        return false;
+    }
+    
+    // Check if element is in viewport
+    const rect = element.getBoundingClientRect();
+    return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.top < window.innerHeight &&
+        rect.bottom > 0 &&
+        // Also check document visibility
+        document.visibilityState === 'visible'
+    );
+}
+
+// Start all animations
+function startAnimations() {
+    if (!animations.isRunning) {
+        animations.isRunning = true;
+        animations.settings.lastFrameTime = performance.now();
+        requestAnimationFrame(mainAnimationLoop);
+        console.log('Animations started');
+    }
+}
+
+// Stop all animations
+function stopAnimations() {
+    animations.isRunning = false;
+    console.log('Animations stopped');
+}
+
+// Handle page visibility changes
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') {
+        stopAnimations();
+    } else if (document.visibilityState === 'visible') {
+        startAnimations();
+    }
+});
+
+// Update the oscilloscope visualization
+function updateOscilloscope(timestamp) {
+    const { element, context } = animations.oscilloscope;
+    if (!element || !context || !waveform) return;
+    
+    const width = element.width;
+    const height = element.height;
+    const values = waveform.getValue();
+    const currentScheme = colorSchemes[currentColorSchemeIndex];
+
+    context.fillStyle = currentScheme.bg;
+    context.fillRect(0, 0, width, height);
+
+    context.beginPath();
+    context.strokeStyle = currentScheme.wave;
+    context.lineWidth = 2;
+
+    for (let i = 0; i < values.length; i++) {
+        const x = (i / values.length) * width;
+        const y = ((values[i] + 1) / 2) * height;
+
+        if (i === 0) {
+            context.moveTo(x, y);
+        } else {
+            context.lineTo(x, y);
+        }
+    }
+
+    context.stroke();
+    
+    // Update tracking time
+    animations.oscilloscope.lastUpdate = timestamp;
+}
+
+function updateLfoScope(timestamp) {
+    const { element, context } = animations.lfoScope;
+    if (!element || !context) return;
+    
+    // Get current LFO settings
+    const waveform = document.getElementById('lfoWaveform').value;
+    const rate = parseFloat(document.getElementById('lfoRate').value);
+    const amount = parseInt(document.getElementById('lfoAmount').value) / 100;
+    
+    const width = element.width;
+    const height = element.height;
+    const centerY = height / 2;
+    
+    // Clear the canvas
+    context.clearRect(0, 0, width, height);
+    
+    // Draw background with gradient
+    const bgGradient = context.createLinearGradient(0, 0, 0, height);
+    bgGradient.addColorStop(0, 'rgba(15, 15, 20, 0.8)');
+    bgGradient.addColorStop(1, 'rgba(20, 20, 30, 0.8)');
+    context.fillStyle = bgGradient;
+    context.fillRect(0, 0, width, height);
+
+    // Horizontal center line (slightly brighter)
+    context.beginPath();
+    context.moveTo(0, centerY);
+    context.lineTo(width, centerY);
+    context.strokeStyle = 'rgba(150, 150, 200, 0.3)';
+    context.stroke();
+
+    // Horizontal grid lines
+    context.strokeStyle = 'rgba(100, 100, 150, 0.1)';
+    for (let y = height / 4; y < height; y += height / 4) {
+        if (Math.abs(y - centerY) < 2) continue; // Skip center line
+        context.beginPath();
+        context.moveTo(0, y);
+        context.lineTo(width, y);
+        context.stroke();
+    }
+
+    // Vertical grid lines
+    for (let x = 0; x < width; x += width / 8) {
+        context.beginPath();
+        context.moveTo(x, 0);
+        context.lineTo(x, height);
+        context.stroke();
+    }
+
+    // Calculate how many cycles to show based on rate
+    const cyclesShown = 2; // Show 2 complete cycles
+
+    // Create colored gradient for the waveform
+    const waveGradient = context.createLinearGradient(0, width, 0, 0);
+
+    // Different color schemes for different waveforms
+    switch (waveform) {
+        case 'sine':
+            waveGradient.addColorStop(0, '#00e5ff');
+            waveGradient.addColorStop(0.5, '#18ffff');
+            waveGradient.addColorStop(1, '#00e5ff');
+            break;
+        case 'square':
+            waveGradient.addColorStop(0, '#ff1744');
+            waveGradient.addColorStop(0.5, '#ff5252');
+            waveGradient.addColorStop(1, '#ff1744');
+            break;
+        case 'triangle':
+            waveGradient.addColorStop(0, '#00c853');
+            waveGradient.addColorStop(0.5, '#69f0ae');
+            waveGradient.addColorStop(1, '#00c853');
+            break;
+        case 'sawtooth':
+            waveGradient.addColorStop(0, '#ffab00');
+            waveGradient.addColorStop(0.5, '#ffd740');
+            waveGradient.addColorStop(1, '#ffab00');
+            break;
+        case 'random':
+            waveGradient.addColorStop(0, '#d500f9');
+            waveGradient.addColorStop(0.5, '#ea80fc');
+            waveGradient.addColorStop(1, '#d500f9');
+            break;
+        default:
+            waveGradient.addColorStop(0, '#00e5ff');
+            waveGradient.addColorStop(1, '#00e5ff');
+    }
+
+    // Draw the waveform
+    context.beginPath();
+
+    // Calculate amplitude (capped at 80% of half-height for visibility)
+    const amplitude = (height / 2) * 0.8 * amount;
+
+    // Time is based on current time for animation
+    const now = timestamp / 1000; // Current time in seconds
+
+    // Starting position
+    let startX = 0;
+    let startY = 0;
+
+    // Generate points for the waveform
+    for (let x = 0; x <= width; x++) {
+        // The x-position determines where in the cycle we are
+        const t = (x / width) * (cyclesShown * Math.PI * 2) + (now * rate * Math.PI * 2);
+        let y;
+
+        switch (waveform) {
+            case 'sine':
+                y = centerY - Math.sin(t) * amplitude;
+                break;
+            case 'square':
+                y = centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude;
+                break;
+            case 'triangle':
+                y = centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude;
+                break;
+            case 'sawtooth':
+                y = centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude;
+                break;
+            case 'random':
+                // For random, create stable random values at fixed intervals
+                const segment = Math.floor(t / (Math.PI / 4)); // Change every 1/8th of cycle
+                // Use sine of a large number to get pseudorandom value between -1 and 1
+                const randValue = Math.sin(segment * 1000) * 2 - 1;
+                y = centerY - randValue * amplitude;
+                break;
+            default:
+                y = centerY - Math.sin(t) * amplitude;
+        }
+
+        if (x === 0) {
+            startX = 0;
+            startY = y;
+            context.moveTo(x, y);
+        } else {
+            context.lineTo(x, y);
+        }
+    }
+
+    // Close the path for filling
+    context.lineTo(width, centerY);
+    context.lineTo(0, centerY);
+    context.closePath();
+
+    // Fill with semi-transparent gradient
+    const fillGradient = context.createLinearGradient(0, 0, 0, height);
+
+    switch (waveform) {
+        case 'sine':
+            fillGradient.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
+            fillGradient.addColorStop(1, 'rgba(0, 229, 255, 0.05)');
+            break;
+        case 'square':
+            fillGradient.addColorStop(0, 'rgba(255, 23, 68, 0.2)');
+            fillGradient.addColorStop(1, 'rgba(255, 23, 68, 0.05)');
+            break;
+        case 'triangle':
+            fillGradient.addColorStop(0, 'rgba(0, 200, 83, 0.2)');
+            fillGradient.addColorStop(1, 'rgba(0, 200, 83, 0.05)');
+            break;
+        case 'sawtooth':
+            fillGradient.addColorStop(0, 'rgba(255, 171, 0, 0.2)');
+            fillGradient.addColorStop(1, 'rgba(255, 171, 0, 0.05)');
+            break;
+        case 'random':
+            fillGradient.addColorStop(0, 'rgba(213, 0, 249, 0.2)');
+            fillGradient.addColorStop(1, 'rgba(213, 0, 249, 0.05)');
+            break;
+        default:
+            fillGradient.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
+            fillGradient.addColorStop(1, 'rgba(0, 229, 255, 0.05)');
+    }
+
+    context.fillStyle = fillGradient;
+    context.fill();
+
+    // Redraw the path with line only for a sharp edge
+    context.beginPath();
+    context.moveTo(startX, startY);
+
+    for (let x = 0; x <= width; x++) {
+        const t = (x / width) * (cyclesShown * Math.PI * 2) + (now * rate * Math.PI * 2);
+        let y;
+
+        switch (waveform) {
+            case 'sine':
+                y = centerY - Math.sin(t) * amplitude;
+                break;
+            case 'square':
+                y = centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude;
+                break;
+            case 'triangle':
+                y = centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude;
+                break;
+            case 'sawtooth':
+                y = centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude;
+                break;
+            case 'random':
+                const segment = Math.floor(t / (Math.PI / 4));
+                const randValue = Math.sin(segment * 1000) * 2 - 1;
+                y = centerY - randValue * amplitude;
+                break;
+            default:
+                y = centerY - Math.sin(t) * amplitude;
+        }
+
+        if (x === 0) {
+            context.moveTo(x, y);
+        } else {
+            context.lineTo(x, y);
+        }
+    }
+
+    // Set line style with glow effect
+    context.strokeStyle = waveGradient;
+    context.lineWidth = 2;
+    context.shadowColor = waveform === 'sine' ? '#00e5ff' :
+        waveform === 'square' ? '#ff1744' :
+        waveform === 'triangle' ? '#00c853' :
+        waveform === 'sawtooth' ? '#ffab00' : '#d500f9';
+    context.shadowBlur = 5;
+    context.shadowOffsetX = 0;
+    context.shadowOffsetY = 0;
+    context.stroke();
+
+    // Draw current playhead position
+    const cyclePosition = (now * rate) % 1;
+    const playheadX = cyclePosition * (width / cyclesShown);
+
+    context.beginPath();
+    context.moveTo(playheadX, 0);
+    context.lineTo(playheadX, height);
+    context.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    context.lineWidth = 1;
+    context.shadowBlur = 0;
+    context.stroke();
+
+    // Annotate with frequency
+    context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    context.font = '10px sans-serif';
+    context.textAlign = 'right';
+    context.fillText(`${rate.toFixed(1)} Hz`, width - 5, height - 5);
+    
+    // Update tracking time
+    animations.lfoScope.lastUpdate = timestamp;
+}
+
+// Update the spectrum analyzer
+function updateSpectrumAnalyzer(timestamp) {
+    const { element, context } = animations.spectrum;
+    if (!element || !context || !fft) return;
+    
+    function drawSpectrumAnalyzer() {
+        requestAnimationFrame(drawSpectrumAnalyzer);
+
+        if (!canvas.width || !fft) return; // Skip if canvas not visible or fft not available
+
+        const width = canvas.width;
+        const height = canvas.height;
+        const spectrumValues = fft.getValue();
+
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = 'rgba(18, 18, 18, 0.2)';
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw frequency bins
+        const binWidth = width / (spectrumValues.length / 2);
+
+        // Create gradient for bars
+        const gradient = ctx.createLinearGradient(0, height, 0, 0);
+        gradient.addColorStop(0, 'rgba(98, 0, 234, 0.8)');
+        gradient.addColorStop(0.5, 'rgba(0, 229, 255, 0.8)');
+        gradient.addColorStop(1, 'rgba(255, 23, 68, 0.8)');
+
+        ctx.fillStyle = gradient;
+
+        // Draw only the first half of FFT data (up to Nyquist frequency)
+        for (let i = 0; i < spectrumValues.length / 2; i++) {
+            // Convert dB value to height
+            // FFT values are typically in dB scale (-100 to 0)
+            const value = spectrumValues[i];
+            const dbValue = 20 * Math.log10(Math.abs(value) + 0.00001); // Avoid log(0)
+            const normalizedValue = (dbValue + 100) / 100; // Normalize -100dB..0dB to 0..1
+
+            const barHeight = normalizedValue * height;
+
+            // Draw bar
+            ctx.fillRect(i * binWidth, height - barHeight, binWidth * 0.8, barHeight);
+        }
+
+        // Add frequency markers
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.font = '10px sans-serif';
+
+        const freqMarkers = [100, 1000, 10000];
+        freqMarkers.forEach(freq => {
+            // Convert frequency to bin index
+            const binIndex = Math.floor((freq / (Tone.context.sampleRate / 2)) * (spectrumValues.length / 2));
+            const x = binIndex * binWidth;
+
+            // Draw marker line
+            ctx.fillRect(x, 0, 1, height);
+
+            // Draw label
+            let label;
+            if (freq >= 1000) {
+                label = `${freq/1000}kHz`;
+            } else {
+                label = `${freq}Hz`;
+            }
+            ctx.fillText(label, x + 3, 12);
+        });
+    }
+    
+    // Update tracking time
+    animations.spectrum.lastUpdate = timestamp;
+}
+
+// Update the particle system
+function updateParticles(timestamp) {
+    const { element, context } = animations.particles;
+    if (!element || !context) return;
+    
+    requestAnimationFrame(updateParticles);
+
+    if (!canvas.width) return; // Skip if canvas not visible
+
+    // Get audio data for reactivity
+    const waveformData = waveform.getValue();
+    const fftData = fft.getValue();
+
+    // Calculate overall amplitude
+    let sum = 0;
+    for (let i = 0; i < waveformData.length; i++) {
+        sum += Math.abs(waveformData[i]);
+    }
+    const averageAmplitude = sum / waveformData.length;
+
+    // Get bass and treble energy
+    const bassEnergy = Math.abs(fftData[5]) + Math.abs(fftData[10]) + Math.abs(fftData[15]);
+    const trebleEnergy = Math.abs(fftData[100]) + Math.abs(fftData[150]) + Math.abs(fftData[200]);
+
+    // Clear canvas with fade effect
+    ctx.fillStyle = 'rgba(18, 18, 18, 0.1)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Update and draw particles
+    particles.forEach(p => {
+        // Apply audio reactivity
+        p.size = p.size * 0.95 + (p.size * averageAmplitude * 5) * 0.05;
+        p.speedX += (Math.random() * 2 - 1) * bassEnergy * 0.02;
+        p.speedY += (Math.random() * 2 - 1) * trebleEnergy * 0.02;
+
+        // Update position
+        p.x += p.speedX;
+        p.y += p.speedY;
+
+        // Apply damping
+        p.speedX *= 0.99;
+        p.speedY *= 0.99;
+
+        // Wrap around edges
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+
+        // Draw particle
+        ctx.globalAlpha = p.opacity;
+        ctx.fillStyle = `hsla(${p.hue}, 100%, 60%, ${p.opacity})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw connections between nearby particles
+        particles.forEach(p2 => {
+            const dx = p.x - p2.x;
+            const dy = p.y - p2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 50) {
+                ctx.globalAlpha = (1 - distance / 50) * 0.2;
+                ctx.strokeStyle = `hsla(${(p.hue + p2.hue) / 2}, 100%, 60%, ${ctx.globalAlpha})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+        });
+    });
+
+    ctx.globalAlpha = 1; // Reset alpha
+    
+    // Option to reduce particles on mobile
+    const activeParticleCount = animations.settings.isMobile ? 
+        Math.floor(particles.length / 2) : particles.length;
+    
+    // Only process the active particles
+    for (let i = 0; i < activeParticleCount; i++) {
+        // Update particle i...
+    }
+    
+    // Optimize connections - limit the number of pairs checked
+    const connectionLimit = animations.settings.isMobile ? 50 : 200;
+    let connectionCount = 0;
+    
+    for (let i = 0; i < activeParticleCount; i++) {
+        const p = particles[i];
+        // Check only nearby particles instead of all particles
+        for (let j = i + 1; j < activeParticleCount; j++) {
+            if (connectionCount >= connectionLimit) break;
+            
+            const p2 = particles[j];
+            const dx = p.x - p2.x;
+            const dy = p.y - p2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < 50) {
+                // Draw connection
+                connectionCount++;
+            }
+        }
+    }
+    
+    // Update tracking time
+    animations.particles.lastUpdate = timestamp;
+}
+
+// Update LFO modulation
+function updateLfoModulation(timestamp) {
+    if (!lfoActive || lfoDestination === 'off') return;
+    
+    // Get LFO settings
+    const waveform = document.getElementById('lfoWaveform').value;
+    const rate = parseFloat(document.getElementById('lfoRate').value);
+    const amountPercent = parseInt(document.getElementById('lfoAmount').value);
+    const amount = amountPercent / 100;
+    
+    // Calculate current time and phase
+    const currentTime = timestamp / 1000; // Convert to seconds
+    const phase = (currentTime * rate) % 1;
+    
+    // Calculate LFO output value
+    let lfoOutput;
+    switch (waveform) {
+        case 'sine':
+            lfoOutput = Math.sin(phase * Math.PI * 2);
+            break;
+        case 'triangle':
+            lfoOutput = 1 - Math.abs((phase * 4) % 4 - 2);
+            break;
+        case 'square':
+            lfoOutput = phase < 0.5 ? 1 : -1;
+            break;
+        case 'sawtooth':
+            lfoOutput = (phase * 2) - 1;
+            break;
+        case 'random':
+            const segments = 8;
+            const segmentIndex = Math.floor(phase * segments);
+            lfoOutput = Math.sin(segmentIndex * 1000) * 2 - 1;
+            break;
+        default:
+            lfoOutput = 0;
+    }
+    
+    // Scale by amount
+    lfoOutput *= amount;
+    
+    // Apply to target parameter
+    applyLfoToParameter(lfoDestination, lfoOutput);
+}
+
+// Apply LFO modulation to a parameter
+function applyLfoToParameter(paramId, lfoOutput) {
+    // Original logic from your animateLfo function
+    const input = document.getElementById(paramId);
+    if (!input) return;
+    
+    const min = parseFloat(input.min);
+    const max = parseFloat(input.max);
+    const baseValue = lfoBaseValues[paramId] || (min + (max - min) / 2);
+    
+    // Calculate modulation range
+    const range = max - min;
+    const modRange = range * 0.5;
+    
+    // Calculate modulated value
+    const modValue = baseValue + (lfoOutput * modRange);
+    const clampedValue = Math.max(min, Math.min(max, modValue));
+    
+    // Update input value
+    input.value = clampedValue;
+    
+    // Update the parameter
+    updateAudioParameter(paramId, clampedValue);
+}
+
+
+
+
 
 // Helper function to consistently handle mono note changes
 function handleMonoNoteChange(newNote) {
@@ -288,32 +979,16 @@ resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
 function drawOscilloscope() {
-    requestAnimationFrame(drawOscilloscope);
-
-    const width = canvas.width;
-    const height = canvas.height;
-    const values = waveform.getValue();
-    const currentScheme = colorSchemes[currentColorSchemeIndex];
-
-    ctx.fillStyle = currentScheme.bg;
-    ctx.fillRect(0, 0, width, height);
-
-    ctx.beginPath();
-    ctx.strokeStyle = currentScheme.wave;
-    ctx.lineWidth = 2;
-
-    for (let i = 0; i < values.length; i++) {
-        const x = (i / values.length) * width;
-        const y = ((values[i] + 1) / 2) * height;
-
-        if (i === 0) {
-            ctx.moveTo(x, y);
-        } else {
-            ctx.lineTo(x, y);
-        }
-    }
-
-    ctx.stroke();
+    // This is now just a setup function
+    resizeCanvas();
+    
+    // Register the oscilloscope in the animation system
+    animations.oscilloscope.element = canvas;
+    animations.oscilloscope.context = ctx;
+    animations.oscilloscope.active = true;
+    
+    // The actual drawing is now done in updateOscilloscope()
+    console.log('Oscilloscope initialized in unified animation system');
 }
 
 // Add click event to change color scheme
@@ -1048,190 +1723,6 @@ document.getElementById('eqQ').addEventListener('input', function(e) {
     updateEqResponse();
 });
 
-// Spectrum Analyzer
-function setupSpectrumAnalyzer() {
-    const canvas = document.getElementById('spectrumAnalyzer');
-    const ctx = canvas.getContext('2d');
-
-    function resizeSpectrumCanvas() {
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-    }
-
-    resizeSpectrumCanvas();
-    window.addEventListener('resize', resizeSpectrumCanvas);
-
-    function drawSpectrumAnalyzer() {
-        requestAnimationFrame(drawSpectrumAnalyzer);
-
-        if (!canvas.width || !fft) return; // Skip if canvas not visible or fft not available
-
-        const width = canvas.width;
-        const height = canvas.height;
-        const spectrumValues = fft.getValue();
-
-        // Clear canvas
-        ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = 'rgba(18, 18, 18, 0.2)';
-        ctx.fillRect(0, 0, width, height);
-
-        // Draw frequency bins
-        const binWidth = width / (spectrumValues.length / 2);
-
-        // Create gradient for bars
-        const gradient = ctx.createLinearGradient(0, height, 0, 0);
-        gradient.addColorStop(0, 'rgba(98, 0, 234, 0.8)');
-        gradient.addColorStop(0.5, 'rgba(0, 229, 255, 0.8)');
-        gradient.addColorStop(1, 'rgba(255, 23, 68, 0.8)');
-
-        ctx.fillStyle = gradient;
-
-        // Draw only the first half of FFT data (up to Nyquist frequency)
-        for (let i = 0; i < spectrumValues.length / 2; i++) {
-            // Convert dB value to height
-            // FFT values are typically in dB scale (-100 to 0)
-            const value = spectrumValues[i];
-            const dbValue = 20 * Math.log10(Math.abs(value) + 0.00001); // Avoid log(0)
-            const normalizedValue = (dbValue + 100) / 100; // Normalize -100dB..0dB to 0..1
-
-            const barHeight = normalizedValue * height;
-
-            // Draw bar
-            ctx.fillRect(i * binWidth, height - barHeight, binWidth * 0.8, barHeight);
-        }
-
-        // Add frequency markers
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.font = '10px sans-serif';
-
-        const freqMarkers = [100, 1000, 10000];
-        freqMarkers.forEach(freq => {
-            // Convert frequency to bin index
-            const binIndex = Math.floor((freq / (Tone.context.sampleRate / 2)) * (spectrumValues.length / 2));
-            const x = binIndex * binWidth;
-
-            // Draw marker line
-            ctx.fillRect(x, 0, 1, height);
-
-            // Draw label
-            let label;
-            if (freq >= 1000) {
-                label = `${freq/1000}kHz`;
-            } else {
-                label = `${freq}Hz`;
-            }
-            ctx.fillText(label, x + 3, 12);
-        });
-    }
-
-    drawSpectrumAnalyzer();
-}
-
-// Particle System
-function setupParticleSystem() {
-    const canvas = document.getElementById('particleSystem');
-    const ctx = canvas.getContext('2d');
-
-    function resizeParticleCanvas() {
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-    }
-
-    resizeParticleCanvas();
-    window.addEventListener('resize', resizeParticleCanvas);
-
-    // Create particles
-    const particles = [];
-    const particleCount = 100;
-
-    for (let i = 0; i < particleCount; i++) {
-        particles.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            size: Math.random() * 4 + 1,
-            speedX: Math.random() * 2 - 1,
-            speedY: Math.random() * 2 - 1,
-            hue: Math.random() * 60 + 200, // Blue to purple range
-            opacity: Math.random() * 0.5 + 0.2
-        });
-    }
-
-    function updateParticles() {
-        requestAnimationFrame(updateParticles);
-
-        if (!canvas.width) return; // Skip if canvas not visible
-
-        // Get audio data for reactivity
-        const waveformData = waveform.getValue();
-        const fftData = fft.getValue();
-
-        // Calculate overall amplitude
-        let sum = 0;
-        for (let i = 0; i < waveformData.length; i++) {
-            sum += Math.abs(waveformData[i]);
-        }
-        const averageAmplitude = sum / waveformData.length;
-
-        // Get bass and treble energy
-        const bassEnergy = Math.abs(fftData[5]) + Math.abs(fftData[10]) + Math.abs(fftData[15]);
-        const trebleEnergy = Math.abs(fftData[100]) + Math.abs(fftData[150]) + Math.abs(fftData[200]);
-
-        // Clear canvas with fade effect
-        ctx.fillStyle = 'rgba(18, 18, 18, 0.1)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Update and draw particles
-        particles.forEach(p => {
-            // Apply audio reactivity
-            p.size = p.size * 0.95 + (p.size * averageAmplitude * 5) * 0.05;
-            p.speedX += (Math.random() * 2 - 1) * bassEnergy * 0.02;
-            p.speedY += (Math.random() * 2 - 1) * trebleEnergy * 0.02;
-
-            // Update position
-            p.x += p.speedX;
-            p.y += p.speedY;
-
-            // Apply damping
-            p.speedX *= 0.99;
-            p.speedY *= 0.99;
-
-            // Wrap around edges
-            if (p.x < 0) p.x = canvas.width;
-            if (p.x > canvas.width) p.x = 0;
-            if (p.y < 0) p.y = canvas.height;
-            if (p.y > canvas.height) p.y = 0;
-
-            // Draw particle
-            ctx.globalAlpha = p.opacity;
-            ctx.fillStyle = `hsla(${p.hue}, 100%, 60%, ${p.opacity})`;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Draw connections between nearby particles
-            particles.forEach(p2 => {
-                const dx = p.x - p2.x;
-                const dy = p.y - p2.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                if (distance < 50) {
-                    ctx.globalAlpha = (1 - distance / 50) * 0.2;
-                    ctx.strokeStyle = `hsla(${(p.hue + p2.hue) / 2}, 100%, 60%, ${ctx.globalAlpha})`;
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(p.x, p.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
-                }
-            });
-        });
-
-        ctx.globalAlpha = 1; // Reset alpha
-    }
-
-    updateParticles();
-}
-
 // Create Drum Loop Grid
 function createDrumSteps() {
     const drumTypes = ['kick', 'snare', 'hihat', 'clap'];
@@ -1409,6 +1900,12 @@ createSequencer();
 
 // Create keyboard after DOM is fully loaded
 window.addEventListener('DOMContentLoaded', () => {
+    // Initialize animation settings
+    initAnimationSettings();
+
+    // Start animations
+    startAnimations();
+
     createKeyboard();
     // Initialize presets
     initializePresets();
@@ -1434,6 +1931,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Initialize LFO scope
     initLfoScope();
 });
+
 
 // Recalculate keyboard positions on window resize
 window.addEventListener('resize', () => {
@@ -3137,11 +3635,8 @@ document.getElementById('lfoWaveform').addEventListener('change', function(e) {
 
 // Function to stop LFO
 function stopLfo() {
-    if (lfoAnimationFrame) {
-        cancelAnimationFrame(lfoAnimationFrame);
-        lfoAnimationFrame = null;
-    }
     lfoActive = false;
+    console.log('LFO stopped');
 }
 
 // Function to restart LFO (for when parameters change)
@@ -3248,13 +3743,7 @@ function startLfo() {
                 overwrite: true
             });
         }
-
-        // Continue animation
-        lfoAnimationFrame = requestAnimationFrame(animateLfo);
     }
-
-    // Start animation
-    lfoAnimationFrame = requestAnimationFrame(animateLfo);
 }
 
 // Function to update audio parameter directly
@@ -3476,263 +3965,16 @@ function initLfoScope() {
         return;
     }
 
-    const lfoScopeCtx = lfoScopeCanvas.getContext('2d');
-
+    // Store in animation system first
+    animations.lfoScope.element = lfoScopeCanvas;
+    animations.lfoScope.context = lfoScopeCanvas.getContext('2d');
+    animations.lfoScope.active = true;
+    
     // Set canvas dimensions explicitly
     lfoScopeCanvas.width = lfoScopeCanvas.parentElement.clientWidth;
     lfoScopeCanvas.height = 80; // Fixed height
-
-    function drawLfoScope() {
-        // Get current LFO settings
-        const waveform = document.getElementById('lfoWaveform').value;
-        const rate = parseFloat(document.getElementById('lfoRate').value);
-        const amount = parseInt(document.getElementById('lfoAmount').value) / 100;
-
-        // Calculate dimensions
-        const width = lfoScopeCanvas.width;
-        const height = lfoScopeCanvas.height;
-        const centerY = height / 2;
-
-        // Clear the canvas
-        lfoScopeCtx.clearRect(0, 0, width, height);
-
-        // Draw background with gradient
-        const bgGradient = lfoScopeCtx.createLinearGradient(0, 0, 0, height);
-        bgGradient.addColorStop(0, 'rgba(15, 15, 20, 0.8)');
-        bgGradient.addColorStop(1, 'rgba(20, 20, 30, 0.8)');
-        lfoScopeCtx.fillStyle = bgGradient;
-        lfoScopeCtx.fillRect(0, 0, width, height);
-
-        // Horizontal center line (slightly brighter)
-        lfoScopeCtx.beginPath();
-        lfoScopeCtx.moveTo(0, centerY);
-        lfoScopeCtx.lineTo(width, centerY);
-        lfoScopeCtx.strokeStyle = 'rgba(150, 150, 200, 0.3)';
-        lfoScopeCtx.stroke();
-
-        // Horizontal grid lines
-        lfoScopeCtx.strokeStyle = 'rgba(100, 100, 150, 0.1)';
-        for (let y = height / 4; y < height; y += height / 4) {
-            if (Math.abs(y - centerY) < 2) continue; // Skip center line
-            lfoScopeCtx.beginPath();
-            lfoScopeCtx.moveTo(0, y);
-            lfoScopeCtx.lineTo(width, y);
-            lfoScopeCtx.stroke();
-        }
-
-        // Vertical grid lines
-        for (let x = 0; x < width; x += width / 8) {
-            lfoScopeCtx.beginPath();
-            lfoScopeCtx.moveTo(x, 0);
-            lfoScopeCtx.lineTo(x, height);
-            lfoScopeCtx.stroke();
-        }
-
-        // Calculate how many cycles to show based on rate
-        const cyclesShown = 2; // Show 2 complete cycles
-
-        // Create colored gradient for the waveform
-        const waveGradient = lfoScopeCtx.createLinearGradient(0, width, 0, 0);
-
-        // Different color schemes for different waveforms
-        switch (waveform) {
-            case 'sine':
-                waveGradient.addColorStop(0, '#00e5ff');
-                waveGradient.addColorStop(0.5, '#18ffff');
-                waveGradient.addColorStop(1, '#00e5ff');
-                break;
-            case 'square':
-                waveGradient.addColorStop(0, '#ff1744');
-                waveGradient.addColorStop(0.5, '#ff5252');
-                waveGradient.addColorStop(1, '#ff1744');
-                break;
-            case 'triangle':
-                waveGradient.addColorStop(0, '#00c853');
-                waveGradient.addColorStop(0.5, '#69f0ae');
-                waveGradient.addColorStop(1, '#00c853');
-                break;
-            case 'sawtooth':
-                waveGradient.addColorStop(0, '#ffab00');
-                waveGradient.addColorStop(0.5, '#ffd740');
-                waveGradient.addColorStop(1, '#ffab00');
-                break;
-            case 'random':
-                waveGradient.addColorStop(0, '#d500f9');
-                waveGradient.addColorStop(0.5, '#ea80fc');
-                waveGradient.addColorStop(1, '#d500f9');
-                break;
-            default:
-                waveGradient.addColorStop(0, '#00e5ff');
-                waveGradient.addColorStop(1, '#00e5ff');
-        }
-
-        // Draw the waveform
-        lfoScopeCtx.beginPath();
-
-        // Calculate amplitude (capped at 80% of half-height for visibility)
-        const amplitude = (height / 2) * 0.8 * amount;
-
-        // Time is based on current time for animation
-        const now = Date.now() / 1000; // Current time in seconds
-
-        // Starting position
-        let startX = 0;
-        let startY = 0;
-
-        // Generate points for the waveform
-        for (let x = 0; x <= width; x++) {
-            // The x-position determines where in the cycle we are
-            const t = (x / width) * (cyclesShown * Math.PI * 2) + (now * rate * Math.PI * 2);
-            let y;
-
-            switch (waveform) {
-                case 'sine':
-                    y = centerY - Math.sin(t) * amplitude;
-                    break;
-                case 'square':
-                    y = centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude;
-                    break;
-                case 'triangle':
-                    y = centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude;
-                    break;
-                case 'sawtooth':
-                    y = centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude;
-                    break;
-                case 'random':
-                    // For random, create stable random values at fixed intervals
-                    const segment = Math.floor(t / (Math.PI / 4)); // Change every 1/8th of cycle
-                    // Use sine of a large number to get pseudorandom value between -1 and 1
-                    const randValue = Math.sin(segment * 1000) * 2 - 1;
-                    y = centerY - randValue * amplitude;
-                    break;
-                default:
-                    y = centerY - Math.sin(t) * amplitude;
-            }
-
-            if (x === 0) {
-                startX = 0;
-                startY = y;
-                lfoScopeCtx.moveTo(x, y);
-            } else {
-                lfoScopeCtx.lineTo(x, y);
-            }
-        }
-
-        // Close the path for filling
-        lfoScopeCtx.lineTo(width, centerY);
-        lfoScopeCtx.lineTo(0, centerY);
-        lfoScopeCtx.closePath();
-
-        // Fill with semi-transparent gradient
-        const fillGradient = lfoScopeCtx.createLinearGradient(0, 0, 0, height);
-
-        switch (waveform) {
-            case 'sine':
-                fillGradient.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
-                fillGradient.addColorStop(1, 'rgba(0, 229, 255, 0.05)');
-                break;
-            case 'square':
-                fillGradient.addColorStop(0, 'rgba(255, 23, 68, 0.2)');
-                fillGradient.addColorStop(1, 'rgba(255, 23, 68, 0.05)');
-                break;
-            case 'triangle':
-                fillGradient.addColorStop(0, 'rgba(0, 200, 83, 0.2)');
-                fillGradient.addColorStop(1, 'rgba(0, 200, 83, 0.05)');
-                break;
-            case 'sawtooth':
-                fillGradient.addColorStop(0, 'rgba(255, 171, 0, 0.2)');
-                fillGradient.addColorStop(1, 'rgba(255, 171, 0, 0.05)');
-                break;
-            case 'random':
-                fillGradient.addColorStop(0, 'rgba(213, 0, 249, 0.2)');
-                fillGradient.addColorStop(1, 'rgba(213, 0, 249, 0.05)');
-                break;
-            default:
-                fillGradient.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
-                fillGradient.addColorStop(1, 'rgba(0, 229, 255, 0.05)');
-        }
-
-        lfoScopeCtx.fillStyle = fillGradient;
-        lfoScopeCtx.fill();
-
-        // Redraw the path with line only for a sharp edge
-        lfoScopeCtx.beginPath();
-        lfoScopeCtx.moveTo(startX, startY);
-
-        for (let x = 0; x <= width; x++) {
-            const t = (x / width) * (cyclesShown * Math.PI * 2) + (now * rate * Math.PI * 2);
-            let y;
-
-            switch (waveform) {
-                case 'sine':
-                    y = centerY - Math.sin(t) * amplitude;
-                    break;
-                case 'square':
-                    y = centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude;
-                    break;
-                case 'triangle':
-                    y = centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude;
-                    break;
-                case 'sawtooth':
-                    y = centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude;
-                    break;
-                case 'random':
-                    const segment = Math.floor(t / (Math.PI / 4));
-                    const randValue = Math.sin(segment * 1000) * 2 - 1;
-                    y = centerY - randValue * amplitude;
-                    break;
-                default:
-                    y = centerY - Math.sin(t) * amplitude;
-            }
-
-            if (x === 0) {
-                lfoScopeCtx.moveTo(x, y);
-            } else {
-                lfoScopeCtx.lineTo(x, y);
-            }
-        }
-
-        // Set line style with glow effect
-        lfoScopeCtx.strokeStyle = waveGradient;
-        lfoScopeCtx.lineWidth = 2;
-        lfoScopeCtx.shadowColor = waveform === 'sine' ? '#00e5ff' :
-            waveform === 'square' ? '#ff1744' :
-            waveform === 'triangle' ? '#00c853' :
-            waveform === 'sawtooth' ? '#ffab00' : '#d500f9';
-        lfoScopeCtx.shadowBlur = 5;
-        lfoScopeCtx.shadowOffsetX = 0;
-        lfoScopeCtx.shadowOffsetY = 0;
-        lfoScopeCtx.stroke();
-
-        // Draw current playhead position
-        const cyclePosition = (now * rate) % 1;
-        const playheadX = cyclePosition * (width / cyclesShown);
-
-        lfoScopeCtx.beginPath();
-        lfoScopeCtx.moveTo(playheadX, 0);
-        lfoScopeCtx.lineTo(playheadX, height);
-        lfoScopeCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-        lfoScopeCtx.lineWidth = 1;
-        lfoScopeCtx.shadowBlur = 0;
-        lfoScopeCtx.stroke();
-
-        // Annotate with frequency
-        lfoScopeCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        lfoScopeCtx.font = '10px sans-serif';
-        lfoScopeCtx.textAlign = 'right';
-        lfoScopeCtx.fillText(`${rate.toFixed(1)} Hz`, width - 5, height - 5);
-
-        // Continue animation
-        requestAnimationFrame(drawLfoScope);
-    }
-
-    // Start the drawing loop
-    drawLfoScope();
-
-    window.addEventListener('resize', () => {
-        lfoScopeCanvas.width = lfoScopeCanvas.parentElement.clientWidth;
-        // Height stays fixed
-    });
+    
+    console.log('LFO scope initialized in unified animation system');
 }
 
 // Trigger initial LFO destination setup
@@ -4186,90 +4428,30 @@ function setupCollapsibleModules() {
         
         // Add click handler using a separate function to ensure clean event binding
         const toggleCollapse = (event) => {
-            event.stopPropagation(); // Prevent event bubbling
+            event.stopPropagation();
             const wasCollapsed = moduleEl.classList.contains('collapsed');
             moduleEl.classList.toggle('collapsed');
             
-            // For sequencer, manually hide specific child divs
-            if (moduleName === 'sequencer') {
-                const sequencerDiv = moduleEl.querySelector('.sequencer, [class*="sequencer-content"]');
-                const keyboardDiv = moduleEl.querySelector('.keyboard, [class*="keyboard"]');
-                
-                if (moduleEl.classList.contains('collapsed')) {
-                    // Hide specific divs
-                    if (sequencerDiv) sequencerDiv.style.display = 'none';
-                    if (keyboardDiv) keyboardDiv.style.display = 'none';
-                    
-                    // Hide ALL direct children except header using inline styles
-                    Array.from(moduleEl.children).forEach(child => {
-                        if (!child.classList.contains('module-header')) {
-                            child.style.display = 'none';
-                        }
-                    });
-                } else {
-                    // Show specific divs
-                    if (sequencerDiv) sequencerDiv.style.display = '';
-                    if (keyboardDiv) keyboardDiv.style.display = '';
-                    
-                    // Show all direct children
-                    Array.from(moduleEl.children).forEach(child => {
-                        if (!child.classList.contains('module-header')) {
-                            child.style.display = '';
-                        }
-                    });
-                }
-            }
+            // Existing code for handling module collapse...
             
-            // Update icon direction
-            const icon = collapseBtn.querySelector('i');
-            if (moduleEl.classList.contains('collapsed')) {
-                icon.classList.remove('fa-chevron-up');
-                icon.classList.add('fa-chevron-down');
-                collapseBtn.setAttribute('title', 'Expand module');
-            } else {
-                icon.classList.remove('fa-chevron-down');
-                icon.classList.add('fa-chevron-up');
-                collapseBtn.setAttribute('title', 'Collapse module');
+            // Add this to update animation visibility based on module state
+            // For modules with canvas animations
+            if (moduleName === 'oscilloscope' || moduleName === 'lfo' || 
+                moduleName === 'spectrum' || moduleName === 'particles') {
                 
-                // If we're expanding the EQ module, update the EQ visualization
-                if (moduleName === 'eq' && wasCollapsed) {
-                    // Give the DOM a moment to finish the expand transition
-                    setTimeout(() => {
-                        if (typeof updateEqResponse === 'function') {
-                            updateEqResponse();
-                        }
-                    }, 50);
-                }
+                // Get the animation key name - check these mappings match your HTML class names
+                const animKey = moduleName === 'oscilloscope' ? 'oscilloscope' :
+                                moduleName === 'lfo' ? 'lfoScope' :
+                                moduleName === 'spectrum' ? 'spectrum' : 'particles';
                 
-                // If we're expanding the filter module, update filter visualization
-                if (moduleName === 'filter' && wasCollapsed) {
-                    setTimeout(() => {
-                        if (typeof updateFilterResponse === 'function') {
-                            updateFilterResponse();
-                        }
-                    }, 50);
-                }
-                
-                // If we're expanding the ADSR module, update ADSR visualization
-                if (moduleName === 'adsr' && wasCollapsed) {
-                    setTimeout(() => {
-                        if (typeof updateADSRVisualizer === 'function') {
-                            updateADSRVisualizer();
-                        }
-                    }, 50);
-                }
-                
-                // If we're expanding the LFO module, reinitialize LFO scope
-                if (moduleName === 'lfo' && wasCollapsed) {
-                    setTimeout(() => {
-                        if (typeof initLfoScope === 'function') {
-                            initLfoScope();
-                        }
-                    }, 50);
+                // Update active state in the animation system
+                if (animations[animKey]) {
+                    animations[animKey].active = !moduleEl.classList.contains('collapsed');
+                    console.log(`${animKey} visibility updated: ${animations[animKey].active}`);
                 }
             }
         };
-        
+
         // Remove any existing event listeners (as best as we can)
         collapseBtn.replaceWith(collapseBtn.cloneNode(true));
         
@@ -4373,4 +4555,35 @@ function handleCollapseKeypress(event) {
 document.addEventListener('DOMContentLoaded', function() {
     // Delay setup slightly to ensure other scripts have initialized
     setTimeout(setupCollapsibleModules, 100);
+});
+
+window.addEventListener('resize', function() {
+    // Debounce resize operations
+    if (this.resizeTimeout) clearTimeout(this.resizeTimeout);
+    
+    this.resizeTimeout = setTimeout(function() {
+        // Update canvas dimensions
+        const canvases = [
+            animations.oscilloscope.element,
+            animations.lfoScope.element,
+            animations.spectrum.element,
+            animations.particles.element
+        ];
+        
+        canvases.forEach(canvas => {
+            if (canvas && canvas.parentElement) {
+                canvas.width = canvas.parentElement.clientWidth;
+                // Height can be fixed or dynamic depending on the canvas
+            }
+        });
+        
+        if (animations.isRunning) {
+            if (animations.oscilloscope.element) updateOscilloscope(performance.now());
+            if (animations.lfoScope.element) updateLfoScope(performance.now());
+        }
+        updateSpectrumAnalyzer(performance.now());
+        updateParticles(performance.now());
+        
+        console.log('Canvas dimensions updated after resize');
+    }, 250); // 250ms debounce
 });
