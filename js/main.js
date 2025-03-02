@@ -1459,9 +1459,11 @@ const createSequencer = () => {
     }
 };
 
-// Create keyboard with polyphonic support
+// Create keyboard with polyphonic support - optimized for memory and performance
 const createKeyboard = () => {
     const keyboardElement = document.getElementById('keyboard');
+    if (!keyboardElement) return;
+    
     const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
     // Make octave range responsive based on screen size
@@ -1469,10 +1471,119 @@ const createKeyboard = () => {
     const startOctave = 3;
     const endOctave = isMobile ? 4 : 7;
 
-    // Clear keyboard
+    // Clear keyboard and reset the key element cache
     keyboardElement.innerHTML = '';
+    resetKeyboardCache();
+    
+    // Pre-define the event handlers to avoid creating new function closures for each key
+    // This dramatically reduces memory usage and improves performance
+    
+    // Shared event handlers for all keys using event delegation
+    const keyboardMouseHandlers = {
+        // Handle mouse down on any key
+        handleMouseDown: function(e) {
+            // Find closest .key or .black-key parent
+            const key = e.target.closest('.key, .black-key');
+            if (!key) return;
+            
+            const note = key.getAttribute('data-note');
+            if (!note) return;
+            
+            key.classList.add('active');
+            
+            if (currentMode === "poly") {
+                // For polyphonic mode
+                if (!activeNotes.has(note)) {
+                    activeNotes.add(note);
+                    if (synth && !synth.disposed) {
+                        synth.triggerAttack(note);
+                        updateVUMeter(0.8);
+                    }
+                }
+            } else {
+                // For monophonic mode
+                handleMonoNoteChange(note);
+            }
+        },
+        
+        // Handle mouse up on any key
+        handleMouseUp: function(e) {
+            // Find closest .key or .black-key parent
+            const key = e.target.closest('.key, .black-key');
+            if (!key) return;
+            
+            const note = key.getAttribute('data-note');
+            if (!note) return;
+            
+            key.classList.remove('active');
+            
+            if (currentMode === "poly") {
+                if (activeNotes.has(note)) {
+                    activeNotes.delete(note);
+                    if (synth && !synth.disposed) {
+                        synth.triggerRelease(note);
+                    }
+                }
+            } else {
+                // For mono mode
+                if (activeNotes.has(note)) {
+                    activeNotes.delete(note);
+                    if (synth && !synth.disposed) {
+                        synth.triggerRelease(); // No parameter needed for mono synth
+                    }
+                }
+            }
+        },
+        
+        // Handle mouse leave on any key
+        handleMouseLeave: function(e) {
+            // Find closest .key or .black-key parent
+            const key = e.target.closest('.key, .black-key');
+            if (!key || !key.classList.contains('active')) return;
+            
+            const note = key.getAttribute('data-note');
+            if (!note) return;
+            
+            key.classList.remove('active');
+            
+            if (currentMode === "poly") {
+                if (activeNotes.has(note)) {
+                    activeNotes.delete(note);
+                    if (synth && !synth.disposed) {
+                        synth.triggerRelease(note);
+                    }
+                }
+            } else {
+                // For mono mode
+                if (activeNotes.has(note)) {
+                    activeNotes.delete(note);
+                    if (synth && !synth.disposed) {
+                        synth.triggerRelease(); // No parameter needed for mono synth
+                    }
+                }
+            }
+        }
+    };
+    
+    // Add event listeners to the keyboard container (event delegation)
+    // This dramatically reduces the number of event listeners
+    keyboardElement.addEventListener('mousedown', keyboardMouseHandlers.handleMouseDown);
+    keyboardElement.addEventListener('mouseup', keyboardMouseHandlers.handleMouseUp);
+    keyboardElement.addEventListener('mouseleave', keyboardMouseHandlers.handleMouseLeave);
+    
+    // Use a document fragment for batch DOM updates (massive performance improvement)
+    const fragment = document.createDocumentFragment();
 
-    // Create white keys for each octave
+    // Define black key positions (reused for each octave)
+    const blackKeyPositions = [
+        { after: 'C', note: 'C#' },
+        { after: 'D', note: 'D#' },
+        { after: 'F', note: 'F#' },
+        { after: 'G', note: 'G#' },
+        { after: 'A', note: 'A#' }
+    ];
+    
+    // First create all white keys
     for (let octave = startOctave; octave <= endOctave; octave++) {
         // Only create C for the last octave
         const octaveNotes = octave === endOctave ? ['C'] : notes;
@@ -1482,181 +1593,82 @@ const createKeyboard = () => {
             key.className = 'key';
             key.textContent = isMobile ? '' : `${octaveNotes[i]}${octave}`;
             key.setAttribute('data-note', `${octaveNotes[i]}${octave}`);
-            keyboardElement.appendChild(key);
-
-            // Add click event with support for both modes
-            key.addEventListener('mousedown', () => {
-                const note = `${octaveNotes[i]}${octave}`;
-                key.classList.add('active');
-
-                if (currentMode === "poly") {
-                    // For polyphonic mode, only trigger if not already playing
-                    if (!activeNotes.has(note)) {
-                        activeNotes.add(note);
-                        synth.triggerAttack(note);
-                        updateVUMeter(0.8);
-                    }
-                } else {
-                    // Use our helper function for mono mode
-                    handleMonoNoteChange(note);
-                }
-            });
-
-            key.addEventListener('mouseup', () => {
-                const note = `${octaveNotes[i]}${octave}`;
-                key.classList.remove('active');
-
-                if (currentMode === "poly") {
-                    if (activeNotes.has(note)) {
-                        activeNotes.delete(note);
-                        synth.triggerRelease(note);
-                    }
-                } else {
-                    // For mono mode, clean up active note and release
-                    if (activeNotes.has(note)) {
-                        activeNotes.delete(note);
-                        synth.triggerRelease(); // No parameter needed for mono synth
-                    }
-                }
-            });
-
-            key.addEventListener('mouseleave', () => {
-                const note = `${octaveNotes[i]}${octave}`;
-                if (key.classList.contains('active')) {
-                    key.classList.remove('active');
-
-                    if (currentMode === "poly") {
-                        if (activeNotes.has(note)) {
-                            activeNotes.delete(note);
-                            synth.triggerRelease(note);
-                        }
-                    } else {
-                        // For mono mode
-                        if (activeNotes.has(note)) {
-                            activeNotes.delete(note);
-                            synth.triggerRelease(); // No parameter needed for mono synth
-                        }
-                    }
-                }
-            });
+            fragment.appendChild(key);
         }
-
-        // Create black keys for this octave
-        // Skip black keys after B
-        if (octave < endOctave || (octave === endOctave && octaveNotes.length > 1)) {
-            const blackKeyPositions = [{
-                    after: 'C',
-                    note: 'C#'
-                },
-                {
-                    after: 'D',
-                    note: 'D#'
-                },
-                {
-                    after: 'F',
-                    note: 'F#'
-                },
-                {
-                    after: 'G',
-                    note: 'G#'
-                },
-                {
-                    after: 'A',
-                    note: 'A#'
-                }
-            ];
-
-            for (let i = 0; i < octaveNotes.length; i++) {
-                const whiteNote = octaveNotes[i];
-                const blackKeyInfo = blackKeyPositions.find(pos => pos.after === whiteNote);
-
-                if (blackKeyInfo) {
-                    const blackKey = document.createElement('div');
-                    blackKey.className = 'black-key';
-                    blackKey.textContent = '';
-                    blackKey.setAttribute('data-note', `${blackKeyInfo.note}${octave}`);
-
-                    // Position the black key
-                    const whiteKeyWidth = document.querySelector('.key').offsetWidth;
-                    const whiteKeyIndex = Array.from(keyboardElement.querySelectorAll('.key')).findIndex(
-                        key => key.getAttribute('data-note') === `${whiteNote}${octave}`
-                    );
-
-                    if (whiteKeyIndex !== -1) {
-                        const whiteKeyRect = keyboardElement.querySelectorAll('.key')[whiteKeyIndex].getBoundingClientRect();
-                        const keyboardRect = keyboardElement.getBoundingClientRect();
-
-                        blackKey.style.left = `${whiteKeyRect.right - keyboardRect.left - whiteKeyWidth/4}px`;
-                        keyboardElement.appendChild(blackKey);
-
-                        // Add click event with polyphony support
-                        blackKey.addEventListener('mousedown', () => {
-                            const note = `${blackKeyInfo.note}${octave}`;
-                            blackKey.classList.add('active');
-
-                            if (currentMode === "poly") {
-                                if (!activeNotes.has(note)) {
-                                    activeNotes.add(note);
-                                    synth.triggerAttack(note);
-                                    updateVUMeter(0.8);
-                                }
-                            } else {
-                                // Use our helper function for mono mode
-                                handleMonoNoteChange(note);
-                            }
-                        });
-
-                        blackKey.addEventListener('mouseup', () => {
-                            const note = `${blackKeyInfo.note}${octave}`;
-                            blackKey.classList.remove('active');
-
-                            if (currentMode === "poly") {
-                                if (activeNotes.has(note)) {
-                                    activeNotes.delete(note);
-                                    synth.triggerRelease(note);
-                                }
-                            } else {
-                                // For mono mode
-                                if (activeNotes.has(note)) {
-                                    activeNotes.delete(note);
-                                    synth.triggerRelease(); // No parameter needed for mono synth
-                                }
-                            }
-                        });
-
-                        blackKey.addEventListener('mouseleave', () => {
-                            const note = `${blackKeyInfo.note}${octave}`;
-                            if (blackKey.classList.contains('active')) {
-                                blackKey.classList.remove('active');
-
-                                if (currentMode === "poly") {
-                                    if (activeNotes.has(note)) {
-                                        activeNotes.delete(note);
-                                        synth.triggerRelease(note);
-                                    }
-                                } else {
-                                    // For mono mode
-                                    if (activeNotes.has(note)) {
-                                        activeNotes.delete(note);
-                                        synth.triggerRelease(); // No parameter needed for mono synth
-                                    }
-                                }
-                            }
-                        });
-                    }
+    }
+    
+    // Add all white keys to the DOM at once
+    keyboardElement.appendChild(fragment);
+    
+    // Now create and position black keys
+    const secondFragment = document.createDocumentFragment();
+    const whiteKeys = keyboardElement.querySelectorAll('.key');
+    const whiteKeyWidth = whiteKeys[0].offsetWidth;
+    
+    // Create black keys for each octave
+    for (let octave = startOctave; octave <= endOctave; octave++) {
+        // Skip black keys after B or for the last octave (where we only create C)
+        if (octave === endOctave) continue;
+        
+        for (let i = 0; i < notes.length; i++) {
+            const whiteNote = notes[i];
+            const blackKeyInfo = blackKeyPositions.find(pos => pos.after === whiteNote);
+            
+            if (blackKeyInfo) {
+                const blackKey = document.createElement('div');
+                blackKey.className = 'black-key';
+                blackKey.setAttribute('data-note', `${blackKeyInfo.note}${octave}`);
+                
+                // Find the corresponding white key
+                const whiteKeyIndex = Array.from(whiteKeys).findIndex(
+                    key => key.getAttribute('data-note') === `${whiteNote}${octave}`
+                );
+                
+                // Position the black key relative to the white key
+                if (whiteKeyIndex !== -1) {
+                    const whiteKey = whiteKeys[whiteKeyIndex];
+                    const rect = whiteKey.getBoundingClientRect();
+                    const keyboardRect = keyboardElement.getBoundingClientRect();
+                    
+                    // Calculate position
+                    blackKey.style.left = `${rect.right - keyboardRect.left - whiteKeyWidth/4}px`;
+                    secondFragment.appendChild(blackKey);
                 }
             }
         }
     }
+    
+    // Add all black keys to DOM at once
+    keyboardElement.appendChild(secondFragment);
 };
 
-// Update sequencer visuals
+// Cached steps element reference for better performance
+let cachedStepElements = null;
+
+// Update sequencer visuals with optimized DOM access
 const updateSequencer = (currentStep) => {
-    const steps = document.querySelectorAll('.step');
-    steps.forEach((step, i) => {
-        step.classList.toggle('active', i === currentStep);
-    });
+    // Cache the step elements if not already cached
+    if (!cachedStepElements || cachedStepElements.length === 0) {
+        cachedStepElements = document.querySelectorAll('.step');
+    }
+    
+    // Update the active class for each step
+    // This is more efficient than forEach and requerying each time
+    for (let i = 0; i < cachedStepElements.length; i++) {
+        if (i === currentStep) {
+            if (!cachedStepElements[i].classList.contains('active')) {
+                cachedStepElements[i].classList.add('active');
+            }
+        } else if (cachedStepElements[i].classList.contains('active')) {
+            cachedStepElements[i].classList.remove('active');
+        }
+    }
 };
+
+// Function to reset sequencer step cache when the sequencer is rebuilt
+function resetSequencerCache() {
+    cachedStepElements = null;
+}
 
 // Setup all knobs and store their update functions
 const knobUpdaters = {};
@@ -3486,75 +3498,163 @@ document.getElementById('chaosButton').addEventListener('click', () => {
     }
 });
 
-// Nudge button functionality - Improved to include LFO, drone, ADSR, and drum patterns
+// Performance-optimized parameter caching for Nudge button
+const nudgeCache = {
+    notes: null,
+    parameters: null,
+    stepSelects: null,
+    initialized: false,
+    
+    // Initialize the cache
+    init: function() {
+        if (this.initialized) return;
+        
+        // Define parameter groups
+        this.parameters = [
+            {
+                type: 'filter',
+                elements: ['filterCutoff', 'filterRes'],
+                inputs: {}, // Will store DOM elements
+                knobs: {}
+            },
+            {
+                type: 'reverb',
+                elements: ['reverbMix', 'reverbDecay'],
+                inputs: {},
+                knobs: {}
+            },
+            {
+                type: 'delay',
+                elements: ['delayTime', 'delayFeedback'],
+                inputs: {},
+                knobs: {}
+            },
+            {
+                type: 'oscillator',
+                elements: ['oscillatorOctave', 'oscillatorSemi', 'oscillatorLevel'],
+                inputs: {},
+                knobs: {}
+            },
+            {
+                type: 'modulation',
+                elements: ['chorusMix', 'flangerMix', 'phaserMix', 'distortionMix'],
+                inputs: {},
+                knobs: {}
+            },
+            {
+                type: 'eq',
+                elements: ['eqLow', 'eqMid', 'eqHigh', 'eqMidFreq', 'eqQ'],
+                inputs: {},
+                knobs: {}
+            },
+            {
+                type: 'filter type',
+                elements: ['filterTypeToggle'],
+                inputs: {}
+            },
+            // LFO parameters
+            {
+                type: 'lfo',
+                elements: ['lfoRate', 'lfoAmount'],
+                dropdowns: ['lfoWaveform', 'lfoDestination'],
+                inputs: {},
+                selects: {},
+                knobs: {}
+            },
+            // ADSR parameters
+            {
+                type: 'adsr',
+                elements: ['attack', 'decay', 'sustain', 'release'],
+                inputs: {},
+                knobs: {}
+            },
+            // Drone parameters
+            {
+                type: 'drone',
+                elements: ['droneOctave', 'droneVolume'],
+                dropdowns: ['droneType'],
+                inputs: {},
+                selects: {},
+                knobs: {}
+            }
+        ];
+        
+        // Cache DOM elements for each parameter group
+        this.parameters.forEach(param => {
+            // Cache input elements
+            if (param.elements) {
+                param.elements.forEach(id => {
+                    param.inputs[id] = document.getElementById(id);
+                    
+                    // Also cache knob elements when they exist
+                    const knobId = `${id}Knob`;
+                    const knob = document.getElementById(knobId);
+                    if (knob) {
+                        param.knobs[id] = knob;
+                    }
+                });
+            }
+            
+            // Cache dropdown elements
+            if (param.dropdowns) {
+                param.dropdowns.forEach(id => {
+                    param.selects[id] = document.getElementById(id);
+                });
+            }
+        });
+        
+        // Special handling for step selectors - these are handled dynamically
+        this.stepSelects = null;
+        
+        this.initialized = true;
+    },
+    
+    // Reset the cache (call when DOM structure changes)
+    reset: function() {
+        this.initialized = false;
+        this.stepSelects = null;
+        this.parameters = null;
+    },
+    
+    // Get step selects with lazy loading
+    getStepSelects: function() {
+        if (!this.stepSelects) {
+            this.stepSelects = Array.from(document.querySelectorAll('.step select'));
+        }
+        return this.stepSelects;
+    }
+};
+
+// Nudge button functionality - Memory optimized implementation
 document.getElementById('nudgeButton').addEventListener('click', () => {
+    // Initialize parameter cache if needed
+    if (!nudgeCache.initialized) {
+        nudgeCache.init();
+    }
+    
+    // Get all available notes just once
     const notes = generateNotes();
-    const parameters = [{
-            type: 'filter',
-            elements: ['filterCutoff', 'filterRes']
-        },
-        {
-            type: 'reverb',
-            elements: ['reverbMix', 'reverbDecay']
-        },
-        {
-            type: 'delay',
-            elements: ['delayTime', 'delayFeedback']
-        },
-        {
-            type: 'oscillator',
-            elements: ['oscillatorOctave', 'oscillatorSemi', 'oscillatorLevel']
-        },
-        {
-            type: 'modulation',
-            elements: ['chorusMix', 'flangerMix', 'phaserMix', 'distortionMix']
-        },
-        {
-            type: 'eq',
-            elements: ['eqLow', 'eqMid', 'eqHigh', 'eqMidFreq', 'eqQ']
-        },
-        {
-            type: 'notes',
-            elements: Array.from(document.querySelectorAll('.step select'))
-        },
-        {
-            type: 'filter type',
-            elements: ['filterTypeToggle']
-        },
-        // Added LFO parameters
-        {
-            type: 'lfo',
-            elements: ['lfoRate', 'lfoAmount'],
-            dropdowns: ['lfoWaveform', 'lfoDestination']
-        },
-        // Added ADSR parameters
-        {
-            type: 'adsr',
-            elements: ['attack', 'decay', 'sustain', 'release']
-        },
-        // Added drone parameters
-        {
-            type: 'drone',
-            elements: ['droneOctave', 'droneVolume'],
-            dropdowns: ['droneType']
-        },
-    ];
 
     // Randomly select 1-3 parameter groups to modify (slightly increased from original 1-2)
     const numChanges = Math.floor(Math.random() * 3) + 1;
-    const selectedParams = parameters
+    const selectedParams = nudgeCache.parameters
         .sort(() => Math.random() - 0.5)
         .slice(0, numChanges);
 
     selectedParams.forEach(param => {
         if (param.type === 'notes') {
+            // Get cached or fresh step selectors
+            const stepSelects = nudgeCache.getStepSelects();
+            if (!stepSelects || stepSelects.length === 0) return;
+            
             // Modify 1-2 random step notes
             const numNoteChanges = Math.floor(Math.random() * 2) + 1;
-            const stepSelects = param.elements
+            // Create a copy of the array to avoid modifying the cached one
+            const randomSelects = [...stepSelects]
                 .sort(() => Math.random() - 0.5)
                 .slice(0, numNoteChanges);
 
-            stepSelects.forEach(select => {
+            randomSelects.forEach(select => {
                 const currentNote = select.value;
                 const currentIndex = notes.indexOf(currentNote);
                 const variation = Math.floor(Math.random() * 5) - 2; // -2 to +2 steps
@@ -3572,26 +3672,33 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
         } else if (param.type === 'filter type') {
             // Handle toggle type controls
             const element = param.elements[Math.floor(Math.random() * param.elements.length)];
-            const input = document.getElementById(element);
+            const input = param.inputs[element]; // Use cached element
+            if (!input) return;
+            
             input.checked = Math.random() > 0.5;
             input.dispatchEvent(new Event('change'));
 
             // Visual feedback for toggle
             const toggleContainer = input.closest('.toggle-container');
-            gsap.to(toggleContainer, {
-                opacity: 0.5,
-                duration: 0.2,
-                yoyo: true,
-                repeat: 1
-            });
+            if (toggleContainer) {
+                gsap.to(toggleContainer, {
+                    opacity: 0.5,
+                    duration: 0.2,
+                    yoyo: true,
+                    repeat: 1
+                });
+            }
         } else if (param.dropdowns && param.dropdowns.length > 0) {
             // Handle parameters with both sliders and dropdowns (LFO and drone)
 
             // 50% chance to adjust a slider vs 50% chance to change a dropdown
-            if (Math.random() > 0.5 && param.elements.length > 0) {
+            if (Math.random() > 0.5 && param.elements && param.elements.length > 0) {
                 // Adjust a slider (similar to standard parameter handling)
                 const element = param.elements[Math.floor(Math.random() * param.elements.length)];
-                const input = document.getElementById(element);
+                const input = param.inputs[element]; // Use cached element
+                if (!input) return;
+                
+                // Get current value and constraints
                 const currentValue = parseFloat(input.value);
                 const range = parseFloat(input.max) - parseFloat(input.min);
                 const variation = (Math.random() * 0.2 - 0.1) * range; // ±10% variation
@@ -3599,11 +3706,13 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
                     parseFloat(input.min),
                     Math.min(parseFloat(input.max), currentValue + variation)
                 );
+                
+                // Apply the change
                 input.value = newValue;
                 input.dispatchEvent(new Event('input'));
 
-                // Visual feedback
-                const knob = document.getElementById(`${element}Knob`);
+                // Visual feedback (using cached knob reference)
+                const knob = param.knobs[element];
                 if (knob) {
                     gsap.to(knob, {
                         boxShadow: '0 0 15px rgba(0, 229, 255, 0.8)',
@@ -3612,42 +3721,44 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
                         repeat: 1
                     });
                 }
-            } else {
+            } else if (param.dropdowns && param.dropdowns.length > 0) {
                 // Change a dropdown - but only sometimes and only move to adjacent values
                 const dropdown = param.dropdowns[Math.floor(Math.random() * param.dropdowns.length)];
-                const select = document.getElementById(dropdown);
+                const select = param.selects[dropdown]; // Use cached element
+                if (!select || !select.options || select.options.length === 0) return;
+                
+                const currentIndex = select.selectedIndex;
 
-                if (select && select.options.length > 0) {
-                    const currentIndex = select.selectedIndex;
+                // For most dropdowns, we'll shift by -1, 0, or 1 position
+                let shift = Math.floor(Math.random() * 3) - 1;
 
-                    // For most dropdowns, we'll shift by -1, 0, or 1 position
-                    let shift = Math.floor(Math.random() * 3) - 1;
+                // Special case for LFO destination - don't shift too often,
+                // as changing the destination is a more dramatic change
+                if (dropdown === 'lfoDestination' && Math.random() < 0.7) {
+                    shift = 0; // 70% chance to leave destination unchanged
+                }
 
-                    // Special case for LFO destination - don't shift too often,
-                    // as changing the destination is a more dramatic change
-                    if (dropdown === 'lfoDestination' && Math.random() < 0.7) {
-                        shift = 0; // 70% chance to leave destination unchanged
-                    }
+                // Only apply changes if needed
+                if (shift !== 0) {
+                    const newIndex = Math.max(0, Math.min(select.options.length - 1, currentIndex + shift));
+                    select.selectedIndex = newIndex;
+                    select.dispatchEvent(new Event('change'));
 
-                    if (shift !== 0) {
-                        const newIndex = Math.max(0, Math.min(select.options.length - 1, currentIndex + shift));
-                        select.selectedIndex = newIndex;
-                        select.dispatchEvent(new Event('change'));
-
-                        // Visual feedback
-                        gsap.to(select, {
-                            backgroundColor: 'rgba(0, 229, 255, 0.2)',
-                            duration: 0.3,
-                            yoyo: true,
-                            repeat: 1
-                        });
-                    }
+                    // Visual feedback
+                    gsap.to(select, {
+                        backgroundColor: 'rgba(0, 229, 255, 0.2)',
+                        duration: 0.3,
+                        yoyo: true,
+                        repeat: 1
+                    });
                 }
             }
         } else {
             // Standard parameter handling (knobs/sliders)
             const element = param.elements[Math.floor(Math.random() * param.elements.length)];
-            const input = document.getElementById(element);
+            const input = param.inputs[element]; // Use cached element
+            if (!input) return;
+            
             const currentValue = parseFloat(input.value);
             const range = parseFloat(input.max) - parseFloat(input.min);
             const variation = (Math.random() * 0.2 - 0.1) * range; // ±10% variation
@@ -3658,8 +3769,8 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
             input.value = newValue;
             input.dispatchEvent(new Event('input'));
 
-            // Visual feedback
-            const knob = document.getElementById(`${element}Knob`);
+            // Visual feedback using cached knob reference
+            const knob = param.knobs[element];
             if (knob) {
                 gsap.to(knob, {
                     boxShadow: '0 0 15px rgba(0, 229, 255, 0.8)',
@@ -3794,6 +3905,62 @@ document.getElementById('tempo').addEventListener('input', (e) => {
 // Add octave control with polyphony support
 let currentOctave = 4;
 
+// Create a more efficient keyboard handler with optimized event listeners and DOM access
+// Create cached keyMap and DOM element lookup tables
+const keyboardNoteMap = {
+    'a': 'C',
+    'w': 'C#',
+    's': 'D',
+    'e': 'D#',
+    'd': 'E',
+    'f': 'F',
+    't': 'F#',
+    'g': 'G',
+    'y': 'G#',
+    'h': 'A',
+    'u': 'A#',
+    'j': 'B',
+    'k': 'C+1', // +1 octave
+    'l': 'D+1'  // +1 octave
+};
+
+// Efficient DOM caching to reduce expensive lookups
+const keyElementCache = new Map();
+
+// Function to get key element with caching
+function getKeyElement(note) {
+    if (keyElementCache.has(note)) {
+        return keyElementCache.get(note);
+    }
+    
+    // Only do the DOM query if we don't have it cached
+    const element = document.querySelector(`.key[data-note="${note}"]`) || 
+                   document.querySelector(`.black-key[data-note="${note}"]`);
+    
+    if (element) {
+        keyElementCache.set(note, element);
+    }
+    return element;
+}
+
+// Function to reset keyboard cache (call when keyboard is recreated)
+function resetKeyboardCache() {
+    keyElementCache.clear();
+}
+
+// Update octave indicator efficiently
+function updateOctaveIndicator(octave) {
+    // Cache the indicator element reference
+    if (!updateOctaveIndicator.element) {
+        updateOctaveIndicator.element = document.querySelector('.octave-indicator');
+    }
+    
+    if (updateOctaveIndicator.element) {
+        updateOctaveIndicator.element.textContent = octave;
+    }
+}
+
+// Optimized keyboard event handler
 document.addEventListener('keydown', e => {
     // Toggle play/pause with spacebar
     if (e.code === 'Space') {
@@ -3805,177 +3972,122 @@ document.addEventListener('keydown', e => {
     if (e.repeat) return; // Prevent repeat triggers
 
     // Handle octave shifting with performance optimizations
-    // This ensures octave changes are processed efficiently even on busy systems
     if (e.key === 'z' && currentOctave > 2) {
         currentOctave--;
-        // Update octave indicator if it exists
-        const octaveIndicator = document.querySelector('.octave-indicator');
-        if (octaveIndicator) {
-            octaveIndicator.textContent = currentOctave;
-        }
+        updateOctaveIndicator(currentOctave);
         
-        // Optimize CPU usage during octave transitions
-        // When changing octaves, we can temporarily throttle other real-time processes
+        // Simplified throttling optimization
         if (typeof animations !== 'undefined' && animations.settings) {
             try {
-                // Temporarily increase frame throttling during octave changes
-                const originalThrottle = animations.settings.throttleAmount;
                 animations.settings.throttleAmount += 1;
-                
-                // Restore normal throttling after a short delay
                 setTimeout(() => {
-                    animations.settings.throttleAmount = originalThrottle;
+                    animations.settings.throttleAmount -= 1;
                 }, 100);
-            } catch (e) {
-                // Silently handle any errors to prevent breaking core functionality
-                console.debug('Animation throttling not available during octave change');
-            }
+            } catch (e) { /* Silent fail */ }
         }
         return;
     }
+    
     if (e.key === 'x' && currentOctave < 7) {
         currentOctave++;
-        // Update octave indicator if it exists
-        const octaveIndicator = document.querySelector('.octave-indicator');
-        if (octaveIndicator) {
-            octaveIndicator.textContent = currentOctave;
-        }
+        updateOctaveIndicator(currentOctave);
         
-        // Apply the same performance optimization as above
+        // Simplified throttling optimization
         if (typeof animations !== 'undefined' && animations.settings) {
             try {
-                // Temporarily increase frame throttling during octave changes
-                const originalThrottle = animations.settings.throttleAmount;
                 animations.settings.throttleAmount += 1;
-                
-                // Restore normal throttling after a short delay
                 setTimeout(() => {
-                    animations.settings.throttleAmount = originalThrottle;
+                    animations.settings.throttleAmount -= 1;
                 }, 100);
-            } catch (e) {
-                // Silently handle any errors to prevent breaking core functionality
-                console.debug('Animation throttling not available during octave change');
-            }
+            } catch (e) { /* Silent fail */ }
         }
         return;
     }
 
-    const keyMap = {
-        'a': `C${currentOctave}`,
-        'w': `C#${currentOctave}`,
-        's': `D${currentOctave}`,
-        'e': `D#${currentOctave}`,
-        'd': `E${currentOctave}`,
-        'f': `F${currentOctave}`,
-        't': `F#${currentOctave}`,
-        'g': `G${currentOctave}`,
-        'y': `G#${currentOctave}`,
-        'h': `A${currentOctave}`,
-        'u': `A#${currentOctave}`,
-        'j': `B${currentOctave}`,
-        'k': `C${currentOctave+1}`,
-        'l': `D${currentOctave+1}`
-    };
+    // Look up the note in our cached keyboard map
+    const baseNote = keyboardNoteMap[e.key];
+    if (!baseNote) return;
+    
+    // Generate the actual note with octave
+    const note = baseNote.includes('+1') 
+        ? `${baseNote.replace('+1', '')}${currentOctave + 1}` 
+        : `${baseNote}${currentOctave}`;
 
-    if (keyMap[e.key]) {
-        const note = keyMap[e.key];
-
-        if (currentMode === "poly") {
-            // Polyphonic mode - add new note if not already active
-            if (!activeComputerKeys.has(e.key)) {
-                activeComputerKeys.add(e.key);
-                activeNotes.add(note);
+    if (currentMode === "poly") {
+        // Polyphonic mode - add new note if not already active
+        if (!activeComputerKeys.has(e.key)) {
+            activeComputerKeys.add(e.key);
+            activeNotes.add(note);
+            
+            // Ensure synth exists before triggering
+            if (synth && !synth.disposed) {
                 synth.triggerAttack(note);
                 updateVUMeter(0.8);
-
-                // Update visual keyboard
-                const keyElement = document.querySelector(`.key[data-note="${note}"]`) ||
-                    document.querySelector(`.black-key[data-note="${note}"]`);
-
+                
+                // Update visual keyboard using cached element
+                const keyElement = getKeyElement(note);
                 if (keyElement) {
                     keyElement.classList.add('active');
                 }
             }
-        } else {
-            // Monophonic mode - use our consistent helper function
-            if (!activeComputerKeys.has(e.key)) {
-                // Clear all active computer keys in mono mode
-                activeComputerKeys.clear();
-                activeComputerKeys.add(e.key);
+        }
+    } else {
+        // Monophonic mode - use our consistent helper function
+        if (!activeComputerKeys.has(e.key)) {
+            // Clear all active computer keys in mono mode
+            activeComputerKeys.clear();
+            activeComputerKeys.add(e.key);
 
-                // Use our helper function for consistent handling
-                handleMonoNoteChange(note);
+            // Use our helper function for consistent handling
+            handleMonoNoteChange(note);
 
-                // Update visual keyboard for new note
-                const keyElement = document.querySelector(`.key[data-note="${note}"]`) ||
-                    document.querySelector(`.black-key[data-note="${note}"]`);
-                if (keyElement) {
-                    keyElement.classList.add('active');
-                }
+            // Update visual keyboard for new note
+            const keyElement = getKeyElement(note);
+            if (keyElement) {
+                keyElement.classList.add('active');
             }
         }
     }
 });
 
 document.addEventListener('keyup', e => {
-    const keyMap = {
-        'a': `C${currentOctave}`,
-        'w': `C#${currentOctave}`,
-        's': `D${currentOctave}`,
-        'e': `D#${currentOctave}`,
-        'd': `E${currentOctave}`,
-        'f': `F${currentOctave}`,
-        't': `F#${currentOctave}`,
-        'g': `G${currentOctave}`,
-        'y': `G#${currentOctave}`,
-        'h': `A${currentOctave}`,
-        'u': `A#${currentOctave}`,
-        'j': `B${currentOctave}`,
-        'k': `C${currentOctave+1}`,
-        'l': `D${currentOctave+1}`
-    };
+    // Look up the note in our cached keyboard map
+    const baseNote = keyboardNoteMap[e.key];
+    if (!baseNote) return;
+    
+    // Generate the actual note with octave
+    const note = baseNote.includes('+1') 
+        ? `${baseNote.replace('+1', '')}${currentOctave + 1}` 
+        : `${baseNote}${currentOctave}`;
 
-    if (keyMap[e.key]) {
-        const note = keyMap[e.key];
-
-        if (activeComputerKeys.has(e.key)) {
-            activeComputerKeys.delete(e.key);
-
-            // Remove note from active notes set
-            activeNotes.delete(note);
-            
-            // Safe version of triggerRelease with error handling
-            try {
-                // Only trigger release if synth exists and isn't disposed
-                if (synth && !synth.disposed) {
-                    if (currentMode === "poly") {
-                        synth.triggerRelease(note);
-                    } else {
-                        // For mono mode - no parameter needed
-                        synth.triggerRelease();
-                    }
+    if (activeComputerKeys.has(e.key)) {
+        activeComputerKeys.delete(e.key);
+        activeNotes.delete(note);
+        
+        // Safe version of triggerRelease with error handling
+        try {
+            // Only trigger release if synth exists and isn't disposed
+            if (synth && !synth.disposed) {
+                if (currentMode === "poly") {
+                    synth.triggerRelease(note);
                 } else {
-                    console.warn("Avoided triggerRelease on disposed synth - recreating");
-                    // Recreate synth to ensure it's valid for next key press
-                    synth = createSynth(currentMode || "poly");
+                    synth.triggerRelease();
                 }
-            } catch (err) {
-                console.warn("Error in triggerRelease:", err);
-                // Attempt recovery by recreating synth
-                try {
-                    synth = createSynth(currentMode || "poly");
-                } catch (createErr) {
-                    console.error("Failed to recreate synth:", createErr);
+                
+                // Update visual keyboard using cached element
+                const keyElement = getKeyElement(note);
+                if (keyElement) {
+                    keyElement.classList.remove('active');
                 }
+            } else {
+                console.debug("Recreating synth after disposal");
+                synth = createSynth(currentMode || "poly");
             }
-
-            // Update visual keyboard
-            const keyElement = document.querySelector(`.key[data-note="${note}"]`) ||
-                document.querySelector(`.black-key[data-note="${note}"]`);
-
-            if (keyElement) {
-                keyElement.classList.remove('active');
-            }
+        } catch (err) {
+            console.debug("Recovering from synth error");
+            try {
+                synth = createSynth(currentMode || "poly");
+            } catch (e) { /* Silent fail */ }
         }
     }
 });
