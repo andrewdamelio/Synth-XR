@@ -821,7 +821,7 @@ class EnhancedVisualizers {
         ctx.font = '12px monospace';
         ctx.textAlign = 'left';
         
-        ctx.fillText(`FPS: ${this.performanceMetrics.fps}`, 20, 30);
+//        ctx.fillText(`FPS: ${this.performanceMetrics.fps}`, 20, 30);
         ctx.fillText(`Render: ${this.performanceMetrics.averageRenderTime.toFixed(2)}ms`, 20, 50);
         
         // Color code the performance feedback
@@ -1043,8 +1043,7 @@ class EnhancedVisualizers {
             ctx.fillStyle = gradient;
         }
         
-        // Draw FPS counter
-        this.drawFPS(ctx, canvas.width, canvas.height);
+        // FPS counter removed
     }
     
     // Render 3D Waveform
@@ -1122,8 +1121,7 @@ class EnhancedVisualizers {
         // Draw perspective grid
         this.draw3DGrid(ctx, canvas.width, canvas.height, options.maxHistory);
         
-        // Draw FPS counter
-        this.drawFPS(ctx, canvas.width, canvas.height);
+        // FPS counter removed
     }
     
     // Render particle system
@@ -1641,12 +1639,10 @@ class EnhancedVisualizers {
         });
     }
     
-    // Draw FPS counter
+    // FPS counter (no longer displays anything)
     drawFPS(ctx, width, height) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.font = '10px monospace';
-        ctx.textAlign = 'right';
-        ctx.fillText(`FPS: ${this.fpsCounter.currentFps}`, width - 10, 15);
+        // Keep this empty function to avoid breaking code that calls it
+        // No FPS text will be drawn
     }
     
     // Viridis colormap function

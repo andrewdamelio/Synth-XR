@@ -1701,6 +1701,10 @@ const knobs = [
     ['eqHighKnob', 'eqHigh'],
     ['eqMidFreqKnob', 'eqMidFreq'],
     ['eqQKnob', 'eqQ'],
+    // Add pulse width and FM Sine knobs
+    ['pulseWidthKnob', 'pulseWidth'],
+    ['harmonicityKnob', 'harmonicity'],
+    ['modulationIndexKnob', 'modulationIndex'],
     // Add drum volume knobs
     ['kickVolumeKnob', 'kickVolume'],
     ['snareVolumeKnob', 'snareVolume'],
@@ -2470,14 +2474,170 @@ let isPlaying = false;
 
 // Connect UI controls to synth parameters
 document.getElementById('waveform').addEventListener('change', e => {
+    const waveformType = e.target.value;
+    
+    // Show/hide pulse width control based on selected waveform
+    const pulseWidthContainer = document.getElementById('pulseWidthContainer');
+    const harmonicityContainer = document.getElementById('harmonicityContainer');
+    const modulationIndexContainer = document.getElementById('modulationIndexContainer');
+    
+    // Hide all special controls first
+    pulseWidthContainer.style.display = 'none';
+    harmonicityContainer.style.display = 'none';
+    modulationIndexContainer.style.display = 'none';
+    
+    // Show relevant controls based on waveform type
+    if (waveformType === 'pulse') {
+        pulseWidthContainer.style.display = 'block';
+    } else if (waveformType === 'fmsine') {
+        harmonicityContainer.style.display = 'block';
+        modulationIndexContainer.style.display = 'block';
+    }
+    
+    // Configure oscillator with selected waveform
     if (currentMode === "poly") {
-        synth.set({
-            oscillator: {
-                type: e.target.value
-            }
-        });
+        if (waveformType === 'pulse') {
+            // For pulse wave, include the width parameter
+            const pulseWidth = parseFloat(document.getElementById('pulseWidth').value || 0.5);
+            synth.set({
+                oscillator: {
+                    type: waveformType,
+                    width: pulseWidth
+                }
+            });
+        } else if (waveformType === 'fmsine') {
+            // For FM sine, include harmonicity and modulationIndex parameters
+            const harmonicity = parseFloat(document.getElementById('harmonicity').value || 1);
+            const modulationIndex = parseFloat(document.getElementById('modulationIndex').value || 10);
+            synth.set({
+                oscillator: {
+                    type: waveformType,
+                    harmonicity: harmonicity,
+                    modulationIndex: modulationIndex
+                }
+            });
+        } else {
+            // For other waveforms, just set the type
+            synth.set({
+                oscillator: {
+                    type: waveformType
+                }
+            });
+        }
     } else {
-        synth.oscillator.type = e.target.value;
+        // For monophonic synth
+        synth.oscillator.type = waveformType;
+        if (waveformType === 'pulse') {
+            const pulseWidth = parseFloat(document.getElementById('pulseWidth').value || 0.5);
+            synth.oscillator.width.value = pulseWidth;
+        } else if (waveformType === 'fmsine') {
+            const harmonicity = parseFloat(document.getElementById('harmonicity').value || 1);
+            const modulationIndex = parseFloat(document.getElementById('modulationIndex').value || 10);
+            synth.oscillator.harmonicity.value = harmonicity;
+            synth.oscillator.modulationIndex.value = modulationIndex;
+        }
+    }
+});
+
+// Add event listener for the pulse width knob
+document.getElementById('pulseWidth').addEventListener('input', e => {
+    const value = parseFloat(e.target.value);
+    document.getElementById('pulseWidthValue').textContent = value.toFixed(2);
+
+    // Update the visual knob rotation
+    if (knobUpdaters.pulseWidth) {
+        knobUpdaters.pulseWidth(value);
+    } else {
+        // If the knob updater doesn't exist yet, create it
+        const min = 0.05;
+        const max = 0.95;
+        const normalizedValue = (value - min) / (max - min);
+        const rotation = normalizedValue * 270 - 135;
+        gsap.to(document.getElementById('pulseWidthKnob'), {
+            rotation: rotation,
+            duration: 0.1
+        });
+    }
+
+    // Update oscillator width parameter only if waveform is pulse
+    if (document.getElementById('waveform').value === 'pulse') {
+        if (currentMode === "poly") {
+            synth.set({
+                oscillator: {
+                    width: value
+                }
+            });
+        } else {
+            synth.oscillator.width.value = value;
+        }
+    }
+});
+
+// Add event listener for the harmonicity knob
+document.getElementById('harmonicity').addEventListener('input', e => {
+    const value = parseFloat(e.target.value);
+    document.getElementById('harmonicityValue').textContent = value.toFixed(1);
+
+    // Update the visual knob rotation
+    if (knobUpdaters.harmonicity) {
+        knobUpdaters.harmonicity(value);
+    } else {
+        // If the knob updater doesn't exist yet, create it
+        const min = 0.1;
+        const max = 10;
+        const normalizedValue = (value - min) / (max - min);
+        const rotation = normalizedValue * 270 - 135;
+        gsap.to(document.getElementById('harmonicityKnob'), {
+            rotation: rotation,
+            duration: 0.1
+        });
+    }
+
+    // Update oscillator harmonicity parameter only if waveform is fmsine
+    if (document.getElementById('waveform').value === 'fmsine') {
+        if (currentMode === "poly") {
+            synth.set({
+                oscillator: {
+                    harmonicity: value
+                }
+            });
+        } else {
+            synth.oscillator.harmonicity.value = value;
+        }
+    }
+});
+
+// Add event listener for the modulation index knob
+document.getElementById('modulationIndex').addEventListener('input', e => {
+    const value = parseFloat(e.target.value);
+    document.getElementById('modulationIndexValue').textContent = value.toFixed(1);
+
+    // Update the visual knob rotation
+    if (knobUpdaters.modulationIndex) {
+        knobUpdaters.modulationIndex(value);
+    } else {
+        // If the knob updater doesn't exist yet, create it
+        const min = 0;
+        const max = 50;
+        const normalizedValue = (value - min) / (max - min);
+        const rotation = normalizedValue * 270 - 135;
+        gsap.to(document.getElementById('modulationIndexKnob'), {
+            rotation: rotation,
+            duration: 0.1
+        });
+    }
+
+    // Update oscillator modulationIndex parameter only if waveform is fmsine
+    if (document.getElementById('waveform').value === 'fmsine') {
+        if (currentMode === "poly") {
+            synth.set({
+                oscillator: {
+                    modulationIndex: value
+                }
+            });
+        } else {
+            synth.oscillator.modulationIndex.value = value;
+        }
     }
 });
 
@@ -3169,6 +3329,22 @@ function applyPreset(settings) {
                 // Handle toggle separately
                 document.getElementById('filterTypeToggle').checked = value;
                 document.getElementById('filterTypeToggle').dispatchEvent(new Event('change'));
+            } else if (key === 'waveform') {
+                // For waveform, we need to trigger a change event to show/hide oscillator specific controls
+                const input = document.getElementById(key);
+                if (input) {
+                    input.value = value;
+                    input.dispatchEvent(new Event('input'));
+                    input.dispatchEvent(new Event('change')); // Dispatch change event explicitly
+                }
+            // Special handling for FM Sine parameters if they're in the preset
+            } else if ((key === 'harmonicity' || key === 'modulationIndex') && 
+                      settings.waveform === 'fmsine') {
+                const input = document.getElementById(key);
+                if (input) {
+                    input.value = value;
+                    input.dispatchEvent(new Event('input'));
+                }
             } else {
                 const input = document.getElementById(key);
                 if (input) {
@@ -3265,7 +3441,7 @@ function loadLfoPresetSettings(settings) {
 
 // Get the current setup
 function getCurrentSetup() {
-    return {
+    const setup = {
         voiceMode: "poly", // Always return "poly" regardless of UI selection
         waveform: document.getElementById('waveform').value,
         filterCutoff: document.getElementById('filterCutoff').value,
@@ -3306,6 +3482,16 @@ function getCurrentSetup() {
             active: step.querySelector('.step-toggle').classList.contains('active')
         })),
     };
+    
+    // Add waveform-specific parameters
+    if (setup.waveform === 'pulse') {
+        setup.pulseWidth = document.getElementById('pulseWidth').value;
+    } else if (setup.waveform === 'fmsine') {
+        setup.harmonicity = document.getElementById('harmonicity').value;
+        setup.modulationIndex = document.getElementById('modulationIndex').value;
+    }
+    
+    return setup;
 }
 
 // Modal handling for new preset
