@@ -260,7 +260,6 @@ function ensureVisualizersConnected() {
 
 // Initialize synth variables
 let synth;
-let currentMode = "poly";
 let currentStep = 0; // Initialize currentStep at the global level
 
 const activeNotes = new Set();
@@ -890,35 +889,7 @@ function applyLfoToParameter(paramId, lfoOutput) {
 
 
 
-// Helper function to consistently handle mono note changes
-function handleMonoNoteChange(newNote) {
-    if (currentMode !== "mono") return;
-
-    // Release any currently playing note
-    if (activeNotes.size > 0) {
-        const oldNote = Array.from(activeNotes)[0];
-
-        // Update UI for the old note
-        const oldKeyElement = document.querySelector(`.key[data-note="${oldNote}"]`) ||
-            document.querySelector(`.black-key[data-note="${oldNote}"]`);
-        if (oldKeyElement) {
-            oldKeyElement.classList.remove('active');
-        }
-
-        // Important: Release the previous note sound
-        synth.triggerRelease();
-    }
-
-    // Clear all active notes in mono mode
-    activeNotes.clear();
-
-    // Add and play the new note
-    if (newNote) {
-        activeNotes.add(newNote);
-        synth.triggerAttack(newNote);
-        updateVUMeter(0.8);
-    }
-}
+// The handleMonoNoteChange function can be removed as we only use poly mode
 
 // Function to update the detune value based on octave and semitone settings
 function updateDetune() {
@@ -926,17 +897,13 @@ function updateDetune() {
     const semi = parseInt(document.getElementById('oscillatorSemi').value);
     const detune = octave * 1200 + semi * 100; // Convert octaves and semitones to cents
 
-    if (currentMode === "poly") {
-        synth.set({
-            detune: detune
-        });
-    } else {
-        synth.detune.value = detune;
-    }
+    synth.set({
+        detune: detune
+    });
 }
 
 // Enhanced synth creation with memory optimization and improved audio quality
-function createSynth(mode) {
+function createSynth() {
     // Performance metrics tracking
     const startTime = performance.now();
     
@@ -950,12 +917,7 @@ function createSynth(mode) {
     if (oldSynth) {
         try {
             // Release all notes to prevent hanging notes
-            if (currentMode === "poly") {
-                oldSynth.releaseAll();
-            } else {
-                // For mono synth, trigger release without arguments
-                oldSynth.triggerRelease();
-            }
+            oldSynth.releaseAll();
             
             // Set a flag on the old synth to indicate it's being disposed
             oldSynth.disposed = true;
@@ -971,7 +933,7 @@ function createSynth(mode) {
                 } catch (disposeErr) {
                     console.warn("Error disposing old synth:", disposeErr);
                 }
-            }, currentMode === "poly" ? 500 : 250); // Different timeouts based on synth type
+            }, 500);
         } catch (releaseErr) {
             console.warn("Error releasing notes on old synth:", releaseErr);
         }
@@ -1016,43 +978,32 @@ function createSynth(mode) {
                 // Removed problematic partials setting that was causing errors
             },
             volume: Tone.gainToDb(level),
-            // Add portamento for better note transitions (especially for mono)
-            portamento: mode === "poly" ? 0 : 0.05
+            // No portamento needed for poly synth
+            portamento: 0
         };
         
-        // Create the synth with optimized settings based on mode
-        if (mode === "poly") {
-            // Get the number of voices from UI or use default
-            const maxVoices = parseInt(document.getElementById('voices')?.value || 8);
-            
-            // Configure polyphonic synth with better performance settings and increased polyphony
-            const increasedVoices = Math.max(16, maxVoices * 2); // Double the requested voices with a minimum of 16
-            
-            synth = new Tone.PolySynth({
-                maxPolyphony: increasedVoices,
-                voice: Tone.Synth,
-                options: enhancedSettings
-            });
-            
-            // Apply additional polyphonic optimizations
-            synth.set({
-                // Use voice stealing algorithms for consistent performance
-                maxPolyphony: increasedVoices,
-                // Setting a voice limit dynamically based on system capability
-                voice: {
-                    portamento: 0, // Individual voices don't need portamento
-                    volume: Tone.gainToDb(level)
-                }
-            });
-        } else {
-            // Monophonic synth with enhanced settings
-            synth = new Tone.MonoSynth(enhancedSettings);
-            
-            // Set properties specific to mono synths
-            synth.portamento = 0.05; // Slight glide between notes
-            synth.volume.value = Tone.gainToDb(level);
-            synth.oscillator.type = waveformType;
-        }
+        // Get the number of voices from UI or use default
+        const maxVoices = parseInt(document.getElementById('voices')?.value || 8);
+        
+        // Configure polyphonic synth with better performance settings and increased polyphony
+        const increasedVoices = Math.max(16, maxVoices * 2); // Double the requested voices with a minimum of 16
+        
+        synth = new Tone.PolySynth({
+            maxPolyphony: increasedVoices,
+            voice: Tone.Synth,
+            options: enhancedSettings
+        });
+        
+        // Apply additional polyphonic optimizations
+        synth.set({
+            // Use voice stealing algorithms for consistent performance
+            maxPolyphony: increasedVoices,
+            // Setting a voice limit dynamically based on system capability
+            voice: {
+                portamento: 0, // Individual voices don't need portamento
+                volume: Tone.gainToDb(level)
+            }
+        });
 
         // Create optimized connection to effects chain
         // Connect directly to filter for now to simplify the chain
@@ -1069,7 +1020,7 @@ function createSynth(mode) {
         if (typeof VoiceManager !== 'undefined') {
             try {
                 // Use the local VoiceManager, not window.VoiceManager
-                VoiceManager.registerSynth(synth, mode);
+                VoiceManager.registerSynth(synth, "poly");
             } catch (err) {
                 console.warn('Error registering with voice manager:', err);
             }
@@ -1220,8 +1171,8 @@ const VoiceManager = {
 try {
     VoiceManager.init();
     
-    // Create initial synth (polyphonic by default) with voice management
-    synth = createSynth("poly");
+    // Create initial synth with voice management
+    synth = createSynth();
     
     // Let the voice manager track it, but catch any potential errors
     try {
@@ -1491,18 +1442,13 @@ const createKeyboard = () => {
             
             key.classList.add('active');
             
-            if (currentMode === "poly") {
-                // For polyphonic mode
-                if (!activeNotes.has(note)) {
-                    activeNotes.add(note);
-                    if (synth && !synth.disposed) {
-                        synth.triggerAttack(note);
-                        updateVUMeter(0.8);
-                    }
+            // For polyphonic mode
+            if (!activeNotes.has(note)) {
+                activeNotes.add(note);
+                if (synth && !synth.disposed) {
+                    synth.triggerAttack(note);
+                    updateVUMeter(0.8);
                 }
-            } else {
-                // For monophonic mode
-                handleMonoNoteChange(note);
             }
         },
         
@@ -1517,20 +1463,10 @@ const createKeyboard = () => {
             
             key.classList.remove('active');
             
-            if (currentMode === "poly") {
-                if (activeNotes.has(note)) {
-                    activeNotes.delete(note);
-                    if (synth && !synth.disposed) {
-                        synth.triggerRelease(note);
-                    }
-                }
-            } else {
-                // For mono mode
-                if (activeNotes.has(note)) {
-                    activeNotes.delete(note);
-                    if (synth && !synth.disposed) {
-                        synth.triggerRelease(); // No parameter needed for mono synth
-                    }
+            if (activeNotes.has(note)) {
+                activeNotes.delete(note);
+                if (synth && !synth.disposed) {
+                    synth.triggerRelease(note);
                 }
             }
         },
@@ -1546,20 +1482,10 @@ const createKeyboard = () => {
             
             key.classList.remove('active');
             
-            if (currentMode === "poly") {
-                if (activeNotes.has(note)) {
-                    activeNotes.delete(note);
-                    if (synth && !synth.disposed) {
-                        synth.triggerRelease(note);
-                    }
-                }
-            } else {
-                // For mono mode
-                if (activeNotes.has(note)) {
-                    activeNotes.delete(note);
-                    if (synth && !synth.disposed) {
-                        synth.triggerRelease(); // No parameter needed for mono synth
-                    }
+            if (activeNotes.has(note)) {
+                activeNotes.delete(note);
+                if (synth && !synth.disposed) {
+                    synth.triggerRelease(note);
                 }
             }
         }
@@ -2495,47 +2421,33 @@ document.getElementById('waveform').addEventListener('change', e => {
     }
     
     // Configure oscillator with selected waveform
-    if (currentMode === "poly") {
-        if (waveformType === 'pulse') {
-            // For pulse wave, include the width parameter
-            const pulseWidth = parseFloat(document.getElementById('pulseWidth').value || 0.5);
-            synth.set({
-                oscillator: {
-                    type: waveformType,
-                    width: pulseWidth
-                }
-            });
-        } else if (waveformType === 'fmsine') {
-            // For FM sine, include harmonicity and modulationIndex parameters
-            const harmonicity = parseFloat(document.getElementById('harmonicity').value || 1);
-            const modulationIndex = parseFloat(document.getElementById('modulationIndex').value || 10);
-            synth.set({
-                oscillator: {
-                    type: waveformType,
-                    harmonicity: harmonicity,
-                    modulationIndex: modulationIndex
-                }
-            });
-        } else {
-            // For other waveforms, just set the type
-            synth.set({
-                oscillator: {
-                    type: waveformType
-                }
-            });
-        }
+    if (waveformType === 'pulse') {
+        // For pulse wave, include the width parameter
+        const pulseWidth = parseFloat(document.getElementById('pulseWidth').value || 0.5);
+        synth.set({
+            oscillator: {
+                type: waveformType,
+                width: pulseWidth
+            }
+        });
+    } else if (waveformType === 'fmsine') {
+        // For FM sine, include harmonicity and modulationIndex parameters
+        const harmonicity = parseFloat(document.getElementById('harmonicity').value || 1);
+        const modulationIndex = parseFloat(document.getElementById('modulationIndex').value || 10);
+        synth.set({
+            oscillator: {
+                type: waveformType,
+                harmonicity: harmonicity,
+                modulationIndex: modulationIndex
+            }
+        });
     } else {
-        // For monophonic synth
-        synth.oscillator.type = waveformType;
-        if (waveformType === 'pulse') {
-            const pulseWidth = parseFloat(document.getElementById('pulseWidth').value || 0.5);
-            synth.oscillator.width.value = pulseWidth;
-        } else if (waveformType === 'fmsine') {
-            const harmonicity = parseFloat(document.getElementById('harmonicity').value || 1);
-            const modulationIndex = parseFloat(document.getElementById('modulationIndex').value || 10);
-            synth.oscillator.harmonicity.value = harmonicity;
-            synth.oscillator.modulationIndex.value = modulationIndex;
-        }
+        // For other waveforms, just set the type
+        synth.set({
+            oscillator: {
+                type: waveformType
+            }
+        });
     }
 });
 
@@ -2561,15 +2473,11 @@ document.getElementById('pulseWidth').addEventListener('input', e => {
 
     // Update oscillator width parameter only if waveform is pulse
     if (document.getElementById('waveform').value === 'pulse') {
-        if (currentMode === "poly") {
-            synth.set({
-                oscillator: {
-                    width: value
-                }
-            });
-        } else {
-            synth.oscillator.width.value = value;
-        }
+        synth.set({
+            oscillator: {
+                width: value
+            }
+        });
     }
 });
 
@@ -2595,15 +2503,11 @@ document.getElementById('harmonicity').addEventListener('input', e => {
 
     // Update oscillator harmonicity parameter only if waveform is fmsine
     if (document.getElementById('waveform').value === 'fmsine') {
-        if (currentMode === "poly") {
-            synth.set({
-                oscillator: {
-                    harmonicity: value
-                }
-            });
-        } else {
-            synth.oscillator.harmonicity.value = value;
-        }
+        synth.set({
+            oscillator: {
+                harmonicity: value
+            }
+        });
     }
 });
 
@@ -2629,15 +2533,11 @@ document.getElementById('modulationIndex').addEventListener('input', e => {
 
     // Update oscillator modulationIndex parameter only if waveform is fmsine
     if (document.getElementById('waveform').value === 'fmsine') {
-        if (currentMode === "poly") {
-            synth.set({
-                oscillator: {
-                    modulationIndex: value
-                }
-            });
-        } else {
-            synth.oscillator.modulationIndex.value = value;
-        }
+        synth.set({
+            oscillator: {
+                modulationIndex: value
+            }
+        });
     }
 });
 
@@ -2761,13 +2661,9 @@ document.getElementById('oscillatorLevel').addEventListener('input', e => {
     document.getElementById('oscillatorLevelValue').textContent = value.toFixed(2);
 
     // Update oscillator level
-    if (currentMode === "poly") {
-        synth.set({
-            volume: Tone.gainToDb(value)
-        });
-    } else {
-        synth.volume.value = Tone.gainToDb(value);
-    }
+    synth.set({
+        volume: Tone.gainToDb(value)
+    });
 });
 
 // Add detune control (fine tuning in cents)
@@ -2779,15 +2675,11 @@ document.getElementById('detune').addEventListener('input', e => {
     knobUpdaters.detune(value);
 
     // Apply fine detune (this is separate from octave/semitone detune)
-    if (currentMode === "poly") {
-        synth.set({
-            oscillator: {
-                detune: value // Fine detune in cents
-            }
-        });
-    } else {
-        synth.oscillator.detune.value = value; // Fine detune in cents
-    }
+    synth.set({
+        oscillator: {
+            detune: value // Fine detune in cents
+        }
+    });
 });
 
 // Add voices control
@@ -2798,49 +2690,47 @@ document.getElementById('voices').addEventListener('input', e => {
     // Update knob rotation visually
     knobUpdaters.voices(value);
 
-    // Only apply to poly synth mode
-    if (currentMode === "poly") {
-        // Store current oscillator settings
-        const waveformType = document.getElementById('waveform').value;
-        const level = parseFloat(document.getElementById('oscillatorLevel').value);
-        const detune = parseInt(document.getElementById('detune').value);
+    // Create a new PolySynth with the specified number of voices
+    // Store current oscillator settings
+    const waveformType = document.getElementById('waveform').value;
+    const level = parseFloat(document.getElementById('oscillatorLevel').value);
+    const detune = parseInt(document.getElementById('detune').value);
 
-        // Create a new PolySynth with the specified number of voices
-        const oldSynth = synth;
-        synth = new Tone.PolySynth({
-            maxPolyphony: value,
-            voice: Tone.Synth,
-            options: {
-                ...synthSettings,
-                oscillator: {
-                    type: waveformType,
-                    detune: detune
-                },
-                volume: Tone.gainToDb(level)
-            }
-        });
+    // Create a new PolySynth with the specified number of voices
+    const oldSynth = synth;
+    synth = new Tone.PolySynth({
+        maxPolyphony: value,
+        voice: Tone.Synth,
+        options: {
+            ...synthSettings,
+            oscillator: {
+                type: waveformType,
+                detune: detune
+            },
+            volume: Tone.gainToDb(level)
+        }
+    });
 
-        // Connect to the effects chain
-        synth.connect(filter);
+    // Connect to the effects chain
+    synth.connect(filter);
 
-        // Apply octave/semitone detune
-        updateDetune();
+    // Apply octave/semitone detune
+    updateDetune();
 
-        // Properly dispose of the old synth to prevent memory leaks
-        // First release all notes, then disconnect, then dispose
-        if (oldSynth) {
-            oldSynth.releaseAll();
-            // Use a try-catch block to prevent errors if disposal fails
-            try {
-                setTimeout(() => {
-                    if (oldSynth) {
-                        oldSynth.disconnect();
-                        oldSynth.dispose();
-                    }
-                }, 100);
-            } catch (err) {
-                console.warn('Error disposing synth:', err);
-            }
+    // Properly dispose of the old synth to prevent memory leaks
+    // First release all notes, then disconnect, then dispose
+    if (oldSynth) {
+        oldSynth.releaseAll();
+        // Use a try-catch block to prevent errors if disposal fails
+        try {
+            setTimeout(() => {
+                if (oldSynth) {
+                    oldSynth.disconnect();
+                    oldSynth.dispose();
+                }
+            }, 100);
+        } catch (err) {
+            console.warn('Error disposing synth:', err);
         }
     }
 });
@@ -2848,15 +2738,11 @@ document.getElementById('voices').addEventListener('input', e => {
 // ADSR controls
 document.getElementById('attack').addEventListener('input', e => {
     const value = parseFloat(e.target.value);
-    if (currentMode === "poly") {
-        synth.set({
-            envelope: {
-                attack: value
-            }
-        });
-    } else {
-        synth.envelope.attack = value;
-    }
+    synth.set({
+        envelope: {
+            attack: value
+        }
+    });
     // Update common settings for recreating synths
     synthSettings.envelope.attack = value;
     document.getElementById('attackValue').textContent = `${value.toFixed(2)}s`;
@@ -2865,15 +2751,11 @@ document.getElementById('attack').addEventListener('input', e => {
 
 document.getElementById('decay').addEventListener('input', e => {
     const value = parseFloat(e.target.value);
-    if (currentMode === "poly") {
-        synth.set({
-            envelope: {
-                decay: value
-            }
-        });
-    } else {
-        synth.envelope.decay = value;
-    }
+    synth.set({
+        envelope: {
+            decay: value
+        }
+    });
     // Update common settings for recreating synths
     synthSettings.envelope.decay = value;
     document.getElementById('decayValue').textContent = `${value.toFixed(2)}s`;
@@ -2882,15 +2764,11 @@ document.getElementById('decay').addEventListener('input', e => {
 
 document.getElementById('sustain').addEventListener('input', e => {
     const value = parseFloat(e.target.value);
-    if (currentMode === "poly") {
-        synth.set({
-            envelope: {
-                sustain: value
-            }
-        });
-    } else {
-        synth.envelope.sustain = value;
-    }
+    synth.set({
+        envelope: {
+            sustain: value
+        }
+    });
     // Update common settings for recreating synths
     synthSettings.envelope.sustain = value;
     document.getElementById('sustainValue').textContent = value.toFixed(2);
@@ -2899,15 +2777,11 @@ document.getElementById('sustain').addEventListener('input', e => {
 
 document.getElementById('release').addEventListener('input', e => {
     const value = parseFloat(e.target.value);
-    if (currentMode === "poly") {
-        synth.set({
-            envelope: {
-                release: value
-            }
-        });
-    } else {
-        synth.envelope.release = value;
-    }
+    synth.set({
+        envelope: {
+            release: value
+        }
+    });
     // Update common settings for recreating synths
     synthSettings.envelope.release = value;
     document.getElementById('releaseValue').textContent = `${value.toFixed(2)}s`;
@@ -2929,7 +2803,7 @@ document.getElementById('startSequencer').addEventListener('click', async functi
             // Ensure synth exists and is ready
             if (!synth || synth.disposed) {
                 console.log("Recreating synth for sequencer");
-                synth = createSynth(currentMode || "poly");
+                synth = createSynth();
             }
             
             // Reset and restart transport completely
@@ -3351,11 +3225,8 @@ function applyPreset(settings) {
                     input.value = value;
                     input.dispatchEvent(new Event('input'));
 
-                    // Special handling for voice mode
-                    if (key === 'voiceMode' && value !== currentMode) {
-                        currentMode = value;
-                        createSynth(currentMode);
-                    }
+                    // Voice mode handling can be removed - always use poly mode
+                    // We always use poly mode in this application
                 }
             }
         }
@@ -3393,7 +3264,7 @@ function applyPreset(settings) {
     synthSettings.envelope.release = parseFloat(document.getElementById('release').value);
 
     // Then recreate the synth to apply all settings consistently
-    createSynth(currentMode);
+    createSynth();
 
     // Update ADSR Visualizer
     updateADSRVisualizer();
@@ -3442,7 +3313,7 @@ function loadLfoPresetSettings(settings) {
 // Get the current setup
 function getCurrentSetup() {
     const setup = {
-        voiceMode: "poly", // Always return "poly" regardless of UI selection
+        voiceMode: "poly", // Always using poly mode
         waveform: document.getElementById('waveform').value,
         filterCutoff: document.getElementById('filterCutoff').value,
         filterRes: document.getElementById('filterRes').value,
@@ -4036,7 +3907,7 @@ function setupSequencer() {
                     // Check if synth exists and recreate if needed
                     if (!synth || synth.disposed) {
                         console.log("Recreating synth during sequencer playback");
-                        synth = createSynth(currentMode || "poly");
+                        synth = createSynth();
                     }
                     
                     // Play the note with the synth - use 8n like original
@@ -4199,35 +4070,17 @@ document.addEventListener('keydown', e => {
         ? `${baseNote.replace('+1', '')}${currentOctave + 1}` 
         : `${baseNote}${currentOctave}`;
 
-    if (currentMode === "poly") {
-        // Polyphonic mode - add new note if not already active
-        if (!activeComputerKeys.has(e.key)) {
-            activeComputerKeys.add(e.key);
-            activeNotes.add(note);
+    // Polyphonic mode - add new note if not already active
+    if (!activeComputerKeys.has(e.key)) {
+        activeComputerKeys.add(e.key);
+        activeNotes.add(note);
+        
+        // Ensure synth exists before triggering
+        if (synth && !synth.disposed) {
+            synth.triggerAttack(note);
+            updateVUMeter(0.8);
             
-            // Ensure synth exists before triggering
-            if (synth && !synth.disposed) {
-                synth.triggerAttack(note);
-                updateVUMeter(0.8);
-                
-                // Update visual keyboard using cached element
-                const keyElement = getKeyElement(note);
-                if (keyElement) {
-                    keyElement.classList.add('active');
-                }
-            }
-        }
-    } else {
-        // Monophonic mode - use our consistent helper function
-        if (!activeComputerKeys.has(e.key)) {
-            // Clear all active computer keys in mono mode
-            activeComputerKeys.clear();
-            activeComputerKeys.add(e.key);
-
-            // Use our helper function for consistent handling
-            handleMonoNoteChange(note);
-
-            // Update visual keyboard for new note
+            // Update visual keyboard using cached element
             const keyElement = getKeyElement(note);
             if (keyElement) {
                 keyElement.classList.add('active');
@@ -4254,11 +4107,7 @@ document.addEventListener('keyup', e => {
         try {
             // Only trigger release if synth exists and isn't disposed
             if (synth && !synth.disposed) {
-                if (currentMode === "poly") {
-                    synth.triggerRelease(note);
-                } else {
-                    synth.triggerRelease();
-                }
+                synth.triggerRelease(note);
                 
                 // Update visual keyboard using cached element
                 const keyElement = getKeyElement(note);
@@ -4267,12 +4116,12 @@ document.addEventListener('keyup', e => {
                 }
             } else {
                 console.debug("Recreating synth after disposal");
-                synth = createSynth(currentMode || "poly");
+                synth = createSynth("poly");
             }
         } catch (err) {
             console.debug("Recovering from synth error");
             try {
-                synth = createSynth(currentMode || "poly");
+                synth = createSynth("poly");
             } catch (e) { /* Silent fail */ }
         }
     }
@@ -4432,13 +4281,9 @@ function updateAudioParameter(paramId, value) {
             document.getElementById('filterResValue').textContent = parseFloat(value).toFixed(1);
             break;
         case 'oscillatorLevel':
-            if (currentMode === "poly") {
-                synth.set({
-                    volume: Tone.gainToDb(value)
-                });
-            } else {
-                synth.volume.value = Tone.gainToDb(value);
-            }
+            synth.set({
+                volume: Tone.gainToDb(value)
+            });
             document.getElementById('oscillatorLevelValue').textContent = value.toFixed(2);
             break;
         case 'reverbMix':
@@ -4474,54 +4319,38 @@ function updateAudioParameter(paramId, value) {
             document.getElementById('phaserMixValue').textContent = parseFloat(value).toFixed(2);
             break;
         case 'attack':
-            if (currentMode === "poly") {
-                synth.set({
-                    envelope: {
-                        attack: value
-                    }
-                });
-            } else {
-                synth.envelope.attack = value;
-            }
+            synth.set({
+                envelope: {
+                    attack: value
+                }
+            });
             synthSettings.envelope.attack = value;
             document.getElementById('attackValue').textContent = `${value.toFixed(2)}s`;
             break;
         case 'decay':
-            if (currentMode === "poly") {
-                synth.set({
-                    envelope: {
-                        decay: value
-                    }
-                });
-            } else {
-                synth.envelope.decay = value;
-            }
+            synth.set({
+                envelope: {
+                    decay: value
+                }
+            });
             synthSettings.envelope.decay = value;
             document.getElementById('decayValue').textContent = `${value.toFixed(2)}s`;
             break;
         case 'sustain':
-            if (currentMode === "poly") {
-                synth.set({
-                    envelope: {
-                        sustain: value
-                    }
-                });
-            } else {
-                synth.envelope.sustain = value;
-            }
+            synth.set({
+                envelope: {
+                    sustain: value
+                }
+            });
             synthSettings.envelope.sustain = value;
             document.getElementById('sustainValue').textContent = value.toFixed(2);
             break;
         case 'release':
-            if (currentMode === "poly") {
-                synth.set({
-                    envelope: {
-                        release: value
-                    }
-                });
-            } else {
-                synth.envelope.release = value;
-            }
+            synth.set({
+                envelope: {
+                    release: value
+                }
+            });
             synthSettings.envelope.release = value;
             document.getElementById('releaseValue').textContent = `${value.toFixed(2)}s`;
             break;
@@ -5018,7 +4847,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Validate synth exists and is not disposed
         if (!synth || synth.disposed) {
             console.warn("Synth unavailable or disposed - recreating");
-            synth = createSynth(currentMode || "poly");
+            synth = createSynth();
             // Return early if recreation fails
             if (!synth || synth.disposed) {
                 console.error("Failed to recreate synth for chord");
@@ -5045,7 +4874,7 @@ document.addEventListener('DOMContentLoaded', function() {
             highlightChordOnKeyboard(notes);
 
             // Check if we need to release any currently playing notes to prevent exceeding polyphony
-            if (activeNotes.size > 0 && currentMode === "poly") {
+            if (activeNotes.size > 0) {
                 // Release any currently active notes before playing the chord
                 synth.releaseAll();
                 activeNotes.clear();
@@ -5062,7 +4891,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.warn("Error playing chord:", err);
             // Try to recover by creating a new synth
             try {
-                synth = createSynth(currentMode || "poly");
+                synth = createSynth();
             } catch (createErr) {
                 console.error("Failed to recover synth after chord error:", createErr);
             }
