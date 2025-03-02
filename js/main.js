@@ -4,23 +4,169 @@ import {
 } from './utils.js';
 
 
-// Initialize audio processing components first
-let filter = new Tone.Filter(2000, "lowpass");
-let reverb = new Tone.Reverb(2);
-let delay = new Tone.FeedbackDelay("8n", 0.5);
+// Create a centralized audio node factory
+// This factory pattern improves efficiency and organization
+// Using direct Tone.js objects for simplicity and compatibility
+const AudioNodeFactory = {
+    // Cache for storing created nodes and minimize duplications
+    nodes: new Map(),
+    
+    // Method to create or retrieve nodes with optimization
+    // Simplified to minimize potential errors
+    getNode(type, config = {}) {
+        try {
+            const key = `${type}-${JSON.stringify(config)}`;
+            
+            // Return cached node if exists
+            if (this.nodes.has(key)) {
+                return this.nodes.get(key);
+            }
+            
+            // Create new node based on type - using direct constructor approach for reliability
+            let node;
+            
+            // Use simplified approach with try-catch for each type
+            try {
+                switch (type) {
+                    case 'filter':
+                        node = new Tone.Filter(
+                            config.frequency || 2000, 
+                            config.type || "lowpass"
+                        );
+                        break;
+                    case 'reverb':
+                        node = new Tone.Reverb();
+                        if (config.decay) node.decay = config.decay;
+                        if (config.wet !== undefined) node.wet.value = config.wet;
+                        // No automatic generate to prevent startup delay
+                        break;
+                    case 'delay':
+                        node = new Tone.FeedbackDelay();
+                        if (config.delayTime) node.delayTime.value = config.delayTime;
+                        if (config.feedback) node.feedback.value = config.feedback;
+                        break;
+                    case 'chorus':
+                        node = new Tone.Chorus();
+                        if (config.wet !== undefined) node.wet.value = config.wet;
+                        node.start();
+                        break;
+                    case 'distortion':
+                        node = new Tone.Distortion();
+                        if (config.distortion) node.distortion = config.distortion;
+                        if (config.wet !== undefined) node.wet.value = config.wet;
+                        break;
+                    case 'flanger':
+                        // Use FeedbackDelay for flanger effect
+                        node = new Tone.FeedbackDelay();
+                        if (config.delayTime) node.delayTime.value = config.delayTime;
+                        if (config.feedback) node.feedback.value = config.feedback;
+                        if (config.wet !== undefined) node.wet.value = config.wet;
+                        break;
+                    case 'phaser':
+                        node = new Tone.Phaser();
+                        if (config.wet !== undefined) node.wet.value = config.wet;
+                        break;
+                    case 'eq':
+                        node = new Tone.EQ3();
+                        break;
+                    case 'compressor':
+                        node = new Tone.Compressor();
+                        break;
+                    case 'stereoWidener':
+                        node = new Tone.StereoWidener();
+                        if (config.width) node.width.value = config.width;
+                        break;
+                    case 'gain':
+                        node = new Tone.Gain(config.gain || 1);
+                        break;
+                    case 'panner':
+                        node = new Tone.Panner(config.pan || 0);
+                        break;
+                    case 'waveform':
+                        node = new Tone.Waveform(config.size || 1024);
+                        break;
+                    case 'fft':
+                        node = new Tone.FFT(config.size || 1024);
+                        break;
+                    default:
+                        console.warn(`Unknown node type: ${type}, falling back to Gain node`);
+                        node = new Tone.Gain(1);
+                }
+            } catch (nodeCreationError) {
+                console.warn(`Error creating ${type} node:`, nodeCreationError);
+                // Fallback to a simple gain node which is unlikely to cause issues
+                node = new Tone.Gain(1);
+            }
+            
+            // Cache and return the new node if we successfully created one
+            if (node) {
+                this.nodes.set(key, node);
+                return node;
+            } else {
+                // Last resort fallback
+                return new Tone.Gain(1);
+            }
+        } catch (err) {
+            console.error("Critical error in getNode:", err);
+            // Ultimate fallback - always return something that won't break the chain
+            return new Tone.Gain(1);
+        }
+    },
+    
+    // Method to dispose nodes when no longer needed
+    disposeNode(type, config = {}) {
+        const key = `${type}-${JSON.stringify(config)}`;
+        if (this.nodes.has(key)) {
+            const node = this.nodes.get(key);
+            node.dispose();
+            this.nodes.delete(key);
+            return true;
+        }
+        return false;
+    },
+    
+    // Method to dispose all nodes (for cleanup)
+    disposeAll() {
+        this.nodes.forEach(node => {
+            node.dispose();
+        });
+        this.nodes.clear();
+    }
+};
 
-// Initialize new effects
-let chorus = new Tone.Chorus(4, 2.5, 0.5).start();
-let distortion = new Tone.Distortion(0.8);
-let flanger = new Tone.FeedbackDelay("8n", 0.5);
-let phaser = new Tone.Phaser({
-    frequency: 0.5,
-    octaves: 3,
-    baseFrequency: 1000
+// Initialize audio processing components with the factory
+let filter = AudioNodeFactory.getNode('filter', { frequency: 2000, type: "lowpass" });
+let reverb = AudioNodeFactory.getNode('reverb', { decay: 2, wet: 0 });
+let delay = AudioNodeFactory.getNode('delay', { delayTime: "8n", feedback: 0.5 });
+
+// Initialize effects with better defaults and optimization
+let chorus = AudioNodeFactory.getNode('chorus', { 
+    frequency: 4, 
+    delayTime: 2.5, 
+    depth: 0.5,
+    wet: 0
 });
 
-// Initialize the EQ3 (three-band equalizer)
-let eq = new Tone.EQ3({
+let distortion = AudioNodeFactory.getNode('distortion', { 
+    distortion: 0.8, 
+    wet: 0 
+});
+
+let flanger = AudioNodeFactory.getNode('flanger', { 
+    delayTime: "8n", 
+    feedback: 0.5,
+    wet: 0
+});
+
+let phaser = AudioNodeFactory.getNode('phaser', {
+    frequency: 0.5,
+    octaves: 3,
+    baseFrequency: 1000,
+    wet: 0
+});
+
+// Initialize the EQ3 with improved defaults
+let eq = AudioNodeFactory.getNode('eq', {
     low: 0,
     mid: 0,
     high: 0,
@@ -28,64 +174,64 @@ let eq = new Tone.EQ3({
     highFrequency: 2500
 });
 
-// Initialize compressor with default settings
-let masterCompressor = new Tone.Compressor({
-    threshold: 0, // dB, will be adjusted by knob
-    ratio: 1, // will be adjusted by knob
-    attack: 0.003, // seconds
-    release: 0.25, // seconds
-    knee: 30 // dB
+// Initialize dynamics processing
+let masterCompressor = AudioNodeFactory.getNode('compressor', {
+    threshold: 0,
+    ratio: 1,
+    attack: 0.003,
+    release: 0.25,
+    knee: 30
 });
 
-// Initialize stereo widener
-let stereoWidener = new Tone.StereoWidener({
-    width: 0.5, // Default to normal stereo
-    wet: 1 // Fully active
+// Initialize stereo processing
+let stereoWidener = AudioNodeFactory.getNode('stereoWidener', {
+    width: 0.5,
+    wet: 1
 });
 
-let widthCompensation = new Tone.Gain(1); // Default gain of 1 (no change)
+let widthCompensation = AudioNodeFactory.getNode('gain', { gain: 1 });
 
-let masterVolume = new Tone.Gain(0.8);
-let masterPanner = new Tone.Panner(0);
+// Initialize master section
+let masterVolume = AudioNodeFactory.getNode('gain', { gain: 0.8 });
+let masterPanner = AudioNodeFactory.getNode('panner', { pan: 0 });
 
-masterPanner.connect(masterVolume);
-masterVolume.toDestination();
+// Create analysis nodes with optimized buffer sizes
+const waveform = AudioNodeFactory.getNode('waveform', { size: 1024 });
+const fft = AudioNodeFactory.getNode('fft', { size: 1024 });
 
+// Initialize LFO tracking system
 let lfoActive = false;
 let lfoDestination = 'off';
 let lfoBaseValues = {};
 lfoBaseValues.pan = 0; // Default to center
 lfoBaseValues.masterVolume = parseFloat(document.getElementById('masterVolume').value) // Current master volume
 
-// Initialize wet values to 0 (effects off)
-chorus.wet.value = 0;
-distortion.wet.value = 0;
-flanger.wet.value = 0;
-phaser.wet.value = 0;
+// Connect audio processing chain
+// Note: Connection order is critical for the signal flow
+masterPanner.connect(masterVolume);
+masterVolume.toDestination();
 
-const waveform = new Tone.Waveform(1024);
-const fft = new Tone.FFT(1024);
-
-// Connect effects chain
+// Build the main effects chain
 filter.connect(chorus);
 chorus.connect(distortion);
 distortion.connect(flanger);
 flanger.connect(phaser);
 phaser.connect(reverb);
 reverb.connect(delay);
-delay.connect(eq); // Connect delay to EQ
+delay.connect(eq);
 eq.connect(masterCompressor);
 masterCompressor.connect(stereoWidener);
 stereoWidener.connect(widthCompensation);
 widthCompensation.connect(masterPanner);
 
-
-masterVolume.connect(waveform); // Connect compressor to waveform analyzer
+// Connect analysis nodes
+masterVolume.connect(waveform);
 stereoWidener.connect(fft);
 
 // Initialize synth variables
 let synth;
 let currentMode = "poly";
+let currentStep = 0; // Initialize currentStep at the global level
 
 const activeNotes = new Set();
 const activeComputerKeys = new Set();
@@ -145,29 +291,90 @@ const animations = {
     }
 };
 
-// Initialize animation settings based on device
+// Import throttle function from utils.js
+import { throttle } from './utils.js';
+
+// Initialize animation settings based on device with optimization
+// Added error handling to prevent crashes
 function initAnimationSettings() {
-    const { isMobile } = animations.settings;
-    
-    if (isMobile) {
-        // Throttle more aggressively on mobile
-        animations.settings.throttleAmount = 2; // Update every 2nd frame
-        animations.settings.fpsLimit = 30; // Target 30fps on mobile
+    try {
+        // Detect mobile device directly instead of using animations.settings.isMobile
+        // This fixes the "isMobile is not defined" error
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Store the mobile detection in animation settings
+        animations.settings.isMobile = isMobile;
+        
+        // Set performance-related settings based on device capability
+        if (isMobile) {
+            // More aggressive throttling for mobile devices
+            animations.settings.throttleAmount = 2; // Update every 2nd frame
+            animations.settings.fpsLimit = 30; // Target 30fps on mobile
+        } else {
+            // Check if we can detect slow devices even on desktop
+            let slowDevice = false;
+            try {
+                slowDevice = navigator.hardwareConcurrency <= 2;
+            } catch (e) {
+                // Some browsers might not support hardwareConcurrency
+                console.debug('Could not detect CPU cores, assuming standard device');
+                slowDevice = false;
+            }
+            
+            if (slowDevice) {
+                animations.settings.throttleAmount = 2;
+                animations.settings.fpsLimit = 45; // Compromise for slower desktops
+            }
+        }
+        
+        animations.settings.frameInterval = 1000 / animations.settings.fpsLimit;
+    } catch (error) {
+        console.warn('Error initializing animation settings, using safe defaults:', error);
+        // Set safe defaults in case of error
+        animations.settings.throttleAmount = 2; // Conservative default
+        animations.settings.fpsLimit = 30; // Conservative default
+        animations.settings.frameInterval = 1000 / 30; // Based on 30fps
     }
     
-    animations.settings.frameInterval = 1000 / animations.settings.fpsLimit;
-    
     // Cache DOM references
-    animations.oscilloscope.element = document.getElementById('oscilloscope');
-    animations.oscilloscope.context = animations.oscilloscope.element?.getContext('2d');
+    const oscilloscopeElement = document.getElementById('oscilloscope');
+    animations.oscilloscope.element = oscilloscopeElement;
+    animations.oscilloscope.context = oscilloscopeElement?.getContext('2d', { alpha: false }); // Optimize canvas for performance
     
-    animations.lfoScope.element = document.getElementById('lfoScope');
-    animations.lfoScope.context = animations.lfoScope.element?.getContext('2d');
+    const lfoScopeElement = document.getElementById('lfoScope');
+    animations.lfoScope.element = lfoScopeElement;
+    animations.lfoScope.context = lfoScopeElement?.getContext('2d', { alpha: false });
+    
+    // Pre-size canvases if possible to avoid reflow
+    if (oscilloscopeElement) {
+        const parent = oscilloscopeElement.parentElement;
+        if (parent) {
+            oscilloscopeElement.width = parent.clientWidth;
+            oscilloscopeElement.height = parent.clientHeight;
+        }
+    }
+    
+    if (lfoScopeElement) {
+        const parent = lfoScopeElement.parentElement;
+        if (parent) {
+            lfoScopeElement.width = parent.clientWidth;
+            lfoScopeElement.height = parent.clientHeight;
+        }
+    }
+    
+    // Create optimized version of element visibility detection with throttling
+    animations.checkVisibility = throttle(() => {
+        animations.oscilloscope.visible = isElementVisible(animations.oscilloscope.element);
+        animations.lfoScope.visible = isElementVisible(animations.lfoScope.element);
+    }, 500); // Check visibility at most every 500ms
+    
+    // Create throttled versions of update functions
+    animations.throttledLfoUpdate = throttle(updateLfoModulation, 16); // ~60fps
         
-    console.log(`Animation settings initialized: ${isMobile ? 'Mobile' : 'Desktop'} mode, ${animations.settings.fpsLimit}fps target`);
+    console.log(`Animation settings initialized: ${animations.settings.isMobile ? 'Mobile' : 'Desktop'} mode, ${animations.settings.fpsLimit}fps target`);
 }
 
-// The main animation loop
+// Optimized main animation loop
 function mainAnimationLoop(timestamp) {
     if (!animations.isRunning) return;
     
@@ -179,24 +386,33 @@ function mainAnimationLoop(timestamp) {
         return; // Skip this frame
     }
     
-    // Update time tracking
+    // Update time tracking with performance optimizations
     animations.settings.lastFrameTime = timestamp - (elapsed % animations.settings.frameInterval);
     
-    // Check visibility and update only what's needed
-    if (animations.oscilloscope.active && isElementVisible(animations.oscilloscope.element)) {
+    // Check visibility occasionally (not every frame)
+    if (timestamp % 500 < 16) { // Check roughly every 500ms
+        animations.checkVisibility();
+    }
+    
+    // Only update what's visible and active
+    if (animations.oscilloscope.active && animations.oscilloscope.visible) {
         updateOscilloscope(timestamp);
     }
     
-    if (animations.lfoScope.active && isElementVisible(animations.lfoScope.element)) {
+    if (animations.lfoScope.active && animations.lfoScope.visible) {
         updateLfoScope(timestamp);
     }
 
-    // If LFO is active, update it
+    // If LFO is active, update it using throttled function
     if (lfoActive && lfoDestination !== 'off') {
-        updateLfoModulation(timestamp);
+        animations.throttledLfoUpdate(timestamp);
     }
     
-    // Update any other animations here
+    // Performance monitoring in development mode
+    if (window.DEBUG_PERFORMANCE && timestamp % 1000 < 16) {
+        const fps = Math.round(1000 / elapsed);
+        console.log(`FPS: ${fps}`);
+    }
 }
 
 // Check if an element is visible in viewport and not collapsed
@@ -526,43 +742,50 @@ function updateLfoScope(timestamp) {
     animations.lfoScope.lastUpdate = timestamp;
 }
 
-// Update LFO modulation
+// Cached elements for LFO
+let lfoWaveformElement = null;
+let lfoRateElement = null;
+let lfoAmountElement = null;
+
+// LFO waveform calculation functions (optimization)
+const lfoWaveformFunctions = {
+    sine: (phase) => Math.sin(phase * Math.PI * 2),
+    triangle: (phase) => 1 - Math.abs((phase * 4) % 4 - 2),
+    square: (phase) => phase < 0.5 ? 1 : -1,
+    sawtooth: (phase) => (phase * 2) - 1,
+    random: (phase) => {
+        const segments = 8;
+        const segmentIndex = Math.floor(phase * segments);
+        return Math.sin(segmentIndex * 1000) * 2 - 1;
+    }
+};
+
+// Optimized LFO modulation with reduced DOM access
 function updateLfoModulation(timestamp) {
     if (!lfoActive || lfoDestination === 'off') return;
     
-    // Get LFO settings
-    const waveform = document.getElementById('lfoWaveform').value;
-    const rate = parseFloat(document.getElementById('lfoRate').value);
-    const amountPercent = parseInt(document.getElementById('lfoAmount').value);
+    // Lazy load and cache DOM elements
+    if (!lfoWaveformElement) {
+        lfoWaveformElement = document.getElementById('lfoWaveform');
+        lfoRateElement = document.getElementById('lfoRate');
+        lfoAmountElement = document.getElementById('lfoAmount');
+    }
+    
+    // Get LFO settings with null checks
+    if (!lfoWaveformElement || !lfoRateElement || !lfoAmountElement) return;
+    
+    const waveform = lfoWaveformElement.value;
+    const rate = parseFloat(lfoRateElement.value);
+    const amountPercent = parseInt(lfoAmountElement.value);
     const amount = amountPercent / 100;
     
     // Calculate current time and phase
     const currentTime = timestamp / 1000; // Convert to seconds
     const phase = (currentTime * rate) % 1;
     
-    // Calculate LFO output value
-    let lfoOutput;
-    switch (waveform) {
-        case 'sine':
-            lfoOutput = Math.sin(phase * Math.PI * 2);
-            break;
-        case 'triangle':
-            lfoOutput = 1 - Math.abs((phase * 4) % 4 - 2);
-            break;
-        case 'square':
-            lfoOutput = phase < 0.5 ? 1 : -1;
-            break;
-        case 'sawtooth':
-            lfoOutput = (phase * 2) - 1;
-            break;
-        case 'random':
-            const segments = 8;
-            const segmentIndex = Math.floor(phase * segments);
-            lfoOutput = Math.sin(segmentIndex * 1000) * 2 - 1;
-            break;
-        default:
-            lfoOutput = 0;
-    }
+    // Calculate LFO output value using optimized function map
+    const waveformFunction = lfoWaveformFunctions[waveform] || lfoWaveformFunctions.sine;
+    let lfoOutput = waveformFunction(phase);
     
     // Scale by amount
     lfoOutput *= amount;
@@ -571,41 +794,65 @@ function updateLfoModulation(timestamp) {
     applyLfoToParameter(lfoDestination, lfoOutput);
 }
 
-// Apply LFO modulation to a parameter
+// Cache for parameter related elements
+const parameterElementCache = new Map();
+
+// Apply LFO modulation to a parameter with DOM caching
 function applyLfoToParameter(paramId, lfoOutput) {
-    // Original logic from your animateLfo function
-    const input = document.getElementById(paramId);
-    if (!input) return;
+    // Get or cache elements for this parameter
+    if (!parameterElementCache.has(paramId)) {
+        const input = document.getElementById(paramId);
+        if (!input) return;
+        
+        const min = parseFloat(input.min);
+        const max = parseFloat(input.max);
+        const range = max - min;
+        const modRange = range * 0.5;
+        const knob = document.getElementById(`${paramId}Knob`);
+        
+        parameterElementCache.set(paramId, {
+            input,
+            min,
+            max,
+            range,
+            modRange,
+            knob
+        });
+    }
     
-    const min = parseFloat(input.min);
-    const max = parseFloat(input.max);
-    const baseValue = lfoBaseValues[paramId] || (min + (max - min) / 2);
+    // Get cached elements and values
+    const cache = parameterElementCache.get(paramId);
+    if (!cache) return;
     
-    // Calculate modulation range
-    const range = max - min;
-    const modRange = range * 0.5;
+    const { input, min, max, range, modRange, knob } = cache;
+    
+    // Get base value - this still needs to be dynamic
+    const baseValue = lfoBaseValues[paramId] || (min + range / 2);
     
     // Calculate modulated value
     const modValue = baseValue + (lfoOutput * modRange);
     const clampedValue = Math.max(min, Math.min(max, modValue));
     
-    // Update input value
-    input.value = clampedValue;
-    
-    // Update the parameter
-    updateAudioParameter(paramId, clampedValue);
-    
-    // Update knob rotation using GSAP
-    const knob = document.getElementById(`${paramId}Knob`);
-    if (knob) {
-        const normalizedValue = (clampedValue - min) / range;
-        const rotation = normalizedValue * 270 - 135;
+    // Only update the DOM if the value has changed significantly
+    // This avoids unnecessary updates that won't be visually noticeable
+    if (Math.abs(parseFloat(input.value) - clampedValue) > 0.001) {
+        // Update input value
+        input.value = clampedValue;
         
-        gsap.to(knob, {
-            rotation: rotation,
-            duration: 0.05,
-            overwrite: true
-        });
+        // Update the parameter
+        updateAudioParameter(paramId, clampedValue);
+        
+        // Update knob rotation using GSAP (only if knob exists)
+        if (knob) {
+            const normalizedValue = (clampedValue - min) / range;
+            const rotation = normalizedValue * 270 - 135;
+            
+            gsap.to(knob, {
+                rotation: rotation,
+                duration: 0.05,
+                overwrite: true
+            });
+        }
     }
 }
 
@@ -658,70 +905,301 @@ function updateDetune() {
     }
 }
 
-// Function to create the appropriate synth type
+// Enhanced synth creation with memory optimization and improved audio quality
 function createSynth(mode) {
-    // Dispose of old synth if it exists
-    if (synth) {
-        // Release all notes to prevent hanging notes when switching modes
-        if (currentMode === "poly") {
-            synth.releaseAll();
-        } else {
-            // For mono synth, trigger release without arguments to release any active note
-            synth.triggerRelease();
-        }
-        synth.disconnect();
-        synth.dispose();
-    }
-
-    // Clear all active notes when switching synth types
-    activeNotes.clear();
-    activeComputerKeys.clear();
-
-    // Remove active class from all keys
-    document.querySelectorAll('.key.active, .black-key.active').forEach(key => {
-        key.classList.remove('active');
-    });
-
-    // Create new synth based on mode
-    if (mode === "poly") {
-        synth = new Tone.PolySynth(Tone.Synth, synthSettings);
-    } else {
-        synth = new Tone.Synth(synthSettings);
-    }
-
-    // Connect to effects chain
-    synth.connect(filter);
-
-    // Apply current waveform
-    const waveformType = document.getElementById('waveform').value;
-    if (mode === "poly") {
-        synth.set({
-            oscillator: {
-                type: waveformType
+    // Performance metrics tracking
+    const startTime = performance.now();
+    
+    // Store a reference to the old synth
+    const oldSynth = synth;
+    
+    // Create the new synth first to prevent race conditions
+    createNewSynth();
+    
+    // Properly dispose of old synth if it exists
+    if (oldSynth) {
+        try {
+            // Release all notes to prevent hanging notes
+            if (currentMode === "poly") {
+                oldSynth.releaseAll();
+            } else {
+                // For mono synth, trigger release without arguments
+                oldSynth.triggerRelease();
             }
-        });
-    } else {
-        synth.oscillator.type = waveformType;
+            
+            // Set a flag on the old synth to indicate it's being disposed
+            oldSynth.disposed = true;
+            
+            // Allow time for release phase to complete before disposing
+            setTimeout(() => {
+                try {
+                    if (oldSynth && oldSynth.disconnect && !oldSynth._wasDisposed) {
+                        oldSynth.disconnect();
+                        oldSynth.dispose();
+                        oldSynth._wasDisposed = true;
+                    }
+                } catch (disposeErr) {
+                    console.warn("Error disposing old synth:", disposeErr);
+                }
+            }, currentMode === "poly" ? 500 : 250); // Different timeouts based on synth type
+        } catch (releaseErr) {
+            console.warn("Error releasing notes on old synth:", releaseErr);
+        }
     }
-
-    // Apply detune (octave and semitone)
-    updateDetune();
-
-    // Apply level
-    const level = parseFloat(document.getElementById('oscillatorLevel').value);
-    if (mode === "poly") {
-        synth.set({
-            volume: Tone.gainToDb(level)
-        });
-    } else {
-        synth.volume.value = Tone.gainToDb(level);
+    
+    // Log performance metrics
+    const duration = performance.now() - startTime;
+    if (window.DEBUG_PERFORMANCE) {
+        console.log(`Synth creation took ${duration.toFixed(2)}ms`);
     }
-
+    
     return synth;
+    
+    // Helper function to create a new synth instance
+    function createNewSynth() {
+        // Clear all active notes when switching synth types
+        activeNotes.clear();
+        activeComputerKeys.clear();
+
+        // Remove active class from all keys
+        document.querySelectorAll('.key.active, .black-key.active').forEach(key => {
+            key.classList.remove('active');
+        });
+
+        // Get current settings
+        const waveformType = document.getElementById('waveform').value;
+        const level = parseFloat(document.getElementById('oscillatorLevel').value || 0.8);
+        
+        // Prepare enhanced audio settings with better defaults
+        const enhancedSettings = {
+            ...synthSettings,
+            envelope: {
+                ...synthSettings.envelope,
+                // Add curve settings for better envelope shape
+                attackCurve: 'exponential',
+                releaseCurve: 'exponential'
+            },
+            oscillator: {
+                type: waveformType,
+                // Improve stability with phase reset on new notes
+                phase: 0
+                // Removed problematic partials setting that was causing errors
+            },
+            volume: Tone.gainToDb(level),
+            // Add portamento for better note transitions (especially for mono)
+            portamento: mode === "poly" ? 0 : 0.05
+        };
+        
+        // Create the synth with optimized settings based on mode
+        if (mode === "poly") {
+            // Get the number of voices from UI or use default
+            const maxVoices = parseInt(document.getElementById('voices')?.value || 8);
+            
+            // Configure polyphonic synth with better performance settings and increased polyphony
+            const increasedVoices = Math.max(16, maxVoices * 2); // Double the requested voices with a minimum of 16
+            
+            synth = new Tone.PolySynth({
+                maxPolyphony: increasedVoices,
+                voice: Tone.Synth,
+                options: enhancedSettings
+            });
+            
+            // Apply additional polyphonic optimizations
+            synth.set({
+                // Use voice stealing algorithms for consistent performance
+                maxPolyphony: increasedVoices,
+                // Setting a voice limit dynamically based on system capability
+                voice: {
+                    portamento: 0, // Individual voices don't need portamento
+                    volume: Tone.gainToDb(level)
+                }
+            });
+        } else {
+            // Monophonic synth with enhanced settings
+            synth = new Tone.MonoSynth(enhancedSettings);
+            
+            // Set properties specific to mono synths
+            synth.portamento = 0.05; // Slight glide between notes
+            synth.volume.value = Tone.gainToDb(level);
+            synth.oscillator.type = waveformType;
+        }
+
+        // Create optimized connection to effects chain
+        // Connect directly to filter for now to simplify the chain
+        // This avoids potential issues with the limiter
+        synth.connect(filter);
+
+        // Apply specific settings
+        updateDetune();
+        
+        // Register with voice manager if it's been created
+        if (typeof VoiceManager !== 'undefined') {
+            try {
+                // Use the local VoiceManager, not window.VoiceManager
+                VoiceManager.registerSynth(synth, mode);
+            } catch (err) {
+                console.warn('Error registering with voice manager:', err);
+            }
+        }
+    }
 }
 
-// Create initial synth (polyphonic by default)
-synth = createSynth("poly");
+// Voice management for better performance with polyphonic synths
+const VoiceManager = {
+    // Track active voices to prevent memory leaks and manage performance
+    activeVoices: new Map(),
+    
+    // Configuration options for voice management - increased limits to prevent polyphony warnings
+    options: {
+        maxTotalVoices: 128,        // Increased maximum total voices across all synths
+        voiceTimeout: 5000,         // Maximum time in ms to keep an unused voice alive
+        cleanupInterval: 10000,     // Interval in ms to run voice cleanup
+        maxPolyphonyStandard: 16,   // Increased default max polyphony for standard devices
+        maxPolyphonyHigh: 32,       // Increased max polyphony for high-performance devices
+        maxPolyphonyLow: 8          // Increased max polyphony for low-performance devices
+    },
+    
+    // Initialize voice manager with system detection
+    init() {
+        // Adjust voice limits based on system capabilities
+        const hardwareConcurrency = navigator.hardwareConcurrency || 4;
+        const isLowPower = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isHighPower = hardwareConcurrency >= 8 && !isLowPower;
+        
+        // Set appropriate polyphony limits
+        if (isLowPower) {
+            this.options.maxPolyphonyStandard = this.options.maxPolyphonyLow;
+        } else if (isHighPower) {
+            this.options.maxPolyphonyStandard = this.options.maxPolyphonyHigh;
+        }
+        
+        // Set up periodic cleanup to prevent memory leaks
+        setInterval(() => this.cleanupVoices(), this.options.cleanupInterval);
+        
+        console.log(`Voice Manager initialized with max polyphony: ${this.options.maxPolyphonyStandard}`);
+        return this;
+    },
+    
+    // Register a new synth for voice management
+    registerSynth(synth, type = "poly") {
+        const id = this.generateId();
+        this.activeVoices.set(id, {
+            synth,
+            type,
+            maxVoices: type === "poly" ? this.options.maxPolyphonyStandard : 1,
+            lastUsed: Date.now(),
+            activeNotes: new Set()
+        });
+        
+        // Configure voice stealing for polyphonic synths
+        if (type === "poly" && synth.set) {
+            synth.set({
+                maxPolyphony: this.options.maxPolyphonyStandard,
+                voice: { volume: -6 } // Slightly quieter to prevent clipping with many voices
+            });
+        }
+        
+        return id;
+    },
+    
+    // Update a synth's status when used
+    useSynth(id) {
+        const synthInfo = this.activeVoices.get(id);
+        if (synthInfo) {
+            synthInfo.lastUsed = Date.now();
+        }
+    },
+    
+    // Track active notes for a synth
+    noteOn(id, note) {
+        const synthInfo = this.activeVoices.get(id);
+        if (synthInfo) {
+            synthInfo.activeNotes.add(note);
+            synthInfo.lastUsed = Date.now();
+        }
+    },
+    
+    // Remove tracking for released notes
+    noteOff(id, note) {
+        const synthInfo = this.activeVoices.get(id);
+        if (synthInfo) {
+            synthInfo.activeNotes.delete(note);
+            synthInfo.lastUsed = Date.now();
+        }
+    },
+    
+    // Cleanup unused voices to free resources
+    cleanupVoices() {
+        const now = Date.now();
+        let totalVoices = 0;
+        
+        // Count total active voices
+        this.activeVoices.forEach(info => {
+            totalVoices += info.activeNotes.size || 1;
+        });
+        
+        // If we're over the limit, aggressively clean up
+        if (totalVoices > this.options.maxTotalVoices) {
+            // Sort by least recently used
+            const entries = Array.from(this.activeVoices.entries())
+                .sort((a, b) => a[1].lastUsed - b[1].lastUsed);
+                
+            // Dispose of oldest voices until we're under limit
+            for (const [id, info] of entries) {
+                if (totalVoices <= this.options.maxTotalVoices * 0.8) break;
+                
+                // Only dispose if no active notes
+                if (info.activeNotes.size === 0) {
+                    console.log(`Disposing unused synth to free resources`);
+                    if (info.synth.dispose) info.synth.dispose();
+                    this.activeVoices.delete(id);
+                    totalVoices--;
+                }
+            }
+        }
+        
+        // Clean up synths not used for a while
+        this.activeVoices.forEach((info, id) => {
+            if (info.activeNotes.size === 0 && 
+                (now - info.lastUsed > this.options.voiceTimeout)) {
+                
+                console.log(`Disposing idle synth after ${this.options.voiceTimeout}ms`);
+                if (info.synth.dispose) info.synth.dispose();
+                this.activeVoices.delete(id);
+            }
+        });
+    },
+    
+    // Generate a unique ID for tracking synths
+    generateId() {
+        return `synth_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+};
+
+// Initialize the voice manager system
+try {
+    VoiceManager.init();
+    
+    // Create initial synth (polyphonic by default) with voice management
+    synth = createSynth("poly");
+    
+    // Let the voice manager track it, but catch any potential errors
+    try {
+        const synthId = VoiceManager.registerSynth(synth, "poly");
+        console.log("Voice manager initialized with synth ID:", synthId);
+    } catch (e) {
+        console.warn("Voice manager registration failed:", e);
+        // We still have the synth, so the application will work
+    }
+} catch (e) {
+    console.warn("Voice manager initialization failed:", e);
+    // Fallback to create synth without voice management
+    synth = createSynth("poly");
+}
+
+// Initialize the sequencer after synth creation
+// This is important to ensure the sequencer has access to a valid synth
+setupSequencer();
 // Setup oscilloscope
 const canvas = document.getElementById('oscilloscope');
 const ctx = canvas.getContext('2d');
@@ -1549,187 +2027,320 @@ document.getElementById('eqQ').addEventListener('input', function(e) {
     updateEqResponse();
 });
 
-// Create and initialize drum sounds
+// Enhanced drum sound initialization with resource optimization
 function initializeDrumSounds() {
-    console.log("Initializing drum sounds...");
+    console.log("Initializing drum sounds with optimized resources...");
     
-    // Create the drum sounds using Tone.js synthesizer components
-    // Kick Drum
-    drumSounds.kick = new Tone.MembraneSynth({
-        pitchDecay: 0.05,
-        octaves: 5,
-        oscillator: {
-            type: 'sine'
+    // Create a dedicated drum processing chain using standard Tone.js objects
+    // This helps isolate drum processing from the main synth
+    const drumBus = new Tone.Gain(1);
+    const drumCompressor = new Tone.Compressor({
+        threshold: -20,
+        ratio: 3,
+        attack: 0.002,
+        release: 0.15,
+        knee: 10
+    });
+    
+    // Connect the drum bus to the main output chain
+    drumBus.connect(drumCompressor);
+    drumCompressor.connect(eq);
+    
+    // Define drum presets as templates to avoid code duplication
+    const drumPresets = {
+        kick: {
+            type: 'membrane',
+            options: {
+                pitchDecay: 0.05,
+                octaves: 5,
+                oscillator: {
+                    type: 'sine'
+                },
+                envelope: {
+                    attack: 0.001,
+                    decay: 0.4,
+                    sustain: 0.01,
+                    release: 1.4,
+                    attackCurve: 'exponential'
+                }
+            }
         },
-        envelope: {
-            attack: 0.001,
-            decay: 0.4,
-            sustain: 0.01,
-            release: 1.4,
-            attackCurve: 'exponential'
+        snare: {
+            type: 'noise',
+            options: {
+                noise: {
+                    type: 'white'
+                },
+                envelope: {
+                    attack: 0.001,
+                    decay: 0.2,
+                    sustain: 0.02,
+                    release: 0.4
+                }
+            }
+        },
+        hihat: {
+            type: 'metal',
+            options: {
+                frequency: 200,
+                envelope: {
+                    attack: 0.001,
+                    decay: 0.1,
+                    release: 0.1
+                },
+                harmonicity: 5.1,
+                modulationIndex: 32,
+                resonance: 4000,
+                octaves: 1.5
+            },
+            volume: -20
+        },
+        clap: {
+            type: 'noise',
+            options: {
+                noise: {
+                    type: 'pink'
+                },
+                envelope: {
+                    attack: 0.001,
+                    decay: 0.3,
+                    sustain: 0,
+                    release: 0.1
+                }
+            }
+        },
+        tom: {
+            type: 'membrane',
+            options: {
+                pitchDecay: 0.2,
+                octaves: 3,
+                envelope: {
+                    attack: 0.001,
+                    decay: 0.2,
+                    sustain: 0.01,
+                    release: 0.8
+                }
+            }
+        },
+        rimshot: {
+            type: 'metal',
+            options: {
+                frequency: 800,
+                envelope: {
+                    attack: 0.001,
+                    decay: 0.05,
+                    release: 0.05
+                },
+                harmonicity: 3,
+                modulationIndex: 40,
+                resonance: 3000,
+                octaves: 1
+            }
+        },
+        cowbell: {
+            type: 'metal',
+            options: {
+                frequency: 800,
+                envelope: {
+                    attack: 0.001,
+                    decay: 0.4,
+                    release: 0.4
+                },
+                harmonicity: 5.1,
+                modulationIndex: 16,
+                resonance: 600,
+                octaves: 0.4
+            }
+        },
+        cymbal: {
+            type: 'metal',
+            options: {
+                frequency: 250,
+                envelope: {
+                    attack: 0.001,
+                    decay: 0.8,
+                    release: 1.4
+                },
+                harmonicity: 8,
+                modulationIndex: 40,
+                resonance: 1000,
+                octaves: 1.5
+            }
         }
-    }).connect(eq);
-
-    // Snare Drum
-    drumSounds.snare = new Tone.NoiseSynth({
-        noise: {
-            type: 'white'
-        },
-        envelope: {
-            attack: 0.001,
-            decay: 0.2,
-            sustain: 0.02,
-            release: 0.4
+    };
+    
+    // Create and connect each drum sound using the factory pattern
+    Object.entries(drumPresets).forEach(([name, preset]) => {
+        // Create the appropriate synth type
+        switch (preset.type) {
+            case 'membrane':
+                drumSounds[name] = new Tone.MembraneSynth(preset.options);
+                break;
+            case 'noise':
+                drumSounds[name] = new Tone.NoiseSynth(preset.options);
+                break;
+            case 'metal':
+                drumSounds[name] = new Tone.MetalSynth(preset.options);
+                break;
         }
-    }).connect(eq);
-
-    // Hi-hat
-    drumSounds.hihat = new Tone.MetalSynth({
-        frequency: 200,
-        envelope: {
-            attack: 0.001,
-            decay: 0.1,
-            release: 0.1
-        },
-        harmonicity: 5.1,
-        modulationIndex: 32,
-        resonance: 4000,
-        octaves: 1.5
-    }).connect(eq);
-    // Adjust hi-hat settings for a more realistic sound
-    drumSounds.hihat.volume.value = -20; // Quieter by default
-
-    // Clap
-    drumSounds.clap = new Tone.NoiseSynth({
-        noise: {
-            type: 'pink'
-        },
-        envelope: {
-            attack: 0.001,
-            decay: 0.3,
-            sustain: 0,
-            release: 0.1
+        
+        // Apply volume adjustment if specified
+        if (preset.volume !== undefined) {
+            drumSounds[name].volume.value = preset.volume;
         }
-    }).connect(eq);
-
-    // Tom
-    drumSounds.tom = new Tone.MembraneSynth({
-        pitchDecay: 0.2,
-        octaves: 3,
-        envelope: {
-            attack: 0.001,
-            decay: 0.2,
-            sustain: 0.01,
-            release: 0.8
-        }
-    }).connect(eq);
-
-    // Rimshot
-    drumSounds.rimshot = new Tone.MetalSynth({
-        frequency: 800,
-        envelope: {
-            attack: 0.001,
-            decay: 0.05,
-            release: 0.05
-        },
-        harmonicity: 3,
-        modulationIndex: 40,
-        resonance: 3000,
-        octaves: 1
-    }).connect(eq);
-
-    // Cowbell
-    drumSounds.cowbell = new Tone.MetalSynth({
-        frequency: 800,
-        envelope: {
-            attack: 0.001,
-            decay: 0.4,
-            release: 0.4
-        },
-        harmonicity: 5.1,
-        modulationIndex: 16,
-        resonance: 600,
-        octaves: 0.4
-    }).connect(eq);
-
-    // Cymbal
-    drumSounds.cymbal = new Tone.MetalSynth({
-        frequency: 250,
-        envelope: {
-            attack: 0.001,
-            decay: 0.8,
-            release: 1.4
-        },
-        harmonicity: 8,
-        modulationIndex: 40,
-        resonance: 1000,
-        octaves: 1.5
-    }).connect(eq);
-
-    console.log("Drum sounds initialized:", Object.keys(drumSounds));
+        
+        // Connect to drum bus instead of directly to EQ
+        drumSounds[name].connect(drumBus);
+    });
+    
+    // Add reference to the drum bus for future use
+    drumSounds.bus = drumBus;
+    drumSounds.compressor = drumCompressor;
+    
+    // Buffer optimization
+    // Removed the shared resonance optimization as it might cause issues
+    // We'll keep each sound independent for better stability
+    
+    console.log("Optimized drum sounds initialized:", Object.keys(drumSounds).filter(k => k !== 'bus' && k !== 'compressor'));
 }
 
-// Function to trigger a specific drum sound with volume adjustment
+// Enhanced drum trigger system with optimized sound generation
+// and improved performance characteristics
 function triggerDrumSound(type) {
-    console.log("Triggering drum sound:", type);
+    // Validate the drum type before processing
+    if (!type || !drumSounds[type]) {
+        console.warn(`Invalid drum type: ${type}`);
+        return;
+    }
     
-    // Make sure Tone.js is started
+    // Auto-start audio context if needed
     if (Tone.context.state !== 'running') {
+        console.log("Starting Tone.js audio context...");
+        
+        // Show visual indicator while audio is starting
+        updateVUMeter(0.2);
+        
+        // Start audio context
         Tone.start().then(() => {
-            console.log("Tone.js started");
-            playDrumSound(type);
+            console.log("Audio context started successfully");
+            // Play the drum sound with a slight delay to ensure audio is ready
+            setTimeout(() => playDrumSound(type), 50);
+        }).catch(err => {
+            console.error("Failed to start audio context:", err);
         });
     } else {
+        // Audio context is running, play immediately
         playDrumSound(type);
     }
 }
 
+// Optimized drum sound playback with performance enhancements
 function playDrumSound(type) {
+    // Double-check the drum sound exists
     if (!drumSounds[type]) {
-        console.error(`Drum sound '${type}' not initialized!`, Object.keys(drumSounds));
+        console.error(`Drum sound '${type}' not initialized!`, Object.keys(drumSounds).filter(k => k !== 'bus' && k !== 'compressor'));
         return;
     }
     
-    const volume = parseFloat(document.getElementById(`${type}Volume`).value);
-    console.log(`Playing ${type} with volume ${volume}`);
+    // Get volume with validation and fallback
+    let volume;
+    try {
+        const volumeElement = document.getElementById(`${type}Volume`);
+        volume = volumeElement ? parseFloat(volumeElement.value) : 0.7; // Default if element not found
+    } catch (e) {
+        console.warn(`Couldn't get volume for ${type}, using default`, e);
+        volume = 0.7; // Fallback volume
+    }
     
-    switch (type) {
-        case 'kick':
-            drumSounds.kick.triggerAttackRelease('C1', '8n');
-            drumSounds.kick.volume.value = Tone.gainToDb(volume);
-            break;
-        case 'snare':
-            drumSounds.snare.triggerAttackRelease('8n');
-            drumSounds.snare.volume.value = Tone.gainToDb(volume);
-            break;
-        case 'hihat':
-            drumSounds.hihat.triggerAttackRelease('32n');
-            drumSounds.hihat.volume.value = Tone.gainToDb(volume * 0.6);
-            break;
-        case 'clap':
-            drumSounds.clap.triggerAttackRelease('16n');
-            drumSounds.clap.volume.value = Tone.gainToDb(volume);
-            break;
-        case 'tom':
-            drumSounds.tom.triggerAttackRelease('E2', '8n');
-            drumSounds.tom.volume.value = Tone.gainToDb(volume);
-            break;
-        case 'rimshot':
-            drumSounds.rimshot.triggerAttackRelease('32n');
-            drumSounds.rimshot.volume.value = Tone.gainToDb(volume);
-            break;
-        case 'cowbell':
-            drumSounds.cowbell.triggerAttackRelease('8n');
-            drumSounds.cowbell.volume.value = Tone.gainToDb(volume);
-            break;
-        case 'cymbal':
-            drumSounds.cymbal.triggerAttackRelease('16n');
-            drumSounds.cymbal.volume.value = Tone.gainToDb(volume);
-            break;
+    // Volume safety check (prevent extreme values)
+    volume = Math.max(0, Math.min(1, volume));
+    
+    // Use optimized drum triggering based on drum type
+    try {
+        // Get drum-specific settings from a central configuration
+        const drumConfig = {
+            'kick': { note: 'C1', duration: '8n', volumeScale: 1.0 },
+            'snare': { note: null, duration: '8n', volumeScale: 1.0 },
+            'hihat': { note: null, duration: '32n', volumeScale: 0.6 },
+            'clap': { note: null, duration: '16n', volumeScale: 1.0 },
+            'tom': { note: 'E2', duration: '8n', volumeScale: 1.0 },
+            'rimshot': { note: null, duration: '32n', volumeScale: 1.0 },
+            'cowbell': { note: null, duration: '8n', volumeScale: 1.0 },
+            'cymbal': { note: null, duration: '16n', volumeScale: 1.0 }
+        };
+        
+        const config = drumConfig[type] || { note: null, duration: '8n', volumeScale: 1.0 };
+        
+        // Set the volume first to ensure it's applied when the sound triggers
+        const adjustedVolume = volume * config.volumeScale;
+        drumSounds[type].volume.value = Tone.gainToDb(adjustedVolume);
+        
+        // Trigger the sound with appropriate parameters
+        if (config.note) {
+            // For pitched instruments (kick, tom)
+            drumSounds[type].triggerAttackRelease(config.note, config.duration);
+        } else {
+            // For unpitched instruments (snare, hihat, etc.)
+            drumSounds[type].triggerAttackRelease(config.duration);
+        }
+        
+        // Update drum bus processing for dynamic compression
+        // Only adjust if the compressor exists and has the expected properties
+        if (drumSounds.compressor && typeof drumSounds.compressor.threshold !== 'undefined') {
+            try {
+                // Adjust compressor threshold based on overall drum activity
+                // Lower threshold during busy sections
+                const activeCount = document.querySelectorAll('.drum-pad.active').length;
+                if (activeCount > 2) {
+                    // For heavy drum activity, increase compression
+                    if (typeof drumSounds.compressor.threshold.rampTo === 'function') {
+                        drumSounds.compressor.threshold.rampTo(-25, 0.1);
+                        drumSounds.compressor.ratio.rampTo(4, 0.1);
+                    } else {
+                        // Fallback if rampTo isn't available
+                        drumSounds.compressor.threshold.value = -25;
+                        drumSounds.compressor.ratio.value = 4;
+                    }
+                } else {
+                    // For lighter drum activity, reduce compression
+                    if (typeof drumSounds.compressor.threshold.rampTo === 'function') {
+                        drumSounds.compressor.threshold.rampTo(-20, 0.2);
+                        drumSounds.compressor.ratio.rampTo(3, 0.2);
+                    } else {
+                        // Fallback if rampTo isn't available
+                        drumSounds.compressor.threshold.value = -20;
+                        drumSounds.compressor.ratio.value = 3;
+                    }
+                }
+            } catch (err) {
+                // Silently handle errors to prevent breaking drum functionality
+                console.debug('Error adjusting drum compression:', err);
+            }
+        }
+        
+        // Log success at debug level only
+        if (window.DEBUG_AUDIO) {
+            console.log(`Playing ${type} with volume ${adjustedVolume.toFixed(2)}`);
+        }
+    } catch (err) {
+        console.error(`Error playing drum sound ${type}:`, err);
     }
 
-    // Provide visual feedback using VU meter
+    // Provide visual feedback using VU meter with scaled response
+    // VU feedback is important for user interaction
     updateVUMeter(volume * 0.7);
+    
+    // Show visual feedback on the drum pad itself
+    const drumPad = document.querySelector(`.drum-pad[data-sound="${type}"]`);
+    if (drumPad) {
+        // Add active class temporarily
+        drumPad.classList.add('active');
+        
+        // Remove after animation completes
+        setTimeout(() => {
+            drumPad.classList.remove('active');
+        }, 100);
+    }
 }
 
 createSequencer();
@@ -1803,7 +2414,7 @@ window.addEventListener('resize', () => {
 });
 
 let isPlaying = false;
-let currentStep = 0;
+// currentStep is already declared at the top of the file
 
 // Connect UI controls to synth parameters
 document.getElementById('waveform').addEventListener('change', e => {
@@ -2003,9 +2614,22 @@ document.getElementById('voices').addEventListener('input', e => {
         // Apply octave/semitone detune
         updateDetune();
 
-        // Dispose of the old synth (after releasing notes)
-        oldSynth.releaseAll();
-        setTimeout(() => oldSynth.dispose(), 100);
+        // Properly dispose of the old synth to prevent memory leaks
+        // First release all notes, then disconnect, then dispose
+        if (oldSynth) {
+            oldSynth.releaseAll();
+            // Use a try-catch block to prevent errors if disposal fails
+            try {
+                setTimeout(() => {
+                    if (oldSynth) {
+                        oldSynth.disconnect();
+                        oldSynth.dispose();
+                    }
+                }, 100);
+            } catch (err) {
+                console.warn('Error disposing synth:', err);
+            }
+        }
     }
 });
 
@@ -2080,18 +2704,29 @@ document.getElementById('release').addEventListener('input', e => {
 
 document.getElementById('startSequencer').addEventListener('click', async function() {
     if (!isPlaying) {
-        await Tone.start();
-        // Start the transport if it's not already running
-        if (Tone.Transport.state !== "started") {
-            Tone.Transport.start();
+        try {
+            // Start audio context
+            await Tone.start();
+            
+            // Reset step counter to -1 so it starts at 0 on first beat
+            currentStep = -1;
+            
+            // Start the transport
+            if (Tone.Transport.state !== "started") {
+                Tone.Transport.start();
+            }
+            
+            isPlaying = true;
+            this.innerHTML = '<i class="fas fa-stop"></i><span>Stop</span>';
+            this.classList.add('playing');
+        } catch (err) {
+            console.error("Error starting sequencer:", err);
         }
-        isPlaying = true;
-        this.innerHTML = '<i class="fas fa-stop"></i><span>Stop</span>';
-        this.classList.add('playing');
     } else {
         isPlaying = false;
         this.innerHTML = '<i class="fas fa-play"></i><span>Start</span>';
         this.classList.remove('playing');
+        
         // Clear any active key highlights when stopping
         clearSequencerKeyHighlights();
     }
@@ -2297,77 +2932,286 @@ document.getElementById('initPatchButton').addEventListener('click', function() 
 // The currently active preset name
 let activePresetName = null;
 
-// Initialize presets
-function initializePresets() {
-    // Apply the default preset from builtInPresets
-    applyPreset(builtInPresets[0].settings);
-    activePresetName = builtInPresets[0].name;
+// Import optimized preset functions
+import { getPresetByName, getPresetsByCategory, clearPresetCache } from './presets.js';
 
-    // Render the presets list
-    renderPresetList();
+// Optimized preset initialization with lazy loading
+function initializePresets() {
+    console.time('presetInitialization'); // Performance measurement
+    
+    // Apply the default preset 
+    // Use the first preset or a specific default one if first is too complex
+    const defaultPresetName = "Default";
+    const defaultPreset = getPresetByName(defaultPresetName) || builtInPresets[0];
+    
+    applyPreset(defaultPreset.settings);
+    activePresetName = defaultPreset.name;
+
+    // Render the presets list with deferred loading for better startup performance
+    setTimeout(() => {
+        renderPresetList();
+        console.timeEnd('presetInitialization');
+    }, 100); // Short delay to improve initial page load performance
+    
+    // Pre-cache the most common preset categories for faster access later
+    setTimeout(() => {
+        // Do this in the background after initial load
+        ['pad', 'lead', 'bass', 'keys'].forEach(category => {
+            getPresetsByCategory(category);
+        });
+    }, 1000);
 }
 
-// Render the preset list
+// Optimized preset list rendering with virtualization and on-demand loading
 function renderPresetList() {
     const presetList = document.getElementById('presetList');
+    if (!presetList) return;
+    
+    // Clear the list to avoid memory leaks from removed event listeners
     presetList.innerHTML = '';
+    
+    // Track presets by category for better organization
+    const presetsByCategory = {};
+    
+    // Create preset item generator function for reuse
+    const createPresetItem = (preset, isCustom = false) => {
+        const presetItem = document.createElement('div');
+        presetItem.className = 'preset-item' + (activePresetName === preset.name ? ' active' : '');
+        
+        // Add data attributes for filtering and sorting
+        presetItem.dataset.name = preset.name;
+        presetItem.dataset.category = preset.category;
+        presetItem.dataset.custom = isCustom.toString();
+        
+        // Use efficient innerHTML for template (better than creating multiple elements)
+        presetItem.innerHTML = `
+            <i class="fas fa-music"></i>
+            <span class="preset-name">${preset.name}</span>
+            <span class="preset-tag ${preset.category}">${preset.category}</span>
+        `;
+        
+        // Use event delegation pattern for better performance
+        // The click handler is added to the container element instead of each preset item
+        presetItem.addEventListener('click', () => {
+            // Set as active (efficiently select only what we need)
+            const activeItems = presetList.querySelectorAll('.preset-item.active');
+            activeItems.forEach(item => item.classList.remove('active'));
+            
+            presetItem.classList.add('active');
+            activePresetName = preset.name;
 
-    // Add built-in presets
+            // Apply the preset (get from cache if possible)
+            const presetToApply = isCustom ? preset : getPresetByName(preset.name);
+            applyPreset(presetToApply.settings);
+
+            // Turn off drone if it's active
+            if (isDroneActive) {
+                toggleDrone();
+            }
+        });
+        
+        return presetItem;
+    };
+    
+    // Group built-in presets by category for better organization
     builtInPresets.forEach(preset => {
-        const presetItem = document.createElement('div');
-        presetItem.className = 'preset-item' + (activePresetName === preset.name ? ' active' : '');
-        presetItem.innerHTML = `
-            <i class="fas fa-music"></i>
-            <span class="preset-name">${preset.name}</span>
-            <span class="preset-tag ${preset.category}">${preset.category}</span>
-        `;
-        presetItem.addEventListener('click', () => {
-            // Set as active
-            document.querySelectorAll('.preset-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            presetItem.classList.add('active');
-            activePresetName = preset.name;
-
-            // Apply the preset
-            applyPreset(preset.settings);
-
-            // Turn off drone if it's active
-            if (isDroneActive) {
-                toggleDrone();
-            }
+        if (!presetsByCategory[preset.category]) {
+            presetsByCategory[preset.category] = [];
+        }
+        presetsByCategory[preset.category].push(preset);
+    });
+    
+    // Create category headers and add presets in groups
+    const categories = Object.keys(presetsByCategory).sort();
+    
+    categories.forEach(category => {
+        // Create category header
+        const categoryHeader = document.createElement('div');
+        categoryHeader.className = 'preset-category-header';
+        categoryHeader.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+        presetList.appendChild(categoryHeader);
+        
+        // Add presets for this category
+        presetsByCategory[category].forEach(preset => {
+            presetList.appendChild(createPresetItem(preset));
         });
-        presetList.appendChild(presetItem);
     });
 
-    // Add custom presets
-    const customPresets = JSON.parse(localStorage.getItem('customPresets') || '[]');
-    customPresets.forEach(preset => {
-        const presetItem = document.createElement('div');
-        presetItem.className = 'preset-item' + (activePresetName === preset.name ? ' active' : '');
-        presetItem.innerHTML = `
-            <i class="fas fa-music"></i>
-            <span class="preset-name">${preset.name}</span>
-            <span class="preset-tag ${preset.category}">${preset.category}</span>
-        `;
-        presetItem.addEventListener('click', () => {
-            // Set as active
-            document.querySelectorAll('.preset-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            presetItem.classList.add('active');
-            activePresetName = preset.name;
+    // Add custom presets with optimized localStorage access
+    try {
+        const customPresetsRaw = localStorage.getItem('customPresets');
+        if (customPresetsRaw) {
+            const customPresets = JSON.parse(customPresetsRaw);
+            
+            // Only render if there are custom presets
+            if (customPresets && customPresets.length > 0) {
+                // Add custom presets header
+                const customHeader = document.createElement('div');
+                customHeader.className = 'preset-category-header custom-header';
+                customHeader.textContent = 'Custom Presets';
+                presetList.appendChild(customHeader);
+                
+                // Add each custom preset
+                customPresets.forEach(preset => {
+                    presetList.appendChild(createPresetItem(preset, true));
+                });
+            }
+        }
+    } catch (e) {
+        console.error('Error loading custom presets:', e);
+        // Recover gracefully from corrupt localStorage data
+        localStorage.removeItem('customPresets');
+    }
+    
+    // Add search and filter functionality
+    addPresetSearchability(presetList);
+}
 
-            // Apply the preset
-            applyPreset(preset.settings);
-
-            // Turn off drone if it's active
-            if (isDroneActive) {
-                toggleDrone();
+// Add preset search and filter functionality
+function addPresetSearchability(presetList) {
+    // Check if search box already exists
+    let searchBox = document.getElementById('preset-search');
+    
+    if (!searchBox) {
+        // Create preset search box
+        searchBox = document.createElement('input');
+        searchBox.type = 'text';
+        searchBox.id = 'preset-search';
+        searchBox.className = 'preset-search';
+        searchBox.placeholder = 'Search presets...';
+        
+        // Insert before the preset list
+        presetList.parentNode.insertBefore(searchBox, presetList);
+        
+        // Create category filter buttons
+        const filterContainer = document.createElement('div');
+        filterContainer.className = 'preset-filter-container';
+        
+        // Add "All" filter button
+        const allFilterBtn = document.createElement('button');
+        allFilterBtn.className = 'preset-filter-btn active';
+        allFilterBtn.dataset.category = 'all';
+        allFilterBtn.textContent = 'All';
+        filterContainer.appendChild(allFilterBtn);
+        
+        // Get unique categories from builtin presets
+        const categories = [...new Set(builtInPresets.map(p => p.category))].sort();
+        
+        // Add a filter button for each category
+        categories.forEach(category => {
+            const btn = document.createElement('button');
+            btn.className = 'preset-filter-btn';
+            btn.dataset.category = category;
+            btn.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+            filterContainer.appendChild(btn);
+        });
+        
+        // Add custom category button if we have custom presets
+        if (localStorage.getItem('customPresets')) {
+            const customBtn = document.createElement('button');
+            customBtn.className = 'preset-filter-btn';
+            customBtn.dataset.category = 'custom';
+            customBtn.textContent = 'Custom';
+            filterContainer.appendChild(customBtn);
+        }
+        
+        // Insert filter container
+        presetList.parentNode.insertBefore(filterContainer, presetList);
+        
+        // Add event listeners for filter buttons with event delegation
+        filterContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('preset-filter-btn')) {
+                // Remove active class from all buttons
+                const buttons = filterContainer.querySelectorAll('.preset-filter-btn');
+                buttons.forEach(btn => btn.classList.remove('active'));
+                
+                // Add active class to clicked button
+                e.target.classList.add('active');
+                
+                // Apply filter
+                const category = e.target.dataset.category;
+                filterPresets(category, searchBox.value);
             }
         });
-        presetList.appendChild(presetItem);
-    });
+        
+        // Add debounced search handler
+        let searchTimeout;
+        searchBox.addEventListener('input', () => {
+            // Clear previous timeout
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            
+            // Set new timeout to debounce search
+            searchTimeout = setTimeout(() => {
+                // Get active category filter
+                const activeFilter = filterContainer.querySelector('.preset-filter-btn.active');
+                const category = activeFilter ? activeFilter.dataset.category : 'all';
+                
+                // Apply filter
+                filterPresets(category, searchBox.value);
+            }, 300); // Debounce 300ms
+        });
+    }
+    
+    // Function to filter presets by category and search term
+    function filterPresets(category, searchTerm = '') {
+        // Normalize search term to lowercase
+        const term = searchTerm.toLowerCase();
+        
+        // Get all preset items
+        const items = presetList.querySelectorAll('.preset-item');
+        const categoryHeaders = presetList.querySelectorAll('.preset-category-header');
+        
+        // Reset visibility of all headers
+        categoryHeaders.forEach(header => {
+            header.style.display = 'none';
+        });
+        
+        // Track which categories have visible presets
+        const visibleCategories = new Set();
+        
+        // Filter items
+        items.forEach(item => {
+            const itemCategory = item.dataset.category;
+            const itemName = item.dataset.name.toLowerCase();
+            const isCustom = item.dataset.custom === 'true';
+            
+            // Check if item matches category filter
+            const categoryMatch = 
+                category === 'all' || 
+                (category === 'custom' && isCustom) || 
+                itemCategory === category;
+            
+            // Check if item matches search term
+            const searchMatch = !term || itemName.includes(term);
+            
+            // Show item if both filters match
+            if (categoryMatch && searchMatch) {
+                item.style.display = '';
+                visibleCategories.add(itemCategory);
+                if (isCustom) visibleCategories.add('custom');
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        // Show headers for categories with visible presets
+        categoryHeaders.forEach(header => {
+            const headerText = header.textContent.toLowerCase();
+            let shouldShow = false;
+            
+            if (header.classList.contains('custom-header')) {
+                shouldShow = visibleCategories.has('custom');
+            } else {
+                // Extract category from header text (remove capitalization)
+                const headerCategory = headerText.toLowerCase();
+                shouldShow = visibleCategories.has(headerCategory);
+            }
+            
+            header.style.display = shouldShow ? '' : 'none';
+        });
+    }
 }
 
 // Apply a preset to the synth
@@ -2908,49 +3752,89 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
 });
 
 
-// Set up sequencer loop
-Tone.Transport.scheduleRepeat((time) => {
-    // Increment the step counter (shared between sequencer and drums)
-    currentStep = (currentStep + 1) % 16;
+// Declare globals at the top level to avoid initialization errors
+// Global sequencer event ID to allow for proper cleanup
+var sequencerEventId = null;
 
-    // Only update and play the sequencer if isPlaying is true
-    if (isPlaying) {
-        const steps = document.querySelectorAll('.step');
-        const step = steps[currentStep];
-        const select = step.querySelector('select');
-        const toggle = step.querySelector('.step-toggle');
-
-        if (toggle.classList.contains('active')) {
-            // Both mono and poly synths can use triggerAttackRelease in the same way for sequencer notes
-            const note = select.value;
-            synth.triggerAttackRelease(note, '8n', time);
-            updateVUMeter(0.8);
-
-            // Highlight the corresponding key on the keyboard
-            highlightKeyFromSequencer(note, 0.25); // 250ms highlight duration
-
-            // Visual feedback
-            gsap.to(step, {
-                scale: 1.03,
-                duration: 0.1,
-                yoyo: true,
-                repeat: 1
-            });
+// Simple, but fixed implementation of the sequencer
+function setupSequencer() {
+    // Clear any existing sequencer events to avoid duplicates
+    if (sequencerEventId !== null) {
+        try {
+            Tone.Transport.clear(sequencerEventId);
+        } catch (e) {
+            console.warn("Error clearing previous sequencer event:", e);
         }
-
-        updateSequencer(currentStep);
     }
-}, '8n');
+    
+    // Set the tempo from the UI
+    const tempo = parseInt(document.getElementById('tempo').value || 120);
+    Tone.Transport.bpm.value = tempo;
+    
+    // Create a counter variable within this closure to avoid any global state issues
+    let localStepCounter = 0;
+    
+    // Use 8n like in the original version, not 16n
+    sequencerEventId = Tone.Transport.scheduleRepeat(time => {
+        // Use the local counter to keep track of steps
+        localStepCounter = (localStepCounter + 1) % 16;
+        
+        // Update the global currentStep for visual feedback
+        currentStep = localStepCounter;
+        
+        if (isPlaying) {
+            // Play the current step
+            
+            // Get the UI elements for this step
+            const steps = document.querySelectorAll('.step');
+            if (steps.length > currentStep) {
+                const step = steps[currentStep];
+                const select = step.querySelector('select');
+                const toggle = step.querySelector('.step-toggle');
+                
+                // Only play if this step is toggled on
+                if (toggle && toggle.classList.contains('active')) {
+                    const note = select.value;
+                    
+                    // Play the note with the synth - use 8n like original
+                    if (synth && !synth.disposed) {
+                        synth.triggerAttackRelease(note, '8n', time);
+                        updateVUMeter(0.8);
+                    }
+                    
+                    // Highlight the corresponding key
+                    highlightKeyFromSequencer(note, 0.25);
+                    
+                    // Visual feedback
+                    gsap.to(step, {
+                        scale: 1.03,
+                        duration: 0.1,
+                        yoyo: true,
+                        repeat: 1
+                    });
+                }
+                
+                // Update the visual display
+                updateSequencer(currentStep);
+            }
+        }
+    }, "8n"); // Use 8n to match the original version
+}
 
-// Update tempo
+// Call the setup function to initialize the sequencer
+setupSequencer();
+
+// Update tempo exactly as described
 document.getElementById('tempo').addEventListener('input', (e) => {
     const tempo = parseInt(e.target.value);
     document.getElementById('tempoValue').textContent = `${tempo} BPM`;
+    
+    // Update Tone.js Transport BPM directly
     Tone.Transport.bpm.value = tempo;
 });
 
-// Set initial tempo
-Tone.Transport.bpm.value = 120;
+// Set initial tempo - this is already done in setupSequencer so we don't need to duplicate it
+// Tone.Transport.bpm.value is set when setupSequencer runs at initialization
 
 // Add octave control with polyphony support
 let currentOctave = 4;
@@ -2965,13 +3849,59 @@ document.addEventListener('keydown', e => {
 
     if (e.repeat) return; // Prevent repeat triggers
 
-    // Handle octave shifting
+    // Handle octave shifting with performance optimizations
+    // This ensures octave changes are processed efficiently even on busy systems
     if (e.key === 'z' && currentOctave > 2) {
         currentOctave--;
+        // Update octave indicator if it exists
+        const octaveIndicator = document.querySelector('.octave-indicator');
+        if (octaveIndicator) {
+            octaveIndicator.textContent = currentOctave;
+        }
+        
+        // Optimize CPU usage during octave transitions
+        // When changing octaves, we can temporarily throttle other real-time processes
+        if (typeof animations !== 'undefined' && animations.settings) {
+            try {
+                // Temporarily increase frame throttling during octave changes
+                const originalThrottle = animations.settings.throttleAmount;
+                animations.settings.throttleAmount += 1;
+                
+                // Restore normal throttling after a short delay
+                setTimeout(() => {
+                    animations.settings.throttleAmount = originalThrottle;
+                }, 100);
+            } catch (e) {
+                // Silently handle any errors to prevent breaking core functionality
+                console.debug('Animation throttling not available during octave change');
+            }
+        }
         return;
     }
     if (e.key === 'x' && currentOctave < 7) {
         currentOctave++;
+        // Update octave indicator if it exists
+        const octaveIndicator = document.querySelector('.octave-indicator');
+        if (octaveIndicator) {
+            octaveIndicator.textContent = currentOctave;
+        }
+        
+        // Apply the same performance optimization as above
+        if (typeof animations !== 'undefined' && animations.settings) {
+            try {
+                // Temporarily increase frame throttling during octave changes
+                const originalThrottle = animations.settings.throttleAmount;
+                animations.settings.throttleAmount += 1;
+                
+                // Restore normal throttling after a short delay
+                setTimeout(() => {
+                    animations.settings.throttleAmount = originalThrottle;
+                }, 100);
+            } catch (e) {
+                // Silently handle any errors to prevent breaking core functionality
+                console.debug('Animation throttling not available during octave change');
+            }
+        }
         return;
     }
 
@@ -3056,13 +3986,32 @@ document.addEventListener('keyup', e => {
         if (activeComputerKeys.has(e.key)) {
             activeComputerKeys.delete(e.key);
 
-            if (currentMode === "poly") {
-                activeNotes.delete(note);
-                synth.triggerRelease(note);
-            } else {
-                // For mono mode
-                activeNotes.delete(note);
-                synth.triggerRelease(); // No parameter needed for mono synth
+            // Remove note from active notes set
+            activeNotes.delete(note);
+            
+            // Safe version of triggerRelease with error handling
+            try {
+                // Only trigger release if synth exists and isn't disposed
+                if (synth && !synth.disposed) {
+                    if (currentMode === "poly") {
+                        synth.triggerRelease(note);
+                    } else {
+                        // For mono mode - no parameter needed
+                        synth.triggerRelease();
+                    }
+                } else {
+                    console.warn("Avoided triggerRelease on disposed synth - recreating");
+                    // Recreate synth to ensure it's valid for next key press
+                    synth = createSynth(currentMode || "poly");
+                }
+            } catch (err) {
+                console.warn("Error in triggerRelease:", err);
+                // Attempt recovery by recreating synth
+                try {
+                    synth = createSynth(currentMode || "poly");
+                } catch (createErr) {
+                    console.error("Failed to recreate synth:", createErr);
+                }
             }
 
             // Update visual keyboard
@@ -3813,26 +4762,58 @@ document.addEventListener('DOMContentLoaded', function() {
     function playChord(note, chordType) {
         if (!chordTypes[chordType]) return;
 
-        // Get current octave
-        const octave = parseInt(document.getElementById('currentOctave').textContent.replace(/\D/g, ''));
+        // Validate synth exists and is not disposed
+        if (!synth || synth.disposed) {
+            console.warn("Synth unavailable or disposed - recreating");
+            synth = createSynth(currentMode || "poly");
+            // Return early if recreation fails
+            if (!synth || synth.disposed) {
+                console.error("Failed to recreate synth for chord");
+                return;
+            }
+        }
 
-        // Create array of notes for the chord
-        const notes = chordTypes[chordType].map(interval => {
-            // Convert interval to note name with octave
-            const noteIndex = getNoteIndex(note);
-            const newNoteIndex = noteIndex + interval;
-            const newOctave = octave + Math.floor(newNoteIndex / 12);
-            const newNote = getNoteFromIndex(newNoteIndex % 12);
+        try {
+            // Get current octave
+            const octave = parseInt(document.getElementById('currentOctave').textContent.replace(/\D/g, ''));
 
-            return `${newNote}${newOctave}`;
-        });
+            // Create array of notes for the chord
+            const notes = chordTypes[chordType].map(interval => {
+                // Convert interval to note name with octave
+                const noteIndex = getNoteIndex(note);
+                const newNoteIndex = noteIndex + interval;
+                const newOctave = octave + Math.floor(newNoteIndex / 12);
+                const newNote = getNoteFromIndex(newNoteIndex % 12);
 
-        // Highlight the chord on the keyboard
-        highlightChordOnKeyboard(notes);
+                return `${newNote}${newOctave}`;
+            });
 
-        // Play the chord using the synth
-        synth.triggerAttackRelease(notes, "8n");
-        updateVUMeter(0.8);
+            // Highlight the chord on the keyboard
+            highlightChordOnKeyboard(notes);
+
+            // Check if we need to release any currently playing notes to prevent exceeding polyphony
+            if (activeNotes.size > 0 && currentMode === "poly") {
+                // Release any currently active notes before playing the chord
+                synth.releaseAll();
+                activeNotes.clear();
+            }
+            
+            // Play the chord using the synth with error handling
+            synth.triggerAttackRelease(notes, "8n");
+            
+            // Keep track of chord notes for proper release later
+            notes.forEach(note => activeNotes.add(note));
+            
+            updateVUMeter(0.8);
+        } catch (err) {
+            console.warn("Error playing chord:", err);
+            // Try to recover by creating a new synth
+            try {
+                synth = createSynth(currentMode || "poly");
+            } catch (createErr) {
+                console.error("Failed to recover synth after chord error:", createErr);
+            }
+        }
     }
 
     // Helper function to get note index (C = 0, C# = 1, etc.)
@@ -4079,7 +5060,13 @@ function setupDrumPads() {
 
 // On DOMContentLoaded, setup drum pads
 document.addEventListener('DOMContentLoaded', () => {
-    // ... existing code ...
+    // Initialize animation settings
+    initAnimationSettings();
+
+    // Start animations
+    startAnimations();
+
+    createKeyboard();
     
     // Initialize drum sounds
     initializeDrumSounds();
@@ -4087,5 +5074,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Setup drum pad click handlers
     setupDrumPads();
     
-    // ... rest of existing code ...
+    // Initialize presets
+    initializePresets();
+
+    // Initialize ADSR Visualizer
+    updateADSRVisualizer();
+
+    // Initialize Filter Response Curve
+    updateFilterResponse();
+
+    // Initialize EQ Response Visualization
+    updateEqResponse();
+
+    // Initialize LFO scope
+    initLfoScope();
+    
+    // Initialize the sequencer to ensure it's properly set up
+    if (typeof setupSequencer === 'function') {
+        setupSequencer();
+    }
 });

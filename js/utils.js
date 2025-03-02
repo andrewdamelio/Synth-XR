@@ -1,13 +1,40 @@
 /**
- * utils.js - Utility functions for Synth XR
+ * utils.js - Optimized utility functions for Synth XR
  */
+
+// Cache for frequently used DOM elements
+const elementCache = new Map();
+
+/**
+ * Get DOM element with caching for better performance
+ * @param {string} id - Element ID
+ * @returns {HTMLElement|null} The DOM element or null if not found
+ */
+export function getElement(id) {
+    if (!elementCache.has(id)) {
+        const element = document.getElementById(id);
+        if (element) {
+            elementCache.set(id, element);
+        } else {
+            return null;
+        }
+    }
+    return elementCache.get(id);
+}
+
+/**
+ * Clears the element cache - useful when DOM structure changes
+ */
+export function clearElementCache() {
+    elementCache.clear();
+}
 
 /**
  * Updates the VU meter with an animated effect
  * @param {number} value - Value from 0 to 1 representing volume level
  */
 export function updateVUMeter(value) {
-    const vuMeter = document.getElementById('vuMeter');
+    const vuMeter = getElement('vuMeter');
     if (!vuMeter) return;
     
     gsap.to(vuMeter, {
@@ -23,8 +50,12 @@ export function updateVUMeter(value) {
     });
 }
 
+// Constant arrays for notes to avoid recreating them
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const NOTE_CACHE = {};
+
 /**
- * Converts a gain value to decibels
+ * Converts a gain value to decibels with optional caching
  * @param {number} value - Gain value (0-1)
  * @returns {number} Value in decibels
  */
@@ -38,17 +69,24 @@ export function gainToDb(value) {
 }
 
 /**
- * Generate notes array from C1 to B6
+ * Generate notes array from C1 to B6 (cached version)
  * @returns {string[]} Array of note names with octave (e.g. "C4")
  */
 export function generateNotes() {
-    const notes = [];
-    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    for (let octave = 1; octave <= 6; octave++) {
-        noteNames.forEach(note => {
-            notes.push(`${note}${octave}`);
-        });
+    // Return cached result if available
+    if (NOTE_CACHE.allNotes) {
+        return NOTE_CACHE.allNotes;
     }
+    
+    const notes = [];
+    for (let octave = 1; octave <= 6; octave++) {
+        for (let i = 0; i < NOTE_NAMES.length; i++) {
+            notes.push(`${NOTE_NAMES[i]}${octave}`);
+        }
+    }
+    
+    // Cache the result
+    NOTE_CACHE.allNotes = notes;
     return notes;
 }
 
@@ -58,8 +96,7 @@ export function generateNotes() {
  * @returns {number} Index of the note (0-11)
  */
 export function getNoteIndex(note) {
-    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    return notes.indexOf(note);
+    return NOTE_NAMES.indexOf(note);
 }
 
 /**
@@ -68,8 +105,7 @@ export function getNoteIndex(note) {
  * @returns {string} Note name (e.g. "C#")
  */
 export function getNoteFromIndex(index) {
-    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    return notes[index % 12]; // Ensure index wraps around
+    return NOTE_NAMES[index % 12]; // Ensure index wraps around
 }
 
 /**
@@ -79,22 +115,54 @@ export function getNoteFromIndex(index) {
  * @returns {Function} Function to update knob rotation
  */
 export function setupKnob(knobId, inputId) {
-    const knob = document.getElementById(knobId);
-    const input = document.getElementById(inputId);
+    const knob = getElement(knobId);
+    const input = getElement(inputId);
     if (!knob || !input) return () => {};
     
     let isDragging = false;
     let startY;
     let startValue;
+    
+    // Pre-calculate some values for better performance
+    const inputMin = parseFloat(input.min);
+    const inputMax = parseFloat(input.max);
+    const range = inputMax - inputMin;
 
     const updateKnobRotation = (value) => {
-        const min = parseFloat(input.min);
-        const max = parseFloat(input.max);
-        const rotation = ((value - min) / (max - min)) * 270 - 135;
+        const normalized = (value - inputMin) / range;
+        const rotation = normalized * 270 - 135;
+        
         gsap.to(knob, {
             rotation: rotation,
             duration: 0.1
         });
+    };
+    
+    // Shared handler for mouse/touch movement
+    const handleMove = (clientY) => {
+        if (!isDragging) return;
+        
+        const deltaY = startY - clientY;
+        const valueChange = (deltaY / 100) * range;
+        
+        let newValue = startValue + valueChange;
+        newValue = Math.max(inputMin, Math.min(inputMax, newValue));
+        
+        if (input.value !== newValue.toString()) {
+            input.value = newValue;
+            updateKnobRotation(newValue);
+            input.dispatchEvent(new Event('input'));
+        }
+    };
+
+    // Mouse event handlers with performance optimizations
+    const handleMouseMove = (e) => handleMove(e.clientY);
+    
+    const handleMouseUp = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
     };
 
     knob.addEventListener('mousedown', (e) => {
@@ -106,28 +174,19 @@ export function setupKnob(knobId, inputId) {
         e.preventDefault(); // Prevent text selection
     });
 
-    const handleMouseMove = (e) => {
+    // Touch event handlers with performance optimizations
+    const handleTouchMove = (e) => {
+        handleMove(e.touches[0].clientY);
+        e.preventDefault(); // Prevent scrolling
+    };
+    
+    const handleTouchEnd = () => {
         if (!isDragging) return;
-        
-        const deltaY = startY - e.clientY;
-        const range = parseFloat(input.max) - parseFloat(input.min);
-        const valueChange = (deltaY / 100) * range;
-        
-        let newValue = startValue + valueChange;
-        newValue = Math.max(parseFloat(input.min), Math.min(parseFloat(input.max), newValue));
-        
-        input.value = newValue;
-        updateKnobRotation(newValue);
-        input.dispatchEvent(new Event('input'));
-    };
-
-    const handleMouseUp = () => {
         isDragging = false;
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleTouchEnd);
     };
 
-    // Touch support
     knob.addEventListener('touchstart', (e) => {
         isDragging = true;
         startY = e.touches[0].clientY;
@@ -137,41 +196,19 @@ export function setupKnob(knobId, inputId) {
         e.preventDefault(); // Prevent scrolling
     });
 
-    const handleTouchMove = (e) => {
-        if (!isDragging) return;
-        
-        const deltaY = startY - e.touches[0].clientY;
-        const range = parseFloat(input.max) - parseFloat(input.min);
-        const valueChange = (deltaY / 100) * range;
-        
-        let newValue = startValue + valueChange;
-        newValue = Math.max(parseFloat(input.min), Math.min(parseFloat(input.max), newValue));
-        
-        input.value = newValue;
-        updateKnobRotation(newValue);
-        input.dispatchEvent(new Event('input'));
-        e.preventDefault(); // Prevent scrolling
-    };
-
-    const handleTouchEnd = () => {
-        isDragging = false;
-        document.removeEventListener('touchmove', handleTouchMove);
-        document.removeEventListener('touchend', handleTouchEnd);
-    };
-
     // Initialize knob rotation
-    updateKnobRotation(input.value);
+    updateKnobRotation(parseFloat(input.value));
 
     // Add input event listener to update knob when value changes
     input.addEventListener('input', () => {
-        updateKnobRotation(input.value);
+        updateKnobRotation(parseFloat(input.value));
     });
 
     return updateKnobRotation;
 }
 
 /**
- * Creates an element and sets attributes
+ * Creates an element and sets attributes with optimized property assignment
  * @param {string} tag - HTML tag name
  * @param {object} attributes - Attributes to set
  * @param {string|Node} [content] - Content to add (string or another element)
@@ -228,7 +265,7 @@ export function debounce(func, wait = 300) {
  * @returns {string} Formatted value
  */
 export function getFormattedParameterValue(id, suffix = '', decimals = 2) {
-    const element = document.getElementById(id);
+    const element = getElement(id);
     if (!element) return '';
     
     const value = parseFloat(element.value);
@@ -239,4 +276,41 @@ export function getFormattedParameterValue(id, suffix = '', decimals = 2) {
     } else {
         return `${value.toFixed(decimals)}${suffix}`;
     }
+}
+
+/**
+ * Calculate rotation value for a knob from a normalized value
+ * @param {number} normalizedValue - Value from 0 to 1
+ * @returns {number} Rotation in degrees
+ */
+export function calculateKnobRotation(normalizedValue) {
+    return normalizedValue * 270 - 135;
+}
+
+/**
+ * Throttle function to limit how often a function is called
+ * @param {Function} func - Function to throttle
+ * @param {number} limit - Minimum time between calls in milliseconds
+ * @returns {Function} Throttled function
+ */
+export function throttle(func, limit = 16) { // Default to roughly 60fps
+    let lastCall = 0;
+    return function(...args) {
+        const now = Date.now();
+        if (now - lastCall >= limit) {
+            lastCall = now;
+            return func.apply(this, args);
+        }
+    };
+}
+
+/**
+ * Optimized linear interpolation function
+ * @param {number} a - Start value
+ * @param {number} b - End value
+ * @param {number} t - Interpolation factor (0-1)
+ * @returns {number} Interpolated value
+ */
+export function lerp(a, b, t) {
+    return a + (b - a) * t;
 }

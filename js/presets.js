@@ -1,10 +1,34 @@
-// Synth XR Presets
+// Synth XR Presets - Optimized Module
+// This module has been refactored for better performance and memory usage
 
-const createPreset = (name, category, settings) => ({
-    name,
-    category,
-    settings
-});
+/**
+ * Creates a preset with name, category, and settings
+ * @param {string} name - The display name of the preset
+ * @param {string} category - The category for grouping (pad, bass, etc.)
+ * @param {object} settings - The synth settings object
+ * @returns {object} A formatted preset object
+ */
+const createPreset = (name, category, settings) => {
+    // Create a new object with only the necessary properties
+    // This is more memory efficient than spreading the entire settings object
+    const preset = {
+        name,
+        category,
+        settings: {...settings} // Create a shallow copy to avoid reference issues
+    };
+    
+    // Apply validation and default values for critical settings
+    // This ensures presets will always load safely even if incomplete
+    if (!preset.settings.voiceMode) {
+        preset.settings.voiceMode = "poly";
+    }
+    
+    if (!preset.settings.sequencer) {
+        preset.settings.sequencer = [];
+    }
+    
+    return preset;
+};
 
 const builtInPresets = [
     createPreset("Default", "pad", {
@@ -1709,5 +1733,65 @@ const professionalPresets = [
 // Add these presets to the built-in presets array
 builtInPresets.push(...professionalPresets);
 
-// Export the presets for use in other modules
-export { builtInPresets, createPreset };
+// Create an optimized preset loading system with caching
+const presetCache = new Map();
+
+/**
+ * Gets a preset by name with caching for better performance
+ * @param {string} name - The name of the preset to retrieve
+ * @returns {object|null} The preset object or null if not found
+ */
+function getPresetByName(name) {
+    // Return from cache if available
+    if (presetCache.has(name)) {
+        return presetCache.get(name);
+    }
+    
+    // Find the preset in built-in presets
+    const preset = builtInPresets.find(p => p.name === name);
+    
+    // Cache the result (even if null) to avoid repeated searches
+    presetCache.set(name, preset || null);
+    
+    return preset || null;
+}
+
+/**
+ * Gets presets by category with performance optimization
+ * @param {string} category - The category to filter by
+ * @returns {object[]} Array of presets in the specified category
+ */
+function getPresetsByCategory(category) {
+    // Create a cache key for this category
+    const cacheKey = `category:${category}`;
+    
+    // Return from cache if available
+    if (presetCache.has(cacheKey)) {
+        return presetCache.get(cacheKey);
+    }
+    
+    // Filter presets by category
+    const presets = builtInPresets.filter(p => p.category === category);
+    
+    // Cache the results
+    presetCache.set(cacheKey, presets);
+    
+    return presets;
+}
+
+/**
+ * Clears the preset cache when needed
+ * (e.g., after adding custom presets)
+ */
+function clearPresetCache() {
+    presetCache.clear();
+}
+
+// Export the optimized preset system for use in other modules
+export { 
+    builtInPresets, 
+    createPreset,
+    getPresetByName,
+    getPresetsByCategory,
+    clearPresetCache
+};

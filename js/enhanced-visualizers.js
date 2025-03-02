@@ -12,14 +12,25 @@ class EnhancedVisualizers {
         this.contexts = {};
         this.container = null;
         
-        // Use the global analyzers
+        // Performance monitoring
+        this.performanceMetrics = {
+            frameCount: 0,
+            startTime: 0,
+            fps: 0,
+            renderTimes: [],
+            averageRenderTime: 0,
+            lastFrameTime: 0
+        };
+        
+        // Use the global analyzers with optimized buffer sizes
         this.waveform = window.waveform;
         this.fft = window.fft;
         
-        // Create backup analyzers only if global ones don't exist
+        // Create backup analyzers only if global ones don't exist, with optimized buffer sizes
         if (!this.waveform) {
-            console.warn('Global waveform analyzer not found, creating a new one');
-            this.waveform = new Tone.Waveform(2048);
+            console.warn('Global waveform analyzer not found, creating an optimized one');
+            // Use smaller buffer for better performance (1024 instead of 2048)
+            this.waveform = new Tone.Waveform(1024);
             
             // Try to connect to master output
             if (Tone.getDestination) {
@@ -28,14 +39,28 @@ class EnhancedVisualizers {
         }
         
         if (!this.fft) {
-            console.warn('Global FFT analyzer not found, creating a new one');
-            this.fft = new Tone.FFT(2048);
+            console.warn('Global FFT analyzer not found, creating an optimized one');
+            // Use smaller buffer for better performance (1024 instead of 2048)
+            this.fft = new Tone.FFT(1024);
             
             // Try to connect to master output
             if (Tone.getDestination) {
                 Tone.getDestination().connect(this.fft);
             }
         }
+        
+        // Create caches for rendering operations
+        this.renderCache = {
+            spectrum: {
+                lastFftData: null,
+                spectrumImage: null,
+                needsUpdate: true
+            },
+            waveform3d: {
+                waveHistory: [],
+                maxHistoryLength: 25 // Reduced from 50 for better performance
+            }
+        };
         
         // Animation properties
         this.animationFrames = {};
@@ -565,9 +590,12 @@ class EnhancedVisualizers {
         this.visualizers.particles.options.init();
     }
     
-    // Show a specific visualizer
+    // Show a specific visualizer with performance optimizations
     showVisualizer(id) {
         if (!this.isInitialized) this.init();
+        
+        // Track previous visualizer for cleanup
+        const previousVisualizer = this.activeVisualizer;
         
         // Stop all animation frames
         Object.keys(this.visualizers).forEach(vizId => {
@@ -576,29 +604,95 @@ class EnhancedVisualizers {
                 this.visualizers[vizId].animationFrame = null;
             }
             
-            // Hide all canvases
+            // Hide all canvases and optimize them when not in use
             if (this.canvases[vizId]) {
                 this.canvases[vizId].style.display = 'none';
+                
+                // When hiding a canvas, we can optimize its memory usage
+                if (vizId !== id && vizId === previousVisualizer) {
+                    // For 3D-like visualizers, clear history to free memory
+                    if (vizId === 'waveform3d' && this.renderCache.waveform3d) {
+                        this.renderCache.waveform3d.waveHistory = [];
+                    }
+                    
+                    // For particle-based visualizers, reduce particle count temporarily
+                    if (vizId === 'particles' && this.visualizers.particles) {
+                        const options = this.visualizers.particles.options;
+                        options.oldParticleCount = options.particleCount;
+                        options.particleCount = 0;
+                        options.particles = [];
+                    }
+                }
             }
         });
         
-        // Show the selected canvas
+        // Show the selected canvas and prepare it
         if (this.canvases[id]) {
+            // Show the canvas
             this.canvases[id].style.display = 'block';
+            
+            // Ensure canvas dimensions are optimized
+            this.resizeCanvasIfNeeded(id);
+            
+            // For particle visualizers, restore particle count if it was reduced
+            if (id === 'particles' && this.visualizers.particles) {
+                const options = this.visualizers.particles.options;
+                if (options.oldParticleCount) {
+                    options.particleCount = options.oldParticleCount;
+                    options.init(); // Reinitialize particles
+                }
+            }
         }
+        
+        // Reset performance metrics when changing visualizers
+        this.performanceMetrics.frameCount = 0;
+        this.performanceMetrics.startTime = performance.now();
+        this.performanceMetrics.renderTimes = [];
         
         // Start the selected visualizer
         this.activeVisualizer = id;
         this.startVisualizer(id);
         
-        // Update the selector if it exists
-        const selector = this.container.querySelector('.visualizer-selector');
-        if (selector && selector.value !== id) {
-            selector.value = id;
+        // Update the selector if it exists (use cached query selector)
+        if (!this._selectorElement) {
+            this._selectorElement = this.container.querySelector('.visualizer-selector');
+        }
+        
+        if (this._selectorElement && this._selectorElement.value !== id) {
+            this._selectorElement.value = id;
         }
     }
     
-    // Start a visualizer animation
+    // Resize a canvas if its dimensions don't match its container
+    resizeCanvasIfNeeded(id) {
+        const canvas = this.canvases[id];
+        if (!canvas) return;
+        
+        const container = canvas.parentElement;
+        if (!container) return;
+        
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        
+        // Only resize if dimensions are significantly different
+        if (Math.abs(canvas.width - containerWidth) > 5 || 
+            Math.abs(canvas.height - containerHeight) > 5) {
+            
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
+            
+            // For certain visualizers, we need additional setup after resize
+            if (id === 'circular' && this.visualizers.circular) {
+                this.visualizers.circular.options.centerX = containerWidth / 2;
+                this.visualizers.circular.options.centerY = containerHeight / 2;
+                this.visualizers.circular.options.radius = Math.min(containerWidth, containerHeight) * 0.4;
+            }
+            
+            console.log(`Canvas ${id} resized to ${containerWidth}x${containerHeight}`);
+        }
+    }
+    
+    // Start a visualizer animation with performance optimizations
     startVisualizer(id) {
         if (!this.visualizers[id]) return;
         
@@ -610,8 +704,15 @@ class EnhancedVisualizers {
             visualizer.options.history = [];
             visualizer.options.lastUpdate = 0;
         } else if (id === 'waveform3d') {
-            // Clear wave history
-            visualizer.options.waveHistory = [];
+            // Clear wave history and use the cached history if available
+            if (this.renderCache.waveform3d && this.renderCache.waveform3d.waveHistory) {
+                visualizer.options.waveHistory = this.renderCache.waveform3d.waveHistory;
+            } else {
+                visualizer.options.waveHistory = [];
+            }
+            
+            // Limit history length for better performance
+            visualizer.options.maxHistory = this.renderCache.waveform3d.maxHistoryLength;
         } else if (id === 'circular') {
             // Set dynamic properties
             const canvas = this.canvases[id];
@@ -620,20 +721,121 @@ class EnhancedVisualizers {
             visualizer.options.radius = Math.min(canvas.width, canvas.height) * 0.40;
         }
         
-        // Animation loop function
+        // Initialize performance tracking
+        this.performanceMetrics.startTime = performance.now();
+        this.performanceMetrics.frameCount = 0;
+        this.performanceMetrics.lastFrameTime = performance.now();
+        this.performanceMetrics.renderTimes = [];
+        
+        // Create adaptive frame rate control
+        const targetFrameRate = 60; // Target 60fps
+        const frameRateThreshold = 40; // If we drop below this, optimize
+        let skipFrames = 0; // Number of frames to skip for performance
+        
+        // Animation loop function with adaptive frame rate and performance monitoring
         const animate = () => {
-            // Track FPS
-            this.updateFPS();
+            const now = performance.now();
+            this.performanceMetrics.frameCount++;
+            
+            // Calculate FPS every second
+            const elapsedTime = now - this.performanceMetrics.startTime;
+            if (elapsedTime >= 1000) {
+                this.performanceMetrics.fps = 
+                    Math.round((this.performanceMetrics.frameCount * 1000) / elapsedTime);
+                
+                // Reset counters
+                this.performanceMetrics.frameCount = 0;
+                this.performanceMetrics.startTime = now;
+                
+                // Adaptive performance: if FPS drops too low, start skipping frames
+                if (this.performanceMetrics.fps < frameRateThreshold) {
+                    skipFrames = Math.min(skipFrames + 1, 3); // Max skip 3 frames
+                } else if (this.performanceMetrics.fps > targetFrameRate && skipFrames > 0) {
+                    skipFrames = Math.max(skipFrames - 1, 0);
+                }
+            }
+            
+            // Calculate render time for this frame
+            const frameDelta = now - this.performanceMetrics.lastFrameTime;
+            this.performanceMetrics.lastFrameTime = now;
+            
+            // Skip frame if needed (for adaptive performance) but never skip more than 3 frames in a row
+            const currentFrame = this.performanceMetrics.frameCount;
+            if (skipFrames > 0 && currentFrame % (skipFrames + 1) !== 0) {
+                // Request next frame but skip rendering
+                visualizer.animationFrame = requestAnimationFrame(animate);
+                return;
+            }
+            
+            // Measure render time for performance monitoring
+            const renderStart = performance.now();
             
             // Render the visualizer
             visualizer.render();
             
-            // Request next frame
-            visualizer.animationFrame = requestAnimationFrame(animate);
+            // Track render time
+            const renderTime = performance.now() - renderStart;
+            this.performanceMetrics.renderTimes.push(renderTime);
+            
+            // Keep only the last 60 render times
+            if (this.performanceMetrics.renderTimes.length > 60) {
+                this.performanceMetrics.renderTimes.shift();
+            }
+            
+            // Calculate average render time
+            this.performanceMetrics.averageRenderTime =
+                this.performanceMetrics.renderTimes.reduce((sum, time) => sum + time, 0) /
+                this.performanceMetrics.renderTimes.length;
+            
+            // Add performance info to the visualizer if in debug mode
+            if (window.DEBUG_VISUALIZERS) {
+                this.drawPerformanceInfo(id);
+            }
+            
+            // Request next frame with timing optimization - if we're rendering very fast,
+            // we can use setTimeout to give some time back to the main thread
+            if (renderTime < 8) { // If rendering takes less than 8ms
+                setTimeout(() => {
+                    visualizer.animationFrame = requestAnimationFrame(animate);
+                }, 5); // Short delay to relieve main thread
+            } else {
+                visualizer.animationFrame = requestAnimationFrame(animate);
+            }
         };
         
         // Start animation
         visualizer.animationFrame = requestAnimationFrame(animate);
+    }
+    
+    // Draw performance information overlay
+    drawPerformanceInfo(id) {
+        const canvas = this.canvases[id];
+        const ctx = this.contexts[id];
+        if (!canvas || !ctx) return;
+        
+        // Draw performance overlay
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(10, 10, 180, 60);
+        
+        ctx.fillStyle = 'white';
+        ctx.font = '12px monospace';
+        ctx.textAlign = 'left';
+        
+        ctx.fillText(`FPS: ${this.performanceMetrics.fps}`, 20, 30);
+        ctx.fillText(`Render: ${this.performanceMetrics.averageRenderTime.toFixed(2)}ms`, 20, 50);
+        
+        // Color code the performance feedback
+        let statusColor;
+        if (this.performanceMetrics.fps >= 55) {
+            statusColor = 'lime';
+        } else if (this.performanceMetrics.fps >= 30) {
+            statusColor = 'yellow';
+        } else {
+            statusColor = 'red';
+        }
+        
+        ctx.fillStyle = statusColor;
+        ctx.fillRect(160, 25, 20, 10);
     }
     
     // Handle window resize
