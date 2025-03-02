@@ -653,7 +653,7 @@ const builtInPresets = [
         phaserMix: "0.1",
         lfoRate: "3.5",
         lfoAmount: "5",
-        lfoDestination: "filterCutoff",
+        lfoDestination: "eqHigh",
         lfoWaveform: "square",
         lfoSync: false,
         droneOctave: "-2",
@@ -932,7 +932,7 @@ const builtInPresets = [
         droneOctave: "0",
         eqLow: "-3",
         eqMid: "0",
-        compressor: "0.3",
+        compressor: "0.85",
         eqHigh: "5",
         eqMidFreq: "2000",
         eqQ: "2",
@@ -989,7 +989,7 @@ const builtInPresets = [
         eqHigh: "4",
         eqMidFreq: "1000",
         eqQ: "2.5",
-        compressor: "0.3",
+        compressor: "0.85",
         sequencer: [
             {"note": "C4", "active": true},
             {"note": "C4", "active": false},
@@ -1043,7 +1043,7 @@ const builtInPresets = [
         eqHigh: "3",
         eqMidFreq: "1800",
         eqQ: "1.5",
-        compressor: "0.3",
+        compressor: "0.85",
         sequencer: [
             {"note": "G3", "active": true},
             {"note": "C4", "active": false},
@@ -1123,62 +1123,7 @@ const professionalPresets = [
             {"note": "D#4", "active": false} // Changed from Eb4
         ]
     }),
-    
-    // ==== ANALOG BASS ====
-    createPreset("Pressure Bass", "bass", {
-        voiceMode: "poly",
-        waveform: "sawtooth",
-        filterCutoff: "520",
-        filterRes: "9.2",
-        filterType: false,
-        reverbMix: "0.15",
-        reverbDecay: "1.2",
-        delayTime: "0.08",
-        delayFeedback: "0.22",
-        tempo: "125",
-        attack: "0.005",
-        decay: "0.32",
-        sustain: "0.5",
-        release: "0.2",
-        oscillatorOctave: "-1",
-        oscillatorSemi: "0",
-        oscillatorLevel: "0.95",
-        chorusMix: "0.08",
-        distortionMix: "0.38",
-        flangerMix: "0",
-        phaserMix: "0.12",
-        lfoRate: "2.75",
-        lfoAmount: "45",
-        lfoDestination: "filterCutoff",
-        lfoWaveform: "sawtooth",
-        lfoSync: true,
-        droneOctave: "-2",
-        eqLow: "6",
-        eqMid: "1.5",
-        eqHigh: "-3",
-        eqMidFreq: "520",
-        eqQ: "1.8",
-        compressor: "0.68",
-        sequencer: [
-            {"note": "C1", "active": true},
-            {"note": "C1", "active": false},
-            {"note": "G1", "active": true},
-            {"note": "C1", "active": false},
-            {"note": "C1", "active": true},
-            {"note": "D#1", "active": false}, // Changed from Eb1
-            {"note": "G1", "active": true},
-            {"note": "D#1", "active": false}, // Changed from Eb1
-            {"note": "F1", "active": true},
-            {"note": "F1", "active": false},
-            {"note": "G1", "active": true},
-            {"note": "G1", "active": false},
-            {"note": "C1", "active": true},
-            {"note": "D#1", "active": false}, // Changed from Eb1
-            {"note": "F1", "active": true},
-            {"note": "G1", "active": false}
-        ]
-    }),
-    
+        
     // ==== EXPRESSIVE LEAD ====
     createPreset("Solstice Lead", "lead", {
         voiceMode: "poly",
@@ -1378,7 +1323,7 @@ const professionalPresets = [
         eqHigh: "6",
         eqMidFreq: "2400",
         eqQ: "2.2",
-        compressor: "0.4",
+        compressor: "0.85",
         sequencer: [
             {"note": "C5", "active": true},
             {"note": "D#5", "active": false},
@@ -1589,7 +1534,7 @@ const professionalPresets = [
         phaserMix: "0.1",
         lfoRate: "8",
         lfoAmount: "55",
-        lfoDestination: "filterCutoff",
+        lfoDestination: "eqMid",
         lfoWaveform: "square",
         lfoSync: true,
         droneOctave: "-2",
@@ -1708,7 +1653,7 @@ const professionalPresets = [
         eqHigh: "2",
         eqMidFreq: "1200",
         eqQ: "2.4",
-        compressor: "0.35",
+        compressor: "0.85",
         sequencer: [
             {"note": "C3", "active": true},
             {"note": "G3", "active": false},
