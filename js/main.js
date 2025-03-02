@@ -228,6 +228,36 @@ widthCompensation.connect(masterPanner);
 masterVolume.connect(waveform);
 stereoWidener.connect(fft);
 
+// Add a helper function to ensure visualizers are properly connected
+function ensureVisualizersConnected() {
+    // Check if masterVolume and waveform are connected
+    try {
+        // First disconnect to prevent duplicate connections
+        try {
+            masterVolume.disconnect(waveform);
+        } catch (e) {
+            // Ignore error if they weren't connected
+        }
+        
+        // Reconnect
+        masterVolume.connect(waveform);
+        
+        // Check if stereoWidener and fft are connected
+        try {
+            stereoWidener.disconnect(fft);
+        } catch (e) {
+            // Ignore error if they weren't connected
+        }
+        
+        // Reconnect
+        stereoWidener.connect(fft);
+        
+        console.log("Visualizers reconnected");
+    } catch (e) {
+        console.warn("Error ensuring visualizer connections:", e);
+    }
+}
+
 // Initialize synth variables
 let synth;
 let currentMode = "poly";
@@ -1028,6 +1058,9 @@ function createSynth(mode) {
         // Connect directly to filter for now to simplify the chain
         // This avoids potential issues with the limiter
         synth.connect(filter);
+        
+        // Ensure visualizers are connected when creating a new synth
+        ensureVisualizersConnected();
 
         // Apply specific settings
         updateDetune();
@@ -1052,8 +1085,8 @@ const VoiceManager = {
     // Configuration options for voice management - increased limits to prevent polyphony warnings
     options: {
         maxTotalVoices: 128,        // Increased maximum total voices across all synths
-        voiceTimeout: 5000,         // Maximum time in ms to keep an unused voice alive
-        cleanupInterval: 10000,     // Interval in ms to run voice cleanup
+        voiceTimeout: 30000,        // Maximum time in ms to keep an unused voice alive (increased from 5000ms)
+        cleanupInterval: 60000,     // Interval in ms to run voice cleanup (increased from 10000ms)
         maxPolyphonyStandard: 16,   // Increased default max polyphony for standard devices
         maxPolyphonyHigh: 32,       // Increased max polyphony for high-performance devices
         maxPolyphonyLow: 8          // Increased max polyphony for low-performance devices
@@ -1148,9 +1181,9 @@ const VoiceManager = {
             for (const [id, info] of entries) {
                 if (totalVoices <= this.options.maxTotalVoices * 0.8) break;
                 
-                // Only dispose if no active notes
-                if (info.activeNotes.size === 0) {
-                    console.log(`Disposing unused synth to free resources`);
+                // Only dispose if no active notes and not the main synth
+                if (info.activeNotes.size === 0 && info.synth !== window.synth) {
+                    console.debug(`Disposing unused synth to free resources`);
                     if (info.synth.dispose) info.synth.dispose();
                     this.activeVoices.delete(id);
                     totalVoices--;
@@ -1158,12 +1191,19 @@ const VoiceManager = {
             }
         }
         
-        // Clean up synths not used for a while
+        // Clean up synths not used for a while - but never the main synth
         this.activeVoices.forEach((info, id) => {
+            // Skip if it's the main active synth
+            if (info.synth === window.synth) {
+                // Update lastUsed for the main synth to prevent it from timing out
+                info.lastUsed = now;
+                return;
+            }
+            
             if (info.activeNotes.size === 0 && 
                 (now - info.lastUsed > this.options.voiceTimeout)) {
                 
-                console.log(`Disposing idle synth after ${this.options.voiceTimeout}ms`);
+                console.debug(`Disposing idle synth after ${this.options.voiceTimeout}ms`);
                 if (info.synth.dispose) info.synth.dispose();
                 this.activeVoices.delete(id);
             }
@@ -2708,17 +2748,38 @@ document.getElementById('startSequencer').addEventListener('click', async functi
             // Start audio context
             await Tone.start();
             
-            // Reset step counter to -1 so it starts at 0 on first beat
-            currentStep = -1;
+            // Reset step counter to start from beginning
+            currentStep = 15; // So it becomes 0 on first beat
             
-            // Start the transport
-            if (Tone.Transport.state !== "started") {
-                Tone.Transport.start();
+            // IMPORTANT: Ensure the audio analyzers are connected
+            ensureVisualizersConnected();
+            
+            // Ensure synth exists and is ready
+            if (!synth || synth.disposed) {
+                console.log("Recreating synth for sequencer");
+                synth = createSynth(currentMode || "poly");
             }
+            
+            // Reset and restart transport completely
+            Tone.Transport.cancel(); // Cancel all scheduled events
+            Tone.Transport.stop();
+            setupSequencer(); // Recreate the sequencer events
+            Tone.Transport.start();
             
             isPlaying = true;
             this.innerHTML = '<i class="fas fa-stop"></i><span>Stop</span>';
             this.classList.add('playing');
+            
+            // Force an update of the oscilloscope to ensure it's running
+            if (animations && animations.oscilloscope && animations.oscilloscope.element) {
+                updateOscilloscope(performance.now());
+            }
+            
+            // Play a silent note to trigger audio processing
+            synth.triggerAttackRelease("C4", 0.01, "+0.1", 0.01);
+            
+            // Kick-start the VU meter with a tiny pulse
+            updateVUMeter(0.2);
         } catch (err) {
             console.error("Error starting sequencer:", err);
         }
@@ -2726,6 +2787,9 @@ document.getElementById('startSequencer').addEventListener('click', async functi
         isPlaying = false;
         this.innerHTML = '<i class="fas fa-play"></i><span>Start</span>';
         this.classList.remove('playing');
+        
+        // Stop transport rather than just setting isPlaying flag
+        Tone.Transport.pause();
         
         // Clear any active key highlights when stopping
         clearSequencerKeyHighlights();
@@ -3021,8 +3085,28 @@ function renderPresetList() {
         presetsByCategory[preset.category].push(preset);
     });
     
-    // Create category headers and add presets in groups
-    const categories = Object.keys(presetsByCategory).sort();
+    // Create category headers and add presets in custom order
+    // Define the desired category order: pads, leads, keys, plucks, bass, fx, custom
+    const categoryOrder = ['pad', 'lead', 'keys', 'pluck', 'bass', 'fx', 'drum', 'seq', 'ambient', 'arp'];
+    // Get all categories and sort them according to the custom order (any categories not in the order array go at the end)
+    const categories = Object.keys(presetsByCategory).sort((a, b) => {
+        const indexA = categoryOrder.indexOf(a);
+        const indexB = categoryOrder.indexOf(b);
+        // If both categories are in the list, sort by their position
+        if (indexA !== -1 && indexB !== -1) {
+            return indexA - indexB;
+        }
+        // If only a is in the list, it comes first
+        if (indexA !== -1) {
+            return -1;
+        }
+        // If only b is in the list, it comes first
+        if (indexB !== -1) {
+            return 1;
+        }
+        // If neither is in the list, use alphabetical order
+        return a.localeCompare(b);
+    });
     
     categories.forEach(category => {
         // Create category header
@@ -3061,156 +3145,6 @@ function renderPresetList() {
         console.error('Error loading custom presets:', e);
         // Recover gracefully from corrupt localStorage data
         localStorage.removeItem('customPresets');
-    }
-    
-    // Add search and filter functionality
-    addPresetSearchability(presetList);
-}
-
-// Add preset search and filter functionality
-function addPresetSearchability(presetList) {
-    // Check if search box already exists
-    let searchBox = document.getElementById('preset-search');
-    
-    if (!searchBox) {
-        // Create preset search box
-        searchBox = document.createElement('input');
-        searchBox.type = 'text';
-        searchBox.id = 'preset-search';
-        searchBox.className = 'preset-search';
-        searchBox.placeholder = 'Search presets...';
-        
-        // Insert before the preset list
-        presetList.parentNode.insertBefore(searchBox, presetList);
-        
-        // Create category filter buttons
-        const filterContainer = document.createElement('div');
-        filterContainer.className = 'preset-filter-container';
-        
-        // Add "All" filter button
-        const allFilterBtn = document.createElement('button');
-        allFilterBtn.className = 'preset-filter-btn active';
-        allFilterBtn.dataset.category = 'all';
-        allFilterBtn.textContent = 'All';
-        filterContainer.appendChild(allFilterBtn);
-        
-        // Get unique categories from builtin presets
-        const categories = [...new Set(builtInPresets.map(p => p.category))].sort();
-        
-        // Add a filter button for each category
-        categories.forEach(category => {
-            const btn = document.createElement('button');
-            btn.className = 'preset-filter-btn';
-            btn.dataset.category = category;
-            btn.textContent = category.charAt(0).toUpperCase() + category.slice(1);
-            filterContainer.appendChild(btn);
-        });
-        
-        // Add custom category button if we have custom presets
-        if (localStorage.getItem('customPresets')) {
-            const customBtn = document.createElement('button');
-            customBtn.className = 'preset-filter-btn';
-            customBtn.dataset.category = 'custom';
-            customBtn.textContent = 'Custom';
-            filterContainer.appendChild(customBtn);
-        }
-        
-        // Insert filter container
-        presetList.parentNode.insertBefore(filterContainer, presetList);
-        
-        // Add event listeners for filter buttons with event delegation
-        filterContainer.addEventListener('click', (e) => {
-            if (e.target.classList.contains('preset-filter-btn')) {
-                // Remove active class from all buttons
-                const buttons = filterContainer.querySelectorAll('.preset-filter-btn');
-                buttons.forEach(btn => btn.classList.remove('active'));
-                
-                // Add active class to clicked button
-                e.target.classList.add('active');
-                
-                // Apply filter
-                const category = e.target.dataset.category;
-                filterPresets(category, searchBox.value);
-            }
-        });
-        
-        // Add debounced search handler
-        let searchTimeout;
-        searchBox.addEventListener('input', () => {
-            // Clear previous timeout
-            if (searchTimeout) {
-                clearTimeout(searchTimeout);
-            }
-            
-            // Set new timeout to debounce search
-            searchTimeout = setTimeout(() => {
-                // Get active category filter
-                const activeFilter = filterContainer.querySelector('.preset-filter-btn.active');
-                const category = activeFilter ? activeFilter.dataset.category : 'all';
-                
-                // Apply filter
-                filterPresets(category, searchBox.value);
-            }, 300); // Debounce 300ms
-        });
-    }
-    
-    // Function to filter presets by category and search term
-    function filterPresets(category, searchTerm = '') {
-        // Normalize search term to lowercase
-        const term = searchTerm.toLowerCase();
-        
-        // Get all preset items
-        const items = presetList.querySelectorAll('.preset-item');
-        const categoryHeaders = presetList.querySelectorAll('.preset-category-header');
-        
-        // Reset visibility of all headers
-        categoryHeaders.forEach(header => {
-            header.style.display = 'none';
-        });
-        
-        // Track which categories have visible presets
-        const visibleCategories = new Set();
-        
-        // Filter items
-        items.forEach(item => {
-            const itemCategory = item.dataset.category;
-            const itemName = item.dataset.name.toLowerCase();
-            const isCustom = item.dataset.custom === 'true';
-            
-            // Check if item matches category filter
-            const categoryMatch = 
-                category === 'all' || 
-                (category === 'custom' && isCustom) || 
-                itemCategory === category;
-            
-            // Check if item matches search term
-            const searchMatch = !term || itemName.includes(term);
-            
-            // Show item if both filters match
-            if (categoryMatch && searchMatch) {
-                item.style.display = '';
-                visibleCategories.add(itemCategory);
-                if (isCustom) visibleCategories.add('custom');
-            } else {
-                item.style.display = 'none';
-            }
-        });
-        
-        // Show headers for categories with visible presets
-        categoryHeaders.forEach(header => {
-            const headerText = header.textContent.toLowerCase();
-            let shouldShow = false;
-            
-            if (header.classList.contains('custom-header')) {
-                shouldShow = visibleCategories.has('custom');
-            } else {
-                // Extract category from header text (remove capitalization)
-                const headerCategory = headerText.toLowerCase();
-                shouldShow = visibleCategories.has(headerCategory);
-            }
-            
-            header.style.display = shouldShow ? '' : 'none';
-        });
     }
 }
 
@@ -3281,10 +3215,12 @@ function applyPreset(settings) {
 
     // Update EQ Response Curve
     updateEqResponse();
+    
+    // Ensure visualizers are connected after preset load
+    ensureVisualizersConnected();
 
     // Update VU meter to provide visual feedback that preset was loaded
     updateVUMeter(0.6);
-
 }
 
 // Enhanced LFO Preset Loading Function
@@ -3756,7 +3692,7 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
 // Global sequencer event ID to allow for proper cleanup
 var sequencerEventId = null;
 
-// Simple, but fixed implementation of the sequencer
+// More robust implementation of the sequencer
 function setupSequencer() {
     // Clear any existing sequencer events to avoid duplicates
     if (sequencerEventId !== null) {
@@ -3774,6 +3710,9 @@ function setupSequencer() {
     // Create a counter variable within this closure to avoid any global state issues
     let localStepCounter = 0;
     
+    // Reset the global currentStep to ensure consistent starting point
+    currentStep = 15; // Will increase to 0 when first step triggers
+    
     // Use 8n like in the original version, not 16n
     sequencerEventId = Tone.Transport.scheduleRepeat(time => {
         // Use the local counter to keep track of steps
@@ -3782,9 +3721,10 @@ function setupSequencer() {
         // Update the global currentStep for visual feedback
         currentStep = localStepCounter;
         
+        // Make sure visualizers are connected EVERY time we process a step
+        ensureVisualizersConnected();
+        
         if (isPlaying) {
-            // Play the current step
-            
             // Get the UI elements for this step
             const steps = document.querySelectorAll('.step');
             if (steps.length > currentStep) {
@@ -3796,10 +3736,20 @@ function setupSequencer() {
                 if (toggle && toggle.classList.contains('active')) {
                     const note = select.value;
                     
+                    // Check if synth exists and recreate if needed
+                    if (!synth || synth.disposed) {
+                        console.log("Recreating synth during sequencer playback");
+                        synth = createSynth(currentMode || "poly");
+                    }
+                    
                     // Play the note with the synth - use 8n like original
-                    if (synth && !synth.disposed) {
+                    try {
                         synth.triggerAttackRelease(note, '8n', time);
                         updateVUMeter(0.8);
+                    } catch (e) {
+                        console.warn("Error playing note from sequencer:", e);
+                        // If error occurs, ensure visualizers are reconnected
+                        ensureVisualizersConnected();
                     }
                     
                     // Highlight the corresponding key
@@ -3814,8 +3764,13 @@ function setupSequencer() {
                     });
                 }
                 
-                // Update the visual display
+                // Always update the visual display
                 updateSequencer(currentStep);
+                
+                // Force oscilloscope update on each beat to keep visualizations running
+                if (animations && animations.oscilloscope && animations.oscilloscope.element) {
+                    updateOscilloscope(performance.now());
+                }
             }
         }
     }, "8n"); // Use 8n to match the original version
