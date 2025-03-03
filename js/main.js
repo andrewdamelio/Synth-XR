@@ -9,7 +9,8 @@ import {
     initArpeggiator, 
     addNoteToArpeggiator,
     removeNoteFromArpeggiator,
-    updateArpeggiatorOctave
+    updateArpeggiatorOctave,
+    stopArpeggiator
 } from './arpeggiator.js';
 
 
@@ -3357,6 +3358,22 @@ function performCleanReset() {
         
         // Reset isPlaying flag
         isPlaying = false;
+    }
+    
+    // Disable arpeggiator if it's active
+    if (isArpeggiatorEnabled) {
+        stopArpeggiator();
+        // Update the UI toggle state
+        const arpToggle = document.getElementById('arpEnabled');
+        if (arpToggle) {
+            arpToggle.checked = false;
+            
+            // Update the status text display
+            const stateElement = document.getElementById('arpEnabledState');
+            if (stateElement) {
+                stateElement.textContent = 'OFF';
+            }
+        }
     }
     
     // Stop any playing notes
