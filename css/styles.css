@@ -2444,3 +2444,151 @@ input[type="range"] {
         font-size: 0.8rem;
     }
 }
+
+/* Enhanced keyboard styles */
+.keyboard {
+    display: block; /* Changed from flex */
+    margin-top: 20px;
+    height: 80px;
+    position: relative;
+    transform-style: preserve-3d;
+    perspective: 500px;
+    overflow-x: auto; /* Enable horizontal scrolling */
+    overflow-y: hidden;
+    scroll-behavior: smooth; /* Smooth scrolling */
+    white-space: nowrap;
+    padding-bottom: 10px; /* Add padding to show black keys fully */
+}
+
+.keys-container {
+    display: flex;
+    height: 100%;
+    position: relative;
+    padding-bottom: 15px; /* Space for octave markers */
+}
+
+.key {
+    height: 100%;
+    background: var(--surface-light);
+    border: 1px solid var(--surface-dark);
+    border-radius: 0 0 5px 5px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 8px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transform-origin: top;
+    transition: transform 0.1s, background 0.1s;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+    /* Fixed width and no flex stretching */
+    flex: 0 0 auto;
+}
+
+.key:hover {
+    background: var(--surface);
+}
+
+.key.active {
+    background: var(--primary-light);
+    color: white;
+}
+
+/* Octave highlighting */
+.key.current-octave {
+    border-bottom: 2px solid var(--primary-light);
+}
+
+.black-key.current-octave {
+    border-bottom: 2px solid var(--primary-light);
+}
+
+/* Octave start indicator */
+.key.octave-start {
+    border-left: 2px solid var(--secondary);
+}
+
+.black-key {
+    position: absolute;
+    width: 24px; /* Will be dynamically adjusted */
+    height: 60%;
+    background: var(--background);
+    border-radius: 0 0 3px 3px;
+    z-index: 2;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.1s;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.4);
+}
+
+.black-key:hover {
+    background: #000;
+}
+
+.black-key.active {
+    background: var(--primary-light);
+}
+
+.octave-marker {
+    position: absolute;
+    bottom: 2px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    z-index: 3;
+    pointer-events: none;
+}
+
+/* Add scrollbar styling for better visibility */
+.keyboard::-webkit-scrollbar {
+    height: 6px;
+}
+
+.keyboard::-webkit-scrollbar-track {
+    background: var(--surface-dark);
+    border-radius: 3px;
+}
+
+.keyboard::-webkit-scrollbar-thumb {
+    background: var(--primary-dark);
+    border-radius: 3px;
+}
+
+.keyboard::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+}
+
+/* Make scrolling smooth on Firefox */
+.keyboard {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-dark) var(--surface-dark);
+}
+
+/* Add this to your styles.css file */
+.preset-loading-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    gap: 8px;
+    animation: fadeIn 0.2s ease-in-out;
+    z-index: 5;
+}
+
+.preset-loading-indicator i {
+    color: var(--secondary);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

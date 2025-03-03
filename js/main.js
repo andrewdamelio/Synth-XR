@@ -1577,24 +1577,29 @@ const createKeyboard = () => {
     
     const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
-    // Make octave range responsive based on screen size
-    const isMobile = window.innerWidth <= 768;
-    const startOctave = 3;
-    const endOctave = isMobile ? 4 : 7;
+    // Full range from C1 to C8 regardless of device
+    const startOctave = 1;
+    const endOctave =8;
 
     // Clear keyboard and reset the key element cache
     keyboardElement.innerHTML = '';
     resetKeyboardCache();
     
     // Add event listeners to the keyboard container (event delegation)
-    // This dramatically reduces the number of event listeners
     keyboardElement.addEventListener('mousedown', keyboardMouseHandlers.handleMouseDown);
     keyboardElement.addEventListener('mouseup', keyboardMouseHandlers.handleMouseUp);
     keyboardElement.addEventListener('mouseleave', keyboardMouseHandlers.handleMouseLeave);
     
-    // Use a document fragment for batch DOM updates (massive performance improvement)
-    const fragment = document.createDocumentFragment();
-
+    // Calculate key dimensions
+    const isMobile = window.innerWidth <= 768;
+    const keyWidth = isMobile ? 30 : 40; // Smaller on mobile
+    
+    // Create a container with fixed width to allow horizontal scrolling
+    const keysContainer = document.createElement('div');
+    keysContainer.className = 'keys-container';
+    keysContainer.style.position = 'relative';
+    keysContainer.style.display = 'flex';
+    
     // Define black key positions (reused for each octave)
     const blackKeyPositions = [
         { after: 'C', note: 'C#' },
@@ -1604,7 +1609,10 @@ const createKeyboard = () => {
         { after: 'A', note: 'A#' }
     ];
     
-    // First create all white keys
+    // Create all white keys
+    const whiteKeysFragment = document.createDocumentFragment();
+    let whiteKeyCount = 0;
+    
     for (let octave = startOctave; octave <= endOctave; octave++) {
         // Only create C for the last octave
         const octaveNotes = octave === endOctave ? ['C'] : notes;
@@ -1612,23 +1620,41 @@ const createKeyboard = () => {
         for (let i = 0; i < octaveNotes.length; i++) {
             const key = document.createElement('div');
             key.className = 'key';
+            
+            // Add special class for C keys (visual indicator)
+            if (octaveNotes[i] === 'C') {
+                key.classList.add('octave-start');
+            }
+            
+            // Highlight keys in the current octave
+            if (octave === (window.currentOctave || 4)) {
+                key.classList.add('current-octave');
+            }
+            
             key.textContent = isMobile ? '' : `${octaveNotes[i]}${octave}`;
             key.setAttribute('data-note', `${octaveNotes[i]}${octave}`);
-            fragment.appendChild(key);
+            
+            // Set fixed width instead of flex stretching
+            key.style.width = `${keyWidth}px`;
+            key.style.flex = '0 0 auto';
+            
+            whiteKeysFragment.appendChild(key);
+            whiteKeyCount++;
         }
     }
     
-    // Add all white keys to the DOM at once
-    keyboardElement.appendChild(fragment);
+    // Add all white keys to the container
+    keysContainer.appendChild(whiteKeysFragment);
     
     // Now create and position black keys
-    const secondFragment = document.createDocumentFragment();
-    const whiteKeys = keyboardElement.querySelectorAll('.key');
-    const whiteKeyWidth = whiteKeys[0].offsetWidth;
+    const blackKeysFragment = document.createDocumentFragment();
+    const whiteKeys = keysContainer.querySelectorAll('.key');
     
     // Create black keys for each octave
+    let whiteKeyIndex = 0;
+    
     for (let octave = startOctave; octave <= endOctave; octave++) {
-        // Skip black keys after B or for the last octave (where we only create C)
+        // Skip black keys for the last octave (we only create C8)
         if (octave === endOctave) continue;
         
         for (let i = 0; i < notes.length; i++) {
@@ -1640,27 +1666,86 @@ const createKeyboard = () => {
                 blackKey.className = 'black-key';
                 blackKey.setAttribute('data-note', `${blackKeyInfo.note}${octave}`);
                 
-                // Find the corresponding white key
-                const whiteKeyIndex = Array.from(whiteKeys).findIndex(
-                    key => key.getAttribute('data-note') === `${whiteNote}${octave}`
-                );
+                // Get the current white key
+                const currentWhiteKey = whiteKeys[whiteKeyIndex];
                 
-                // Position the black key relative to the white key
-                if (whiteKeyIndex !== -1) {
-                    const whiteKey = whiteKeys[whiteKeyIndex];
-                    const rect = whiteKey.getBoundingClientRect();
-                    const keyboardRect = keyboardElement.getBoundingClientRect();
-                    
-                    // Calculate position
-                    blackKey.style.left = `${rect.right - keyboardRect.left - whiteKeyWidth/4}px`;
-                    secondFragment.appendChild(blackKey);
+                // Position using absolute positioning relative to the white key's left edge
+                const leftOffset = keyWidth * 0.7; // Position black key 70% to the right of the white key
+                blackKey.style.left = `${whiteKeyIndex * keyWidth + leftOffset}px`;
+                blackKey.style.width = `${keyWidth * 0.6}px`; // 60% of white key width
+                
+                // Highlight keys in the current octave
+                if (octave === (window.currentOctave || 4)) {
+                    blackKey.classList.add('current-octave');
                 }
+                
+                blackKeysFragment.appendChild(blackKey);
             }
+            
+            whiteKeyIndex++;
         }
     }
     
-    // Add all black keys to DOM at once
-    keyboardElement.appendChild(secondFragment);
+    // Add all black keys to the container
+    keysContainer.appendChild(blackKeysFragment);
+    
+    // Add octave markers
+    for (let octave = startOctave; octave <= endOctave; octave++) {
+        const markerPos = (octave - startOctave) * 7 * keyWidth;
+        
+        const marker = document.createElement('div');
+        marker.className = 'octave-marker';
+        marker.textContent = `C${octave}`;
+        marker.style.position = 'absolute';
+        marker.style.bottom = '2px';
+        marker.style.left = `${markerPos}px`;
+        marker.style.fontSize = '10px';
+        marker.style.color = 'rgba(255, 255, 255, 0.5)';
+        marker.style.zIndex = '3';
+        marker.style.pointerEvents = 'none';
+        keysContainer.appendChild(marker);
+    }
+    
+    // Add container to keyboard element
+    keyboardElement.appendChild(keysContainer);
+    
+    // Enable horizontal scrolling
+    keyboardElement.style.overflowX = 'auto';
+    keyboardElement.style.overflowY = 'hidden';
+    
+    // Scroll to the current octave
+    const scrollToOctave = window.currentOctave || 4;
+    const scrollPosition = (scrollToOctave - startOctave) * 7 * keyWidth;
+    setTimeout(() => {
+        keyboardElement.scrollLeft = scrollPosition;
+    }, 10);
+    
+    // Store keyboard API for external access
+    window.keyboardAPI = {
+        scrollToOctave: (octave) => {
+            const scrollPos = (octave - startOctave) * 7 * keyWidth;
+            keyboardElement.scrollTo({
+                left: scrollPos,
+                behavior: 'smooth'
+            });
+        },
+        highlightCurrentOctave: (octave) => {
+            // Remove highlighting from all keys
+            document.querySelectorAll('.key.current-octave, .black-key.current-octave')
+                .forEach(el => el.classList.remove('current-octave'));
+            
+            // Add highlighting to keys in current octave
+            const octaveKeys = document.querySelectorAll(
+                `.key[data-note^="A${octave}"], .key[data-note^="B${octave}"], .key[data-note^="C${octave}"], ` +
+                `.key[data-note^="D${octave}"], .key[data-note^="E${octave}"], .key[data-note^="F${octave}"], ` +
+                `.key[data-note^="G${octave}"], .black-key[data-note$="${octave}"]`
+            );
+            
+            octaveKeys.forEach(key => key.classList.add('current-octave'));
+        }
+    };
+    
+    return window.keyboardAPI;
 };
 
 // Cached steps element reference for better performance
@@ -3154,14 +3239,27 @@ function renderPresetList() {
             presetItem.classList.add('active');
             activePresetName = preset.name;
 
+            // Show loading indicator
+            const loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'preset-loading-indicator';
+            loadingIndicator.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Loading...';
+            presetItem.appendChild(loadingIndicator);
+
             // Apply the preset (get from cache if possible)
             const presetToApply = isCustom ? preset : getPresetByName(preset.name);
-            applyPreset(presetToApply.settings);
+            applyPreset(initPatch);
+            setTimeout(() => {
+                applyPreset(presetToApply.settings);
 
-            // Turn off drone if it's active
-            if (isDroneActive) {
-                toggleDrone();
-            }
+                // Turn off drone if it's active
+                if (isDroneActive) {
+                    toggleDrone();
+                }
+                
+                // Remove loading indicator
+                presetItem.removeChild(loadingIndicator);
+            }, 1000);
+            
         });
         
         return presetItem;
@@ -3241,7 +3339,7 @@ function renderPresetList() {
 // Function to perform a clean reset of the synth state
 function performCleanReset() {
     console.log("Performing clean reset...");
-    
+
     // Stop the sequencer if it's running
     if (isPlaying) {
         // Pause the transport
@@ -4190,8 +4288,13 @@ function updateOctaveIndicator(octave) {
     if (quickChordOctaveDisplay) {
         quickChordOctaveDisplay.textContent = `C${octave}`;
     }
-    
-    // KEY FIX: Call updateArpeggiatorOctave with the old and new octave
+
+    // Scroll and highlight keys if keyboard API is available
+    if (window.keyboardAPI) {
+        window.keyboardAPI.scrollToOctave(octave);
+        window.keyboardAPI.highlightCurrentOctave(octave);
+    }
+        
     // This is the function that actually transposes the arpeggiator notes
     if (typeof updateArpeggiatorOctave === 'function') {
         updateArpeggiatorOctave(oldOctave, octave);
