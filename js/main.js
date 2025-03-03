@@ -193,11 +193,13 @@ let widthCompensation = AudioNodeFactory.getNode('gain', { gain: 1 });
 
 // Initialize master section
 let masterVolume = AudioNodeFactory.getNode('gain', { gain: 0.8 });
-let masterPanner = AudioNodeFactory.getNode('panner', { pan: 0 });
+let masterPanner = AudioNodeFactory.getNode('panner', { pan: 0 })
+;
 
-// Create analysis nodes with optimized buffer sizes
-const waveform = AudioNodeFactory.getNode('waveform', { size: 1024 });
-const fft = AudioNodeFactory.getNode('fft', { size: 1024 });
+// Create analysis nodes with optimized buffer sizes and expose them globally
+// Use window properties so other modules can access them
+window.waveform = AudioNodeFactory.getNode('waveform', { size: 1024 });
+window.fft = AudioNodeFactory.getNode('fft', { size: 1024 });
 
 // Initialize LFO tracking system
 let lfoActive = false;
@@ -220,39 +222,55 @@ phaser.connect(reverb);
 reverb.connect(delay);
 delay.connect(eq);
 eq.connect(masterCompressor);
-masterCompressor.connect(stereoWidener);
+masterCompressor.connect(masterPanner);
+masterPanner.connect(stereoWidener);
 stereoWidener.connect(widthCompensation);
-widthCompensation.connect(masterPanner);
+widthCompensation.connect(masterVolume);
+
 
 // Connect analysis nodes
-masterVolume.connect(waveform);
-stereoWidener.connect(fft);
+masterVolume.connect(window.waveform);
+stereoWidener.connect(window.fft);
+
+
 
 // Add a helper function to ensure visualizers are properly connected
+// Using a flag to prevent multiple reconnections
+let visualizersConnected = false;
+let visualizerConnectionCount = 0;
+
 function ensureVisualizersConnected() {
+    // If visualizers are already connected, just return silently without logging
+    if (visualizersConnected) return;
+    
     // Check if masterVolume and waveform are connected
     try {
         // First disconnect to prevent duplicate connections
         try {
-            masterVolume.disconnect(waveform);
+            masterVolume.disconnect(window.waveform);
         } catch (e) {
             // Ignore error if they weren't connected
         }
         
         // Reconnect
-        masterVolume.connect(waveform);
+        masterVolume.connect(window.waveform);
         
         // Check if stereoWidener and fft are connected
         try {
-            stereoWidener.disconnect(fft);
+            stereoWidener.disconnect(window.fft);
         } catch (e) {
             // Ignore error if they weren't connected
         }
         
         // Reconnect
-        stereoWidener.connect(fft);
+        stereoWidener.connect(window.fft);
         
-        console.log("Visualizers reconnected");
+        // Set the flag to true to prevent future reconnections
+        visualizersConnected = true;
+        visualizerConnectionCount++;
+        
+        // Only log on first connection
+        console.log("Visualizers connected");
     } catch (e) {
         console.warn("Error ensuring visualizer connections:", e);
     }
@@ -435,6 +453,14 @@ function mainAnimationLoop(timestamp) {
     // If LFO is active, update it using throttled function
     if (lfoActive && lfoDestination !== 'off') {
         animations.throttledLfoUpdate(timestamp);
+        
+        // Check if basic LFO visualizer is visible
+        const basicLfoVisible = document.querySelector('.lfo-scope')?.style.display !== 'none';
+        
+        // Only update the basic LFO scope if it's visible
+        if (basicLfoVisible) {
+            updateLfoScope(timestamp);
+        }
     }
     
     // Performance monitoring in development mode
@@ -494,11 +520,11 @@ document.addEventListener('visibilitychange', function() {
 // Update the oscilloscope visualization
 function updateOscilloscope(timestamp) {
     const { element, context } = animations.oscilloscope;
-    if (!element || !context || !waveform) return;
+    if (!element || !context || !window.waveform) return;
     
     const width = element.width;
     const height = element.height;
-    const values = waveform.getValue();
+    const values = window.waveform.getValue();
     const currentScheme = colorSchemes[currentColorSchemeIndex];
 
     context.fillStyle = currentScheme.bg;
@@ -506,11 +532,17 @@ function updateOscilloscope(timestamp) {
 
     context.beginPath();
     context.strokeStyle = currentScheme.wave;
-    context.lineWidth = 2;
-
-    for (let i = 0; i < values.length; i++) {
+    context.lineWidth = 1;  // Thinner line for simpler appearance
+    
+    // Calculate a step size to reduce the number of points sampled
+    const step = Math.max(1, Math.floor(values.length / 80));  // Even fewer points for simplicity
+    // Scale the amplitude down significantly to make the wave more compact
+    const amplitudeScale = 0.2;  // Reduce amplitude to 20% (matches level at 0.15 volume)
+    
+    for (let i = 0; i < values.length; i += step) {
         const x = (i / values.length) * width;
-        const y = ((values[i] + 1) / 2) * height;
+        // Scale the amplitude and center in the middle of the canvas
+        const y = (height / 2) + ((values[i] * amplitudeScale) * (height / 2));
 
         if (i === 0) {
             context.moveTo(x, y);
@@ -529,10 +561,65 @@ function updateLfoScope(timestamp) {
     const { element, context } = animations.lfoScope;
     if (!element || !context) return;
     
-    // Get current LFO settings
-    const waveform = document.getElementById('lfoWaveform').value;
-    const rate = parseFloat(document.getElementById('lfoRate').value);
-    const amount = parseInt(document.getElementById('lfoAmount').value) / 100;
+    // Get current LFO settings with cached references for better performance
+    if (!updateLfoScope.elements) {
+        updateLfoScope.elements = {
+            waveform: document.getElementById('lfoWaveform'),
+            rate: document.getElementById('lfoRate'),
+            amount: document.getElementById('lfoAmount')
+        };
+        updateLfoScope.cyclesShown = 2; // Show 2 complete cycles
+        
+        // Precompute colors for different waveforms to avoid recreating them each frame
+        updateLfoScope.colors = {
+            sine: {
+                main: '#00e5ff',
+                shadow: '#00e5ff',
+                fill: 'rgba(0, 229, 255, 0.2)',
+                fillBottom: 'rgba(0, 229, 255, 0.05)'
+            },
+            square: {
+                main: '#ff1744',
+                shadow: '#ff1744',
+                fill: 'rgba(255, 23, 68, 0.2)',
+                fillBottom: 'rgba(255, 23, 68, 0.05)'
+            },
+            triangle: {
+                main: '#00c853',
+                shadow: '#00c853',
+                fill: 'rgba(0, 200, 83, 0.2)',
+                fillBottom: 'rgba(0, 200, 83, 0.05)'
+            },
+            sawtooth: {
+                main: '#ffab00',
+                shadow: '#ffab00',
+                fill: 'rgba(255, 171, 0, 0.2)',
+                fillBottom: 'rgba(255, 171, 0, 0.05)'
+            },
+            random: {
+                main: '#d500f9',
+                shadow: '#d500f9',
+                fill: 'rgba(213, 0, 249, 0.2)',
+                fillBottom: 'rgba(213, 0, 249, 0.05)'
+            }
+        };
+        
+        // Pre-computed waveform functions map for better performance
+        updateLfoScope.waveformFunctions = {
+            sine: (t, centerY, amplitude) => centerY - Math.sin(t) * amplitude,
+            square: (t, centerY, amplitude) => centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude,
+            triangle: (t, centerY, amplitude) => centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude,
+            sawtooth: (t, centerY, amplitude) => centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude,
+            random: (t, centerY, amplitude) => {
+                const segment = Math.floor(t / (Math.PI / 4)); // Change every 1/8th of cycle
+                return centerY - (Math.sin(segment * 1000) * 2 - 1) * amplitude;
+            }
+        };
+    }
+    
+    const waveform = updateLfoScope.elements.waveform.value;
+    const rate = parseFloat(updateLfoScope.elements.rate.value);
+    const amount = parseInt(updateLfoScope.elements.amount.value) / 100;
     
     const width = element.width;
     const height = element.height;
@@ -541,231 +628,130 @@ function updateLfoScope(timestamp) {
     // Clear the canvas
     context.clearRect(0, 0, width, height);
     
-    // Draw background with gradient
-    const bgGradient = context.createLinearGradient(0, 0, 0, height);
-    bgGradient.addColorStop(0, 'rgba(15, 15, 20, 0.8)');
-    bgGradient.addColorStop(1, 'rgba(20, 20, 30, 0.8)');
-    context.fillStyle = bgGradient;
+    // Draw background (solid color is more efficient than gradient)
+    context.fillStyle = 'rgba(15, 15, 25, 0.9)';
     context.fillRect(0, 0, width, height);
 
-    // Horizontal center line (slightly brighter)
+    // Horizontal center line
     context.beginPath();
     context.moveTo(0, centerY);
     context.lineTo(width, centerY);
-    context.strokeStyle = 'rgba(150, 150, 200, 0.3)';
+    context.strokeStyle = 'rgba(150, 150, 200, 0.4)';
+    context.lineWidth = 1;
     context.stroke();
 
-    // Horizontal grid lines
-    context.strokeStyle = 'rgba(100, 100, 150, 0.1)';
-    for (let y = height / 4; y < height; y += height / 4) {
-        if (Math.abs(y - centerY) < 2) continue; // Skip center line
-        context.beginPath();
-        context.moveTo(0, y);
-        context.lineTo(width, y);
-        context.stroke();
-    }
+    // Efficient grid rendering - draw all horizontal lines at once
+    context.beginPath();
+    context.strokeStyle = 'rgba(100, 100, 150, 0.15)';
+    // Top and bottom lines
+    context.moveTo(0, height * 0.25);
+    context.lineTo(width, height * 0.25);
+    context.moveTo(0, height * 0.75);
+    context.lineTo(width, height * 0.75);
+    context.stroke();
 
-    // Vertical grid lines
-    for (let x = 0; x < width; x += width / 8) {
-        context.beginPath();
+    // Draw vertical grid lines efficiently
+    context.beginPath();
+    for (let i = 0; i <= 8; i++) {
+        const x = (i / 8) * width;
         context.moveTo(x, 0);
         context.lineTo(x, height);
-        context.stroke();
     }
+    context.stroke();
 
-    // Calculate how many cycles to show based on rate
-    const cyclesShown = 2; // Show 2 complete cycles
-
-    // Create colored gradient for the waveform
-    const waveGradient = context.createLinearGradient(0, width, 0, 0);
-
-    // Different color schemes for different waveforms
-    switch (waveform) {
-        case 'sine':
-            waveGradient.addColorStop(0, '#00e5ff');
-            waveGradient.addColorStop(0.5, '#18ffff');
-            waveGradient.addColorStop(1, '#00e5ff');
-            break;
-        case 'square':
-            waveGradient.addColorStop(0, '#ff1744');
-            waveGradient.addColorStop(0.5, '#ff5252');
-            waveGradient.addColorStop(1, '#ff1744');
-            break;
-        case 'triangle':
-            waveGradient.addColorStop(0, '#00c853');
-            waveGradient.addColorStop(0.5, '#69f0ae');
-            waveGradient.addColorStop(1, '#00c853');
-            break;
-        case 'sawtooth':
-            waveGradient.addColorStop(0, '#ffab00');
-            waveGradient.addColorStop(0.5, '#ffd740');
-            waveGradient.addColorStop(1, '#ffab00');
-            break;
-        case 'random':
-            waveGradient.addColorStop(0, '#d500f9');
-            waveGradient.addColorStop(0.5, '#ea80fc');
-            waveGradient.addColorStop(1, '#d500f9');
-            break;
-        default:
-            waveGradient.addColorStop(0, '#00e5ff');
-            waveGradient.addColorStop(1, '#00e5ff');
-    }
-
-    // Draw the waveform
-    context.beginPath();
-
-    // Calculate amplitude (capped at 80% of half-height for visibility)
+    // Calculate amplitude based on amount setting
     const amplitude = (height / 2) * 0.8 * amount;
 
     // Time is based on current time for animation
     const now = timestamp / 1000; // Current time in seconds
+    const waveOffset = now * rate * Math.PI * 2;
+    
+    // Get the correct waveform generator function
+    const generateY = updateLfoScope.waveformFunctions[waveform] || updateLfoScope.waveformFunctions.sine;
+    
+    // Get color scheme for current waveform
+    const colorScheme = updateLfoScope.colors[waveform] || updateLfoScope.colors.sine;
 
-    // Starting position
-    let startX = 0;
-    let startY = 0;
-
-    // Generate points for the waveform
-    for (let x = 0; x <= width; x++) {
-        // The x-position determines where in the cycle we are
-        const t = (x / width) * (cyclesShown * Math.PI * 2) + (now * rate * Math.PI * 2);
-        let y;
-
-        switch (waveform) {
-            case 'sine':
-                y = centerY - Math.sin(t) * amplitude;
-                break;
-            case 'square':
-                y = centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude;
-                break;
-            case 'triangle':
-                y = centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude;
-                break;
-            case 'sawtooth':
-                y = centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude;
-                break;
-            case 'random':
-                // For random, create stable random values at fixed intervals
-                const segment = Math.floor(t / (Math.PI / 4)); // Change every 1/8th of cycle
-                // Use sine of a large number to get pseudorandom value between -1 and 1
-                const randValue = Math.sin(segment * 1000) * 2 - 1;
-                y = centerY - randValue * amplitude;
-                break;
-            default:
-                y = centerY - Math.sin(t) * amplitude;
-        }
-
-        if (x === 0) {
-            startX = 0;
-            startY = y;
-            context.moveTo(x, y);
-        } else {
-            context.lineTo(x, y);
-        }
+    // Points array to store waveform path
+    const points = [];
+    
+    // Calculate points with optimized step size based on screen width
+    // Use fewer points for better performance (every 2px is sufficient for most displays)
+    const step = Math.max(1, Math.floor(width / 300)); // Adaptive based on canvas width
+    
+    for (let x = 0; x <= width; x += step) {
+        // Calculate phase at this x position
+        const t = (x / width) * (updateLfoScope.cyclesShown * Math.PI * 2) + waveOffset;
+        // Get y position using the appropriate waveform function
+        const y = generateY(t, centerY, amplitude);
+        points.push({ x, y });
     }
-
-    // Close the path for filling
+    
+    // Fill the waveform area first
+    context.beginPath();
+    context.moveTo(0, centerY);
+    
+    points.forEach(point => {
+        context.lineTo(point.x, point.y);
+    });
+    
     context.lineTo(width, centerY);
-    context.lineTo(0, centerY);
     context.closePath();
-
-    // Fill with semi-transparent gradient
+    
+    // Create fill gradient
     const fillGradient = context.createLinearGradient(0, 0, 0, height);
-
-    switch (waveform) {
-        case 'sine':
-            fillGradient.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
-            fillGradient.addColorStop(1, 'rgba(0, 229, 255, 0.05)');
-            break;
-        case 'square':
-            fillGradient.addColorStop(0, 'rgba(255, 23, 68, 0.2)');
-            fillGradient.addColorStop(1, 'rgba(255, 23, 68, 0.05)');
-            break;
-        case 'triangle':
-            fillGradient.addColorStop(0, 'rgba(0, 200, 83, 0.2)');
-            fillGradient.addColorStop(1, 'rgba(0, 200, 83, 0.05)');
-            break;
-        case 'sawtooth':
-            fillGradient.addColorStop(0, 'rgba(255, 171, 0, 0.2)');
-            fillGradient.addColorStop(1, 'rgba(255, 171, 0, 0.05)');
-            break;
-        case 'random':
-            fillGradient.addColorStop(0, 'rgba(213, 0, 249, 0.2)');
-            fillGradient.addColorStop(1, 'rgba(213, 0, 249, 0.05)');
-            break;
-        default:
-            fillGradient.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
-            fillGradient.addColorStop(1, 'rgba(0, 229, 255, 0.05)');
-    }
-
+    fillGradient.addColorStop(0, colorScheme.fill);
+    fillGradient.addColorStop(1, colorScheme.fillBottom);
     context.fillStyle = fillGradient;
     context.fill();
-
-    // Redraw the path with line only for a sharp edge
+    
+    // Now draw the line itself (more efficiently with a single path)
     context.beginPath();
-    context.moveTo(startX, startY);
-
-    for (let x = 0; x <= width; x++) {
-        const t = (x / width) * (cyclesShown * Math.PI * 2) + (now * rate * Math.PI * 2);
-        let y;
-
-        switch (waveform) {
-            case 'sine':
-                y = centerY - Math.sin(t) * amplitude;
-                break;
-            case 'square':
-                y = centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude;
-                break;
-            case 'triangle':
-                y = centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude;
-                break;
-            case 'sawtooth':
-                y = centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude;
-                break;
-            case 'random':
-                const segment = Math.floor(t / (Math.PI / 4));
-                const randValue = Math.sin(segment * 1000) * 2 - 1;
-                y = centerY - randValue * amplitude;
-                break;
-            default:
-                y = centerY - Math.sin(t) * amplitude;
-        }
-
-        if (x === 0) {
-            context.moveTo(x, y);
-        } else {
-            context.lineTo(x, y);
+    
+    if (points.length > 0) {
+        context.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            context.lineTo(points[i].x, points[i].y);
         }
     }
-
+    
     // Set line style with glow effect
-    context.strokeStyle = waveGradient;
+    context.strokeStyle = colorScheme.main;
     context.lineWidth = 2;
-    context.shadowColor = waveform === 'sine' ? '#00e5ff' :
-        waveform === 'square' ? '#ff1744' :
-        waveform === 'triangle' ? '#00c853' :
-        waveform === 'sawtooth' ? '#ffab00' : '#d500f9';
-    context.shadowBlur = 5;
+    
+    // Optimize rendering with efficient glow effect
+    context.shadowColor = colorScheme.shadow;
+    context.shadowBlur = 4;
     context.shadowOffsetX = 0;
     context.shadowOffsetY = 0;
     context.stroke();
-
-    // Draw current playhead position
+    
+    // Reset shadow for remaining drawing
+    context.shadowBlur = 0;
+    
+    // Draw current playhead position (position indicator)
     const cyclePosition = (now * rate) % 1;
-    const playheadX = cyclePosition * (width / cyclesShown);
-
+    const playheadX = cyclePosition * (width / updateLfoScope.cyclesShown);
+    
     context.beginPath();
     context.moveTo(playheadX, 0);
     context.lineTo(playheadX, height);
     context.strokeStyle = 'rgba(255, 255, 255, 0.5)';
     context.lineWidth = 1;
-    context.shadowBlur = 0;
     context.stroke();
-
-    // Annotate with frequency
-    context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    
+    // Add frequency label
+    context.fillStyle = 'rgba(255, 255, 255, 0.8)';
     context.font = '10px sans-serif';
     context.textAlign = 'right';
     context.fillText(`${rate.toFixed(1)} Hz`, width - 5, height - 5);
+    
+    if (lfoActive && lfoDestination !== 'off') {
+        // Show active modulation target
+        context.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        context.textAlign = 'left';
+        context.fillText(lfoDestination, 5, height - 5);
+    }
     
     // Update tracking time
     animations.lfoScope.lastUpdate = timestamp;
@@ -789,38 +775,121 @@ const lfoWaveformFunctions = {
     }
 };
 
-// Optimized LFO modulation with reduced DOM access
-function updateLfoModulation(timestamp) {
-    if (!lfoActive || lfoDestination === 'off') return;
+// Add this new function to calculate the current LFO value
+function getLfoValue() {
+    // Get current LFO settings
+    const waveform = document.getElementById('lfoWaveform').value;
+    const rate = parseFloat(document.getElementById('lfoRate').value);
     
-    // Lazy load and cache DOM elements
-    if (!lfoWaveformElement) {
-        lfoWaveformElement = document.getElementById('lfoWaveform');
-        lfoRateElement = document.getElementById('lfoRate');
-        lfoAmountElement = document.getElementById('lfoAmount');
+    // Calculate current phase based on time
+    const now = performance.now() / 1000; // Current time in seconds
+    const phase = (now * rate) % 1; // Phase between 0 and 1
+    
+    // Get the appropriate waveform function
+    let value;
+    switch (waveform) {
+        case 'sine':
+            value = Math.sin(phase * Math.PI * 2);
+            break;
+        case 'triangle':
+            value = 1 - Math.abs((phase * 4) % 4 - 2);
+            break;
+        case 'square':
+            value = phase < 0.5 ? 1 : -1;
+            break;
+        case 'sawtooth':
+            value = (phase * 2) - 1;
+            break;
+        case 'random':
+            // Use segment-based approach for random to match visualization
+            const segments = 8;
+            const segmentIndex = Math.floor(phase * segments);
+            // Use deterministic "random" based on segment index
+            value = Math.sin(segmentIndex * 1000) * 2 - 1;
+            break;
+        default:
+            value = Math.sin(phase * Math.PI * 2); // Default to sine
     }
     
-    // Get LFO settings with null checks
-    if (!lfoWaveformElement || !lfoRateElement || !lfoAmountElement) return;
+    return value; // Value between -1 and 1
+}
+
+// Optimized LFO modulation with reduced DOM access
+function updateLfoModulation(timestamp) {
+    // Skip if LFO is inactive or destination is off
+    if (!lfoActive || lfoDestination === 'off') return;
     
-    const waveform = lfoWaveformElement.value;
-    const rate = parseFloat(lfoRateElement.value);
-    const amountPercent = parseInt(lfoAmountElement.value);
-    const amount = amountPercent / 100;
+    // Get LFO value (scaled between -1 and 1)
+    let lfoValue = getLfoValue();
     
-    // Calculate current time and phase
-    const currentTime = timestamp / 1000; // Convert to seconds
-    const phase = (currentTime * rate) % 1;
+    // Get target element
+    const targetElement = document.getElementById(lfoDestination);
+    if (!targetElement) return;
     
-    // Calculate LFO output value using optimized function map
-    const waveformFunction = lfoWaveformFunctions[waveform] || lfoWaveformFunctions.sine;
-    let lfoOutput = waveformFunction(phase);
+    // Get amount setting (as a percentage)
+    const amount = parseFloat(document.getElementById('lfoAmount').value) / 100;
     
-    // Scale by amount
-    lfoOutput *= amount;
+    // Get min and max values from the range input
+    const min = parseFloat(targetElement.min);
+    const max = parseFloat(targetElement.max);
     
-    // Apply to target parameter
-    applyLfoToParameter(lfoDestination, lfoOutput);
+    // Get base value (or use current value if not set)
+    let baseValue = lfoBaseValues[lfoDestination];
+    if (baseValue === undefined) {
+        baseValue = parseFloat(targetElement.value);
+        lfoBaseValues[lfoDestination] = baseValue;
+    }
+    
+    // Calculate new value, scaling the LFO output appropriately
+    const range = max - min;
+    const scaledLfo = lfoValue * range * amount / 2;
+    let newValue = baseValue + scaledLfo;
+    
+    // Ensure value stays within range
+    newValue = Math.max(min, Math.min(max, newValue));
+    
+    // Update input element
+    targetElement.value = newValue;
+    
+    // Update display value
+    const valueDisplay = document.getElementById(`${lfoDestination}Value`);
+    if (valueDisplay) {
+        // Format based on parameter type
+        if (lfoDestination === 'masterPan') {
+            // Special formatting for pan display
+            let displayText = "C"; // Center by default
+            
+            if (newValue < -0.05) {
+                // Left side
+                const leftAmount = Math.abs(Math.round(newValue * 100));
+                displayText = `L${leftAmount}`;
+            } else if (newValue > 0.05) {
+                // Right side
+                const rightAmount = Math.round(newValue * 100);
+                displayText = `R${rightAmount}`;
+            }
+            
+            valueDisplay.textContent = displayText;
+        } else {
+            // Default formatting for other parameters
+            valueDisplay.textContent = formatControlValue(lfoDestination, newValue);
+        }
+    }
+    
+    // Directly update audio parameters based on destination type
+    // This ensures audio updates even when the input event isn't triggered
+    if (lfoDestination === 'masterPan' && masterPanner) {
+        masterPanner.pan.value = newValue;
+    } else if (lfoDestination === 'masterVolume' && masterVolume) {
+        masterVolume.gain.value = newValue;
+    } else if (lfoDestination === 'stereoWidth' && stereoWidener) {
+        stereoWidener.width.value = newValue;
+    }
+    
+    // Update knob position if a knob updater exists
+    if (knobUpdaters[lfoDestination]) {
+        knobUpdaters[lfoDestination](newValue);
+    }
 }
 
 // Cache for parameter related elements
@@ -919,21 +988,34 @@ function createSynth() {
             // Release all notes to prevent hanging notes
             oldSynth.releaseAll();
             
-            // Set a flag on the old synth to indicate it's being disposed
-            oldSynth.disposed = true;
+            // Mark the synth as being disposed using a safer approach
+            // Use _disposing flag to avoid the property setter issue
+            oldSynth._disposing = true;
             
-            // Allow time for release phase to complete before disposing
-            setTimeout(() => {
+            // Calculate a dynamic timeout based on current release time
+            const releaseTime = parseFloat(document.getElementById('release').value) || 1.0;
+            const disposeTimeout = Math.max(500, releaseTime * 1000 + 100); // At least 500ms, but longer for longer release times
+            
+            // Store the timeout ID so it can be cleared if needed
+            oldSynth._disposeTimeoutId = setTimeout(() => {
                 try {
-                    if (oldSynth && oldSynth.disconnect && !oldSynth._wasDisposed) {
+                    if (oldSynth && oldSynth.disconnect && !oldSynth._wasDisposed && oldSynth._disposing) {
+                        // Cancel any existing timeout before disposal
+                        if (oldSynth._disposeTimeoutId) {
+                            clearTimeout(oldSynth._disposeTimeoutId);
+                        }
+                        
                         oldSynth.disconnect();
                         oldSynth.dispose();
                         oldSynth._wasDisposed = true;
+                        
+                        // Clean up references for garbage collection
+                        delete oldSynth._disposeTimeoutId;
                     }
                 } catch (disposeErr) {
                     console.warn("Error disposing old synth:", disposeErr);
                 }
-            }, 500);
+            }, disposeTimeout);
         } catch (releaseErr) {
             console.warn("Error releasing notes on old synth:", releaseErr);
         }
@@ -985,8 +1067,8 @@ function createSynth() {
         // Get the number of voices from UI or use default
         const maxVoices = parseInt(document.getElementById('voices')?.value || 8);
         
-        // Configure polyphonic synth with better performance settings and increased polyphony
-        const increasedVoices = Math.max(16, maxVoices * 2); // Double the requested voices with a minimum of 16
+        // Configure polyphonic synth with optimal performance settings (8 voices)
+        const increasedVoices = maxVoices; // Use exactly the requested number of voices for better performance
         
         synth = new Tone.PolySynth({
             maxPolyphony: increasedVoices,
@@ -1033,14 +1115,14 @@ const VoiceManager = {
     // Track active voices to prevent memory leaks and manage performance
     activeVoices: new Map(),
     
-    // Configuration options for voice management - increased limits to prevent polyphony warnings
+    // Configuration options for voice management - optimized for better performance
     options: {
-        maxTotalVoices: 128,        // Increased maximum total voices across all synths
-        voiceTimeout: 30000,        // Maximum time in ms to keep an unused voice alive (increased from 5000ms)
-        cleanupInterval: 60000,     // Interval in ms to run voice cleanup (increased from 10000ms)
-        maxPolyphonyStandard: 16,   // Increased default max polyphony for standard devices
-        maxPolyphonyHigh: 32,       // Increased max polyphony for high-performance devices
-        maxPolyphonyLow: 8          // Increased max polyphony for low-performance devices
+        maxTotalVoices: 64,         // Reduced maximum total voices for better performance
+        voiceTimeout: 30000,        // Maximum time in ms to keep an unused voice alive
+        cleanupInterval: 60000,     // Interval in ms to run voice cleanup
+        maxPolyphonyStandard: 8,    // Reduced default max polyphony for better performance
+        maxPolyphonyHigh: 8,        // Set to 8 voices even for high-performance devices
+        maxPolyphonyLow: 4          // Reduced to 4 for low-performance devices
     },
     
     // Initialize voice manager with system detection
@@ -1949,15 +2031,7 @@ function updateEqResponse() {
     });
 }
 
-// Initialize EQ visualization on page load
-document.addEventListener('DOMContentLoaded', function() {
-    updateEqResponse();
-
-    // Also make sure to update EQ visualization on window resize
-    window.addEventListener('resize', function() {
-        updateEqResponse();
-    });
-});
+// EQ visualization will be initialized in the main DOMContentLoaded handler
 
 // Add event listeners for the EQ controls
 document.getElementById('eqLow').addEventListener('input', function(e) {
@@ -2326,67 +2400,8 @@ function playDrumSound(type) {
 }
 
 createSequencer();
-initializeDrumSounds(); // Add this line to initialize drum sounds
 
-// Create keyboard after DOM is fully loaded
-window.addEventListener('DOMContentLoaded', () => {
-    // Initialize animation settings
-    initAnimationSettings();
-
-    // Start animations
-    startAnimations();
-
-    createKeyboard();
-    // Initialize presets
-    initializePresets();
-
-    // Initialize ADSR Visualizer
-    updateADSRVisualizer();
-
-    // Initialize Filter Response Curve
-    updateFilterResponse();
-
-    // Initialize EQ Response Visualization
-    updateEqResponse();
-
-    // Initialize drum sounds
-    initializeDrumSounds();
-
-    // Initialize LFO scope
-    initLfoScope();
-    
-    // Update LFO destination options to include EQ parameters
-    const lfoDestinationSelect = document.getElementById('lfoDestination');
-    if (lfoDestinationSelect) {
-        // Check if EQ options are already present
-        if (!lfoDestinationSelect.querySelector('option[value="eqLow"]')) {
-            const eqGroup = document.createElement('optgroup');
-            eqGroup.label = 'EQ';
-            
-            // Add all EQ-related parameters
-            const eqOptions = [
-                { value: 'eqLow', text: 'EQ Low' },
-                { value: 'eqMid', text: 'EQ Mid' },
-                { value: 'eqHigh', text: 'EQ High' },
-                { value: 'eqMidFreq', text: 'EQ Mid Freq' },
-                { value: 'eqQ', text: 'EQ Q' }
-            ];
-            
-            eqOptions.forEach(opt => {
-                const option = document.createElement('option');
-                option.value = opt.value;
-                option.textContent = opt.text;
-                eqGroup.appendChild(option);
-            });
-            
-            lfoDestinationSelect.appendChild(eqGroup);
-            console.log('Added EQ options to LFO destinations');
-        }
-    }
-    
-    // Trigger initial LFO destination setup (keep existing code)
-    document.getElementById('lfoDestination').dispatchEvent(new Event('change'));
-});
+// Create keyboard and initialize components in the main DOMContentLoaded handler at the bottom of the file
 
 
 // Recalculate keyboard positions on window resize
@@ -2418,6 +2433,8 @@ document.getElementById('waveform').addEventListener('change', e => {
     } else if (waveformType === 'fmsine') {
         harmonicityContainer.style.display = 'block';
         modulationIndexContainer.style.display = 'block';
+        // Make sure mobile labels are applied when FM Sine is selected
+        adjustFMSineLabelsForMobile();
     }
     
     // Configure oscillator with selected waveform
@@ -2449,6 +2466,9 @@ document.getElementById('waveform').addEventListener('change', e => {
             }
         });
     }
+    
+    // Update LFO destination visibility based on waveform
+    updateLfoDestinationOptions(waveformType);
 });
 
 // Add event listener for the pulse width knob
@@ -2893,14 +2913,17 @@ document.getElementById('masterVolume').addEventListener('input', e => {
     updateVUMeter(value * 0.5);
 });
 
-document.getElementById('masterPan').addEventListener('input', e => {
+document.getElementById('masterPan').addEventListener('input', async (e) => {
+    // Start audio context if it's not running
+    if (Tone.context.state !== 'running') {
+        await Tone.start();
+    }
+    
     const value = parseFloat(e.target.value);
-
-    // Update the panner
     masterPanner.pan.value = value;
-
+        
     // Create a more descriptive pan display
-    let displayText = "C"; // Center by default
+    let displayText = "C"; // Center by default 
 
     if (value < -0.05) {
         // Left side
@@ -2954,7 +2977,7 @@ const initPatch = {
     eqQ: "1",
     compressor: "0",
     stereoWidth: "0.5",
-    masterVolume: "0.8",
+    masterVolume: "0.25",
     masterPan: "0",
     sequencer: [{
             "note": "C4",
@@ -3047,7 +3070,8 @@ import { getPresetByName, getPresetsByCategory, clearPresetCache } from './prese
 
 // Optimized preset initialization with lazy loading
 function initializePresets() {
-    console.time('presetInitialization'); // Performance measurement
+    // Use an initialization timestamp instead of console.time to avoid timer warnings
+    const initStartTime = performance.now();
     
     // Apply the default preset 
     // Use the first preset or a specific default one if first is too complex
@@ -3060,7 +3084,10 @@ function initializePresets() {
     // Render the presets list with deferred loading for better startup performance
     setTimeout(() => {
         renderPresetList();
-        console.timeEnd('presetInitialization');
+        
+        // Log the time taken without using console.time/timeEnd
+        const timeElapsed = performance.now() - initStartTime;
+        console.log(`Preset initialization completed in ${timeElapsed.toFixed(2)}ms`);
     }, 100); // Short delay to improve initial page load performance
     
     // Pre-cache the most common preset categories for faster access later
@@ -3194,8 +3221,95 @@ function renderPresetList() {
     }
 }
 
+// Function to perform a clean reset of the synth state
+function performCleanReset() {
+    console.log("Performing clean reset...");
+    
+    // Stop the sequencer if it's running
+    if (isPlaying) {
+        // Pause the transport
+        Tone.Transport.pause();
+        
+        // Clear any active key highlights
+        clearSequencerKeyHighlights();
+        
+        // Also update UI to show sequencer as stopped
+        const playButton = document.getElementById('startSequencer');
+        if (playButton) {
+            playButton.innerHTML = '<i class="fas fa-play"></i><span>Start</span>';
+            playButton.classList.remove('playing');
+        }
+        
+        // Reset isPlaying flag
+        isPlaying = false;
+    }
+    
+    // Stop any playing notes
+    if (synth) {
+        synth.releaseAll();
+    }
+    
+    // Reset LFO state
+    if (window.lfoAnimationFrame) {
+        cancelAnimationFrame(window.lfoAnimationFrame);
+        window.lfoAnimationFrame = null;
+    }
+    
+    // Reset step counter and sequencer state
+    currentStep = 0;
+    
+    // Reset global state
+    visualizersConnected = false;
+    
+    // Clear any held notes
+    activeNotes.clear();
+    activeComputerKeys.clear();
+    sequencerActiveKeys.clear();
+    
+    // Clear any transports or scheduled events
+    Tone.Transport.cancel();
+    
+    // Clear any pending timeouts for sequencer
+    if (typeof sequencerActiveTimeouts !== 'undefined' && sequencerActiveTimeouts instanceof Map) {
+        sequencerActiveTimeouts.forEach((timeoutIds) => {
+            timeoutIds.forEach(id => clearTimeout(id));
+        });
+        sequencerActiveTimeouts.clear();
+    }
+    
+    // Stop all LFO activity
+    stopLfo();
+    
+    // Stop and restart audio context if needed
+    if (Tone.context.state !== "running") {
+        Tone.context.resume();
+    }
+    
+    // Disconnect and reconnect audio nodes
+    try {
+        // Clean up existing connections
+        masterVolume.disconnect();
+        stereoWidener.disconnect();
+        
+        // Rebuild the audio chain
+        stereoWidener.connect(masterVolume);
+        masterVolume.toDestination();
+        
+        // Reconnect analysis nodes
+        masterVolume.connect(window.waveform);
+        stereoWidener.connect(window.fft);
+    } catch (e) {
+        console.warn("Error resetting audio connections:", e);
+    }
+    
+    console.log("Clean reset completed");
+}
+
 // Apply a preset to the synth
 function applyPreset(settings) {
+    // Perform a clean reset before applying the new preset
+    performCleanReset();
+    
     // Update all parameters and trigger input events to update visuals
     Object.entries(settings).forEach(([key, value]) => {
         if (key !== 'sequencer' && key !== 'drumMachine') {
@@ -3297,8 +3411,22 @@ function loadLfoPresetSettings(settings) {
     const lfoWaveform = settings.lfoWaveform || 'sine';
     const lfoSync = settings.lfoSync !== undefined ? settings.lfoSync : false;
 
+    // Update destination options based on current waveform
+    const currentWaveform = document.getElementById('waveform').value;
+    updateLfoDestinationOptions(currentWaveform);
+
+    // Check if the destination is valid for the current waveform
+    const isDestinationAvailable = Array.from(lfoDestinationSelect.options)
+        .find(opt => opt.value === lfoDestination && !opt.disabled);
+
     // Set all LFO-related controls
-    lfoDestinationSelect.value = lfoDestination;
+    // Only set the destination if it's valid for the current waveform
+    if (isDestinationAvailable) {
+        lfoDestinationSelect.value = lfoDestination;
+    } else {
+        lfoDestinationSelect.value = 'off';
+    }
+    
     lfoRateInput.value = lfoRate;
     lfoAmountInput.value = lfoAmount;
     lfoWaveformSelect.value = lfoWaveform;
@@ -3360,6 +3488,15 @@ function getCurrentSetup() {
     } else if (setup.waveform === 'fmsine') {
         setup.harmonicity = document.getElementById('harmonicity').value;
         setup.modulationIndex = document.getElementById('modulationIndex').value;
+    }
+    
+    // Validate LFO destination based on current waveform
+    // If destination is one of the waveform-specific controls but the waveform doesn't match, reset to 'off'
+    if (setup.lfoDestination === 'pulseWidth' && setup.waveform !== 'pulse') {
+        setup.lfoDestination = 'off';
+    } else if ((setup.lfoDestination === 'harmonicity' || setup.lfoDestination === 'modulationIndex') && 
+               setup.waveform !== 'fmsine') {
+        setup.lfoDestination = 'off';
     }
     
     return setup;
@@ -3876,10 +4013,10 @@ function setupSequencer() {
     Tone.Transport.bpm.value = tempo;
     
     // Create a counter variable within this closure to avoid any global state issues
-    let localStepCounter = 0;
+    let localStepCounter = -1; // Start at -1 so first increment makes it 0
     
     // Reset the global currentStep to ensure consistent starting point
-    currentStep = 15; // Will increase to 0 when first step triggers
+    currentStep = 0;
     
     // Use 8n like in the original version, not 16n
     sequencerEventId = Tone.Transport.scheduleRepeat(time => {
@@ -3912,24 +4049,30 @@ function setupSequencer() {
                     
                     // Play the note with the synth - use 8n like original
                     try {
+                        // Schedule the audio at the specified time
                         synth.triggerAttackRelease(note, '8n', time);
-                        updateVUMeter(0.8);
+                        
+                        // Schedule visual updates to sync with audio using Tone.Draw
+                        Tone.Draw.schedule(() => {
+                            // Update VU meter at the exact time the note plays
+                            updateVUMeter(0.8);
+                            
+                            // Highlight the corresponding key
+                            highlightKeyFromSequencer(note, 0.25);
+                            
+                            // Visual feedback - also synchronized with audio
+                            gsap.to(step, {
+                                scale: 1.03,
+                                duration: 0.1,
+                                yoyo: true,
+                                repeat: 1
+                            });
+                        }, time); // Use the same time as audio for perfect sync
                     } catch (e) {
                         console.warn("Error playing note from sequencer:", e);
                         // If error occurs, ensure visualizers are reconnected
                         ensureVisualizersConnected();
                     }
-                    
-                    // Highlight the corresponding key
-                    highlightKeyFromSequencer(note, 0.25);
-                    
-                    // Visual feedback
-                    gsap.to(step, {
-                        scale: 1.03,
-                        duration: 0.1,
-                        yoyo: true,
-                        repeat: 1
-                    });
                 }
                 
                 // Always update the visual display
@@ -4133,6 +4276,8 @@ document.getElementById('lfoRate').addEventListener('input', function(e) {
     const value = parseFloat(e.target.value);
     document.getElementById('lfoRateValue').textContent = value.toFixed(2) + ' Hz';
 
+    // Enhanced LFO visualizer has been removed
+
     // If LFO is running, restart it to apply new rate
     if (lfoActive) {
         restartLfo();
@@ -4142,6 +4287,8 @@ document.getElementById('lfoRate').addEventListener('input', function(e) {
 document.getElementById('lfoAmount').addEventListener('input', function(e) {
     const amount = parseInt(e.target.value);
     document.getElementById('lfoAmountValue').textContent = `${amount}%`;
+    
+    // Enhanced LFO visualizer has been removed
 
     // Only restart if LFO is active
     if (lfoDestination !== 'off') {
@@ -4150,6 +4297,10 @@ document.getElementById('lfoAmount').addEventListener('input', function(e) {
 });
 
 document.getElementById('lfoWaveform').addEventListener('change', function(e) {
+    const waveform = e.target.value;
+    
+    // Enhanced LFO visualizer has been removed
+    
     // Only restart if LFO is active
     if (lfoDestination !== 'off') {
         restartLfo();
@@ -4159,6 +4310,15 @@ document.getElementById('lfoWaveform').addEventListener('change', function(e) {
 // Function to stop LFO
 function stopLfo() {
     lfoActive = false;
+    
+    // Cancel any pending animation frame
+    if (window.lfoAnimationFrame) {
+        cancelAnimationFrame(window.lfoAnimationFrame);
+        window.lfoAnimationFrame = null;
+    }
+    
+    // Enhanced LFO visualizer has been removed
+    
     console.log('LFO stopped');
 }
 
@@ -4182,6 +4342,8 @@ function startLfo() {
     const min = parseFloat(input.min);
     const max = parseFloat(input.max);
     const baseValue = lfoBaseValues[lfoDestination];
+    
+    // Enhanced LFO visualizer has been removed
 
     // Start the animation loop
     let startTime = performance.now() / 1000; // seconds
@@ -4285,6 +4447,39 @@ function updateAudioParameter(paramId, value) {
                 volume: Tone.gainToDb(value)
             });
             document.getElementById('oscillatorLevelValue').textContent = value.toFixed(2);
+            break;
+        case 'pulseWidth':
+            // Only apply if current waveform is pulse
+            if (document.getElementById('waveform').value === 'pulse') {
+                synth.set({
+                    oscillator: {
+                        width: value
+                    }
+                });
+            }
+            document.getElementById('pulseWidthValue').textContent = value.toFixed(2);
+            break;
+        case 'harmonicity':
+            // Only apply if current waveform is fmsine
+            if (document.getElementById('waveform').value === 'fmsine') {
+                synth.set({
+                    oscillator: {
+                        harmonicity: value
+                    }
+                });
+            }
+            document.getElementById('harmonicityValue').textContent = value.toFixed(1);
+            break;
+        case 'modulationIndex':
+            // Only apply if current waveform is fmsine
+            if (document.getElementById('waveform').value === 'fmsine') {
+                synth.set({
+                    oscillator: {
+                        modulationIndex: value
+                    }
+                });
+            }
+            document.getElementById('modulationIndexValue').textContent = value.toFixed(1);
             break;
         case 'reverbMix':
             reverb.wet.value = value;
@@ -4444,6 +4639,11 @@ document.getElementById('lfoDestination').addEventListener('change', function(e)
     // If turning off, we're done
     if (newDestination === 'off') {
         lfoDestination = 'off';
+        
+        // Update enhanced visualizer if available
+        if (window.lfoOscilloscope) {
+            window.lfoOscilloscope.updateParameters(undefined, undefined, undefined, 'off');
+        }
         return;
     }
 
@@ -4455,6 +4655,8 @@ document.getElementById('lfoDestination').addEventListener('change', function(e)
     if (input) {
         lfoBaseValues[newDestination] = parseFloat(input.value);
     }
+    
+    // Enhanced LFO visualizer has been removed
 
     // Start the LFO
     startLfo();
@@ -4683,11 +4885,17 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Add Quick Chord module octave switcher functionality
-document.addEventListener('DOMContentLoaded', function() {
+function setupChordOctaveSwitcher() {
     // Get octave control elements
     const decreaseOctaveBtn = document.getElementById('decreaseOctave');
     const increaseOctaveBtn = document.getElementById('increaseOctave');
     const currentOctaveDisplay = document.getElementById('currentOctave');
+
+    // Skip if elements don't exist
+    if (!decreaseOctaveBtn || !increaseOctaveBtn || !currentOctaveDisplay) {
+        console.log('Chord octave controls not found in the DOM');
+        return;
+    }
 
     // Keep track of current octave
     let currentOctave = 4; // Default starting octave
@@ -4737,10 +4945,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize display
     updateOctave(currentOctave);
-});
+}
 
 // Add Quick Chord functionality for playing chords
-document.addEventListener('DOMContentLoaded', function() {
+function setupChordPads() {
     // Chord type definitions (intervals from root)
     const chordTypes = {
         'maj': [0, 4, 7], // Major (root, major 3rd, perfect 5th)
@@ -4753,13 +4961,18 @@ document.addEventListener('DOMContentLoaded', function() {
         'maj9': [0, 4, 7, 11, 14] // Major 9th (root, major 3rd, perfect 5th, major 7th, major 9th)
     };
 
+    // Skip setup if the chord buttons are not in the DOM
+    const chordButtons = document.querySelectorAll('.chord-button');
+    const noteButtons = document.querySelectorAll('.note-button');
+    
+    if (chordButtons.length === 0 || noteButtons.length === 0) {
+        console.log('Chord pads not found in the DOM');
+        return;
+    }
+
     let selectedChordType = null;
     let selectedNote = null;
     let activeChordTimeout = null;
-
-    // Get all chord buttons and note buttons
-    const chordButtons = document.querySelectorAll('.chord-button');
-    const noteButtons = document.querySelectorAll('.note-button');
 
     // Add click event to chord buttons
     chordButtons.forEach(button => {
@@ -4909,7 +5122,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
         return notes[index];
     }
-});
+}
 
 // Add module collapsible functionality
 function setupCollapsibleModules() {
@@ -5091,11 +5304,7 @@ function handleCollapseKeypress(event) {
     }
 }
 
-// Make sure we call this function after the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Delay setup slightly to ensure other scripts have initialized
-    setTimeout(setupCollapsibleModules, 100);
-});
+// Collapsible modules will be initialized in the main DOMContentLoaded handler
 
 window.addEventListener('resize', function() {
     // Debounce resize operations
@@ -5115,12 +5324,17 @@ window.addEventListener('resize', function() {
             }
         });
         
+        // Enhanced LFO visualizer has been removed
+        
         if (animations.isRunning) {
             if (animations.oscilloscope.element) updateOscilloscope(performance.now());
             if (animations.lfoScope.element) updateLfoScope(performance.now());
         }
         
-        console.log('Canvas dimensions updated after resize');
+        // Update FM Sine labels when window size changes
+        adjustFMSineLabelsForMobile();
+        
+        console.log('Canvas dimensions and labels updated after resize');
     }, 250); // 250ms debounce
 });
 
@@ -5140,39 +5354,186 @@ function setupDrumPads() {
     });
 }
 
-// On DOMContentLoaded, setup drum pads
+// Create a unified DOMContentLoaded handler that consolidates all initialization
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize animation settings
+    console.log('SynthXR: Initializing application...');
+    
+    // Step 1: Initialize core systems
     initAnimationSettings();
-
-    // Start animations
     startAnimations();
-
+    
+    // Step 2: Create UI components
     createKeyboard();
     
-    // Initialize drum sounds
+    // Step 3: Initialize audio systems
     initializeDrumSounds();
-    
-    // Setup drum pad click handlers
     setupDrumPads();
     
-    // Initialize presets
+    // Step 4: Initialize presets
     initializePresets();
-
-    // Initialize ADSR Visualizer
+    
+    // Step 5: Initialize visualizations 
     updateADSRVisualizer();
-
-    // Initialize Filter Response Curve
     updateFilterResponse();
-
-    // Initialize EQ Response Visualization
     updateEqResponse();
-
-    // Initialize LFO scope
     initLfoScope();
     
-    // Initialize the sequencer to ensure it's properly set up
+    // Using basic LFO visualizer only
+    
+    // Step 6: Set up the sequencer
     if (typeof setupSequencer === 'function') {
         setupSequencer();
     }
+    
+    // Step 7: Initialize UI modules
+    setupCollapsibleModules();
+    setupChordOctaveSwitcher();
+    setupChordPads();
+    
+    // Step 8: Update LFO destination options to include EQ parameters
+    const lfoDestinationSelect = document.getElementById('lfoDestination');
+    if (lfoDestinationSelect) {
+        // Check if EQ options are already present
+        if (!lfoDestinationSelect.querySelector('option[value="eqLow"]')) {
+            const eqGroup = document.createElement('optgroup');
+            eqGroup.label = 'EQ';
+            
+            // Add all EQ-related parameters
+            const eqOptions = [
+                { value: 'eqLow', text: 'EQ Low' },
+                { value: 'eqMid', text: 'EQ Mid' },
+                { value: 'eqHigh', text: 'EQ High' },
+                { value: 'eqMidFreq', text: 'EQ Mid Freq' },
+                { value: 'eqQ', text: 'EQ Q' }
+            ];
+            
+            eqOptions.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.text;
+                eqGroup.appendChild(option);
+            });
+            
+            lfoDestinationSelect.appendChild(eqGroup);
+            console.log('Added EQ options to LFO destinations');
+        }
+    }
+    
+    // Step 9: Final adjustments
+    adjustFMSineLabelsForMobile();
+    
+    // Initialize LFO destination options based on current waveform
+    const currentWaveform = document.getElementById('waveform').value;
+    updateLfoDestinationOptions(currentWaveform);
+    
+    // Step 10: Trigger initial setup events
+    document.getElementById('lfoDestination').dispatchEvent(new Event('change'));
+    
+    console.log('SynthXR: Initialization complete');
 });
+
+// Function to adjust FM Sine knob labels for mobile devices
+function adjustFMSineLabelsForMobile() {
+    // Check if the device is mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+    
+    if (isMobile) {
+        // Get the label elements
+        const harmonicityLabel = document.querySelector('label[for="harmonicity"], #harmonicityContainer .knob-label');
+        const modulationIndexLabel = document.querySelector('label[for="modulationIndex"], #modulationIndexContainer .knob-label');
+        
+        // Change the labels if they exist
+        if (harmonicityLabel) {
+            harmonicityLabel.textContent = 'HARM';
+        }
+        
+        if (modulationIndexLabel) {
+            modulationIndexLabel.textContent = 'MOD';
+        }
+    }
+}
+
+// Function to update LFO destination options based on current waveform
+function updateLfoDestinationOptions(currentWaveform) {
+    // Get the LFO destination select element
+    const lfoDestination = document.getElementById('lfoDestination');
+    if (!lfoDestination) return;
+    
+    // Get all waveform-specific options
+    const pulseWidthOption = Array.from(lfoDestination.options).find(opt => opt.value === 'pulseWidth');
+    const harmonicityOption = Array.from(lfoDestination.options).find(opt => opt.value === 'harmonicity');
+    const modulationIndexOption = Array.from(lfoDestination.options).find(opt => opt.value === 'modulationIndex');
+    
+    // First, disable all waveform-specific options
+    if (pulseWidthOption) pulseWidthOption.disabled = true;
+    if (harmonicityOption) harmonicityOption.disabled = true;
+    if (modulationIndexOption) modulationIndexOption.disabled = true;
+    
+    // Then enable options based on current waveform
+    if (currentWaveform === 'pulse' && pulseWidthOption) {
+        pulseWidthOption.disabled = false;
+    } else if (currentWaveform === 'fmsine') {
+        if (harmonicityOption) harmonicityOption.disabled = false;
+        if (modulationIndexOption) modulationIndexOption.disabled = false;
+    }
+    
+    // If the currently selected option is now disabled, reset to 'off'
+    if (lfoDestination.options[lfoDestination.selectedIndex].disabled) {
+        lfoDestination.value = 'off';
+        lfoDestination.dispatchEvent(new Event('change'));
+    }
+}
+
+// Add this function to properly format control values for display
+function formatControlValue(controlId, value) {
+    // Format based on the type of control
+    switch(controlId) {
+        // Volume controls
+        case 'masterVolume':
+        case 'oscillatorLevel':
+            return `${Math.round(value * 100)}%`;
+            
+        // Pan controls
+        case 'masterPan':
+            if (Math.abs(value) < 0.05) return 'C';
+            if (value < 0) return `L${Math.abs(Math.round(value * 100))}`;
+            return `R${Math.round(value * 100)}`;
+            
+        // Width controls
+        case 'stereoWidth':
+            return `${Math.round(value * 100)}%`;
+            
+        // Frequency controls
+        case 'filterFreq':
+        case 'cutoff':
+            if (value >= 1000) return `${(value/1000).toFixed(1)}kHz`;
+            return `${Math.round(value)}Hz`;
+            
+        // Time-based controls
+        case 'attack':
+        case 'decay':
+        case 'release':
+        case 'delayTime':
+            if (value >= 1) return `${value.toFixed(1)}s`;
+            return `${Math.round(value * 1000)}ms`;
+            
+        // Percentage-based controls
+        case 'sustain':
+        case 'resonance':
+        case 'feedback':
+        case 'depth':
+        case 'lfoAmount':
+            return `${Math.round(value * 100)}%`;
+            
+        // Default formatting for other controls
+        default:
+            // Check if value is small
+            if (Math.abs(value) < 0.01 && value !== 0) {
+                return value.toFixed(2);
+            } else if (Math.abs(value) < 1) {
+                return value.toFixed(1);
+            } else {
+                return Math.round(value);
+            }
+    }
+}

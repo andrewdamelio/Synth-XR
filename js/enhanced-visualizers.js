@@ -479,7 +479,7 @@ class EnhancedVisualizers {
             
             // Store canvas and context
             this.canvases[id] = canvas;
-            this.contexts[id] = canvas.getContext('2d');
+            this.contexts[id] = canvas.getContext('2d', { willReadFrequently: true });
             
             // Add canvas to container
             this.container.appendChild(canvas);
@@ -597,30 +597,47 @@ class EnhancedVisualizers {
         // Track previous visualizer for cleanup
         const previousVisualizer = this.activeVisualizer;
         
-        // Stop all animation frames
+        // Stop all animation frames and perform visualizer-specific cleanup
         Object.keys(this.visualizers).forEach(vizId => {
+            // Cancel animation frame if running
             if (this.visualizers[vizId].animationFrame) {
                 cancelAnimationFrame(this.visualizers[vizId].animationFrame);
                 this.visualizers[vizId].animationFrame = null;
             }
             
-            // Hide all canvases and optimize them when not in use
+            // Hide all canvases and optimize memory usage when not in use
             if (this.canvases[vizId]) {
                 this.canvases[vizId].style.display = 'none';
                 
-                // When hiding a canvas, we can optimize its memory usage
-                if (vizId !== id && vizId === previousVisualizer) {
-                    // For 3D-like visualizers, clear history to free memory
-                    if (vizId === 'waveform3d' && this.renderCache.waveform3d) {
-                        this.renderCache.waveform3d.waveHistory = [];
+                // Always clean up unused visualizers, not just the previous one
+                if (vizId !== id) {
+                    // Special handling for memory-intensive visualizers
+                    
+                    // Clear history arrays for visualizers with historical data
+                    if ((vizId === 'waveform3d' || vizId === 'waterfall') && this.renderCache[vizId]) {
+                        if (this.renderCache[vizId].waveHistory) {
+                            this.renderCache[vizId].waveHistory = [];
+                        }
+                        if (this.renderCache[vizId].history) {
+                            this.renderCache[vizId].history = [];
+                        }
                     }
                     
-                    // For particle-based visualizers, reduce particle count temporarily
-                    if (vizId === 'particles' && this.visualizers.particles) {
-                        const options = this.visualizers.particles.options;
-                        options.oldParticleCount = options.particleCount;
-                        options.particleCount = 0;
-                        options.particles = [];
+                    // For particle-based visualizers, reduce memory usage
+                    if ((vizId === 'particles' || vizId === 'neural') && this.visualizers[vizId]) {
+                        const options = this.visualizers[vizId].options;
+                        if (options.particles && options.particles.length > 0) {
+                            options.oldParticleCount = options.particleCount;
+                            options.particleCount = 0;
+                            options.particles = [];
+                        }
+                    }
+                    
+                    // Clear canvas context to free memory
+                    if (this.contexts[vizId]) {
+                        this.contexts[vizId].clearRect(0, 0, 
+                            this.canvases[vizId].width, 
+                            this.canvases[vizId].height);
                     }
                 }
             }
@@ -954,8 +971,8 @@ class EnhancedVisualizers {
         const ctx = this.contexts.spectrum;
         const options = this.visualizers.spectrum.options;
         
-        // Get FFT data
-        const fftData = this.fft.getValue();
+        // Get FFT data - use global analyzer if available, fall back to local one
+        const fftData = (window.fft || this.fft).getValue();
         
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1052,8 +1069,8 @@ class EnhancedVisualizers {
         const ctx = this.contexts.waveform3d;
         const options = this.visualizers.waveform3d.options;
         
-        // Get waveform data
-        const waveData = this.waveform.getValue();
+        // Get waveform data - use global analyzer if available, fall back to local one
+        const waveData = (window.waveform || this.waveform).getValue();
         
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1131,9 +1148,9 @@ class EnhancedVisualizers {
         const options = this.visualizers.particles.options;
         const particles = options.particles;
         
-        // Get audio data
-        const waveformData = this.waveform.getValue();
-        const fftData = this.fft.getValue();
+        // Get audio data - use global analyzers if available, fall back to local ones
+        const waveformData = (window.waveform || this.waveform).getValue();
+        const fftData = (window.fft || this.fft).getValue();
         
         // Calculate audio energy in different frequency bands
         const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10) * 2;
@@ -1304,8 +1321,8 @@ class EnhancedVisualizers {
         const ctx = this.contexts.waterfall;
         const options = this.visualizers.waterfall.options;
         
-        // Get FFT data
-        const fftData = this.fft.getValue();
+        // Get FFT data - use global analyzer if available, fall back to local one
+        const fftData = (window.fft || this.fft).getValue();
         
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1394,8 +1411,8 @@ class EnhancedVisualizers {
         const ctx = this.contexts.circular;
         const options = this.visualizers.circular.options;
         
-        // Get audio data
-        const fftData = this.fft.getValue();
+        // Get audio data - use global analyzer if available, fall back to local one
+        const fftData = (window.fft || this.fft).getValue();
         
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1743,24 +1760,41 @@ class EnhancedVisualizers {
     }
 }
 
-// Create global instance
-window.enhancedVisualizers = new EnhancedVisualizers();
-
-// Initialize visualizers when document is loaded or when called
-document.addEventListener('DOMContentLoaded', () => {
-    if (!window.enhancedVisualizers.isInitialized) {
-        window.enhancedVisualizers.init();
+// Create global instance but with a slight delay to ensure main.js analyzers are ready
+window.addEventListener('DOMContentLoaded', () => {
+    // Wait a short time to ensure audio system is fully initialized
+    setTimeout(() => {
+        console.log('Creating enhanced visualizers with delay to ensure analyzers are ready');
+        window.enhancedVisualizers = new EnhancedVisualizers();
         
-        // Ensure visualizers are hidden by default
-        const container = document.getElementById('enhanced-visualizers-container');
-        if (container) {
-            container.style.maxHeight = '0';
-            container.style.overflow = 'hidden';
-            container.style.marginTop = '10px';
-            container.style.marginBottom = '10px';
+        if (!window.enhancedVisualizers.isInitialized) {
+            window.enhancedVisualizers.init();
+            
+            // Ensure visualizers are hidden by default
+            const container = document.getElementById('enhanced-visualizers-container');
+            if (container) {
+                container.style.maxHeight = '0';
+                container.style.overflow = 'hidden';
+                container.style.marginTop = '10px';
+                container.style.marginBottom = '10px';
+            }
         }
-    }
-    
+        
+        // Ensure the LFO oscilloscope is properly initialized
+        if (window.lfoOscilloscope) {
+            // Give a bit of time for the DOM to settle
+            setTimeout(() => {
+                window.lfoOscilloscope.handleResize();
+            }, 100);
+        }
+    }, 300); // 300ms delay should be enough for analyzers to be ready
+});
+
+// Keep a placeholder for now - will be set in the delayed initialization
+window.enhancedVisualizers = null;
+
+// Handle the visualizer toggle setup
+document.addEventListener('DOMContentLoaded', () => {
     const visualizerToggle = document.getElementById('visualizerToggle');
 
     if (visualizerToggle) {
@@ -1882,8 +1916,34 @@ document.head.appendChild(visualizerStyles);
 
 // Function to initialize the visualizers manually
 function initEnhancedVisualizers() {
+    if (!window.enhancedVisualizers) {
+        // Create it if it doesn't exist yet
+        console.log('Creating enhanced visualizers instance (manual init)');
+        window.enhancedVisualizers = new EnhancedVisualizers();
+    }
+    
     if (window.enhancedVisualizers && !window.enhancedVisualizers.isInitialized) {
         window.enhancedVisualizers.init();
+    }
+    
+    // Also ensure the LFO oscilloscope is properly initialized/reinitialized
+    if (window.lfoOscilloscope) {
+        if (!window.lfoOscilloscope.isInitialized) {
+            window.lfoOscilloscope.init();
+        }
+        
+        window.lfoOscilloscope.handleResize();
+        
+        // Update with current LFO values
+        const waveform = document.getElementById('lfoWaveform')?.value || 'sine';
+        const rate = parseFloat(document.getElementById('lfoRate')?.value || '1');
+        const amount = parseInt(document.getElementById('lfoAmount')?.value || '50') / 100;
+        const destination = document.getElementById('lfoDestination')?.value || 'off';
+        
+        window.lfoOscilloscope.updateParameters(waveform, rate, amount, destination);
+        
+        // Force a render to ensure the display is fresh
+        window.lfoOscilloscope.render(performance.now());
     }
 }
 
@@ -2255,7 +2315,7 @@ EnhancedVisualizers.prototype.initCanvases = function() {
         
         // Store canvas and context
         this.canvases[id] = canvas;
-        this.contexts[id] = canvas.getContext('2d');
+        this.contexts[id] = canvas.getContext('2d', { willReadFrequently: true });
         
         // Add canvas to container
         this.container.appendChild(canvas);
@@ -2268,8 +2328,8 @@ EnhancedVisualizers.prototype.renderNeuralNetwork = function() {
     const ctx = this.contexts.neural;
     const options = this.visualizers.neural.options;
     
-    // Get audio data
-    const fftData = this.fft.getValue();
+    // Get audio data - use global analyzer if available, fall back to local one
+    const fftData = (window.fft || this.fft).getValue();
     
     // Calculate energy in different frequency bands
     const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
@@ -2454,8 +2514,8 @@ EnhancedVisualizers.prototype.renderAudioTerrain = function() {
     const ctx = this.contexts.terrain;
     const options = this.visualizers.terrain.options;
     
-    // Get audio data
-    const fftData = this.fft.getValue();
+    // Get audio data - use global analyzer if available, fall back to local one
+    const fftData = (window.fft || this.fft).getValue();
     
     // Clear canvas
     ctx.fillStyle = this.colorScheme.background;
@@ -2636,9 +2696,9 @@ EnhancedVisualizers.prototype.renderVortex = function() {
     const ctx = this.contexts.vortex;
     const options = this.visualizers.vortex.options;
     
-    // Get audio data
-    const fftData = this.fft.getValue();
-    const waveData = this.waveform.getValue();
+    // Get audio data - use global analyzers if available, fall back to local ones
+    const fftData = (window.fft || this.fft).getValue();
+    const waveData = (window.waveform || this.waveform).getValue();
     
     // Calculate energy in different frequency bands
     const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
@@ -2776,8 +2836,8 @@ EnhancedVisualizers.prototype.renderFractalAurora = function() {
     const ctx = this.contexts.fractal;
     const options = this.visualizers.fractal.options;
     
-    // Get audio data
-    const fftData = this.fft.getValue();
+    // Get audio data - use global analyzer if available, fall back to local one
+    const fftData = (window.fft || this.fft).getValue();
     
     // Calculate energy in different frequency bands
     const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
@@ -2928,8 +2988,8 @@ EnhancedVisualizers.prototype.renderSpectralBloom = function() {
     const ctx = this.contexts.bloom;
     const options = this.visualizers.bloom.options;
     
-    // Get audio data
-    const fftData = this.fft.getValue();
+    // Get audio data - use global analyzer if available, fall back to local one
+    const fftData = (window.fft || this.fft).getValue();
     
     // Calculate energy in different frequency bands
     const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
@@ -3058,8 +3118,8 @@ EnhancedVisualizers.prototype.renderHolographicSpectrum = function() {
     const ctx = this.contexts.holographic;
     const options = this.visualizers.holographic.options;
     
-    // Get audio data
-    const fftData = this.fft.getValue();
+    // Get audio data - use global analyzer if available, fall back to local one
+    const fftData = (window.fft || this.fft).getValue();
     
     // Calculate energy in different frequency bands
     const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
@@ -3456,9 +3516,9 @@ EnhancedVisualizers.prototype.renderCaustics = function() {
     const ctx = this.contexts.caustics;
     const options = this.visualizers.caustics.options;
     
-    // Get audio data
-    const fftData = this.fft.getValue();
-    const waveData = this.waveform.getValue();
+    // Get audio data - use global analyzers if available, fall back to local ones
+    const fftData = (window.fft || this.fft).getValue();
+    const waveData = (window.waveform || this.waveform).getValue();
     
     // Calculate energy in different frequency bands
     const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
@@ -3777,5 +3837,438 @@ EnhancedVisualizers.prototype.hslToRgb = function(h, s, l) {
         b: Math.round(b * 255)
     };
 };
+// Add LFO Oscilloscope Visualizer
+class LfoOscilloscope {
+    constructor(containerSelector = '.lfo-visualizer-container') {
+        // Basic setup
+        this.container = document.querySelector(containerSelector);
+        this.isInitialized = false;
+        this.isActive = false;
+        this.lastFrameTime = 0;
+        this.isVisible = false;  // Add this property to track visibility
+        
+        // LFO parameters
+        this.waveform = 'sine';
+        this.rate = 1.0;
+        this.amount = 0.5;
+        this.destination = 'off';
+        this.isRunning = false;
+        
+        // Rendering options
+        this.colors = {
+            sine: {
+                main: '#00e5ff',
+                shadow: '#00e5ff',
+                fill: 'rgba(0, 229, 255, 0.2)',
+                fillBottom: 'rgba(0, 229, 255, 0.05)'
+            },
+            square: {
+                main: '#ff1744',
+                shadow: '#ff1744',
+                fill: 'rgba(255, 23, 68, 0.2)',
+                fillBottom: 'rgba(255, 23, 68, 0.05)'
+            },
+            triangle: {
+                main: '#00c853',
+                shadow: '#00c853',
+                fill: 'rgba(0, 200, 83, 0.2)',
+                fillBottom: 'rgba(0, 200, 83, 0.05)'
+            },
+            sawtooth: {
+                main: '#ffab00',
+                shadow: '#ffab00',
+                fill: 'rgba(255, 171, 0, 0.2)',
+                fillBottom: 'rgba(255, 171, 0, 0.05)'
+            },
+            random: {
+                main: '#d500f9',
+                shadow: '#d500f9',
+                fill: 'rgba(213, 0, 249, 0.2)',
+                fillBottom: 'rgba(213, 0, 249, 0.05)'
+            }
+        };
+        
+        // Waveform generators
+        this.waveformFunctions = {
+            sine: (t, centerY, amplitude) => centerY - Math.sin(t) * amplitude,
+            square: (t, centerY, amplitude) => centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude,
+            triangle: (t, centerY, amplitude) => centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude,
+            sawtooth: (t, centerY, amplitude) => centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude,
+            random: (t, centerY, amplitude) => {
+                const segment = Math.floor(t / (Math.PI / 4)); // Change every 1/8th of cycle
+                return centerY - (Math.sin(segment * 1000) * 2 - 1) * amplitude;
+            }
+        };
+        
+        // Animation state
+        this.animationFrame = null;
+        this.cyclesShown = 2;
+        
+        // Initialize if container exists
+        if (this.container) {
+            this.init();
+        }
+    }
+    
+    init() {
+        if (this.isInitialized) return;
+        
+        // Create canvas if needed
+        if (!this.canvas) {
+            this.canvas = document.createElement('canvas');
+            this.canvas.className = 'lfo-scope-canvas';
+            this.canvas.width = this.container.clientWidth || 300;
+            this.canvas.height = this.container.clientHeight || 80;
+            this.container.appendChild(this.canvas);
+            this.ctx = this.canvas.getContext('2d');
+        }
+        
+        // Set up resize handler
+        window.addEventListener('resize', () => this.handleResize());
+        
+        // Connect to LFO controls
+        this.connectControls();
+        
+        this.isInitialized = true;
+        
+        // Check if container is visible
+        this.checkVisibility();
+        
+        // Initial render
+        this.render(performance.now());
+    }
+    
+    // Check if the container is visible
+    checkVisibility() {
+        if (!this.container) return false;
+        
+        // Check if container is visible
+        const rect = this.container.getBoundingClientRect();
+        const isVisible = rect.width > 0 && 
+                         rect.height > 0 && 
+                         this.container.style.display !== 'none' &&
+                         getComputedStyle(this.container).visibility !== 'hidden';
+        
+        this.isVisible = isVisible;
+        return isVisible;
+    }
+    
+    connectControls() {
+        // Find LFO control elements
+        this.controls = {
+            waveform: document.getElementById('lfoWaveform'),
+            rate: document.getElementById('lfoRate'),
+            amount: document.getElementById('lfoAmount'),
+            destination: document.getElementById('lfoDestination')
+        };
+        
+        // Add event listeners
+        if (this.controls.waveform) {
+            this.controls.waveform.addEventListener('change', () => {
+                this.waveform = this.controls.waveform.value;
+                this.render(performance.now()); // Force immediate update
+            });
+        }
+        
+        if (this.controls.rate) {
+            this.controls.rate.addEventListener('input', () => {
+                this.rate = parseFloat(this.controls.rate.value);
+                this.render(performance.now()); // Force immediate update
+            });
+        }
+        
+        if (this.controls.amount) {
+            this.controls.amount.addEventListener('input', () => {
+                this.amount = parseInt(this.controls.amount.value) / 100;
+                this.render(performance.now()); // Force immediate update
+            });
+        }
+        
+        if (this.controls.destination) {
+            this.controls.destination.addEventListener('change', () => {
+                this.destination = this.controls.destination.value;
+                this.isRunning = this.destination !== 'off';
+                this.render(performance.now()); // Force immediate update
+                
+                // Make sure animation runs when destination changes to valid value
+                if (this.isRunning && !this.isActive) {
+                    this.start();
+                } else if (!this.isRunning && this.isActive) {
+                    this.stop();
+                }
+            });
+        }
+        
+        // Initial values
+        if (this.controls.waveform) this.waveform = this.controls.waveform.value;
+        if (this.controls.rate) this.rate = parseFloat(this.controls.rate.value);
+        if (this.controls.amount) this.amount = parseInt(this.controls.amount.value) / 100;
+        if (this.controls.destination) {
+            this.destination = this.controls.destination.value;
+            this.isRunning = this.destination !== 'off';
+        }
+    }
+    
+    start() {
+        if (this.isActive) return;
+        
+        // Check if container is visible first
+        this.checkVisibility();
+        if (!this.isVisible) {
+            console.log('Enhanced LFO oscilloscope not started - container not visible');
+            return;
+        }
+        
+        this.isActive = true;
+        this.animationLoop();
+        console.log('Enhanced LFO oscilloscope started');
+    }
+    
+    stop() {
+        this.isActive = false;
+        if (this.animationFrame) {
+            cancelAnimationFrame(this.animationFrame);
+            this.animationFrame = null;
+        }
+        console.log('Enhanced LFO oscilloscope stopped');
+    }
+    
+    animationLoop() {
+        if (!this.isActive) return;
+        
+        // Periodically check visibility (every ~1 second)
+        if (Math.random() < 0.05) {
+            this.checkVisibility();
+            if (!this.isVisible) {
+                console.log('Enhanced LFO oscilloscope stopping - container no longer visible');
+                this.stop();
+                return;
+            }
+        }
+        
+        const now = performance.now();
+        this.render(now);
+        
+        this.animationFrame = requestAnimationFrame(() => this.animationLoop());
+    }
+    
+    render(timestamp) {
+        if (!this.ctx || !this.canvas) return;
+        
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        const centerY = height / 2;
+        
+        // Check if container is visible - if not, don't waste resources rendering
+        this.checkVisibility();
+        if (!this.isVisible) {
+            return;
+        }
+        
+        // Clear canvas
+        this.ctx.clearRect(0, 0, width, height);
+        
+        // Draw background
+        this.ctx.fillStyle = 'rgba(15, 15, 25, 0.9)';
+        this.ctx.fillRect(0, 0, width, height);
+        
+        // Draw grid
+        this.drawGrid(width, height, centerY);
+        
+        // Calculate time and amplitude
+        const now = timestamp / 1000; // seconds
+        const waveOffset = now * this.rate * Math.PI * 2;
+        const amplitude = (height / 2) * 0.8 * this.amount;
+        
+        // Get color scheme and generator function
+        const colorScheme = this.colors[this.waveform] || this.colors.sine;
+        const generateY = this.waveformFunctions[this.waveform] || this.waveformFunctions.sine;
+        
+        // Generate points
+        const points = [];
+        const step = Math.max(1, Math.floor(width / 300));
+        
+        for (let x = 0; x <= width; x += step) {
+            const t = (x / width) * (this.cyclesShown * Math.PI * 2) + waveOffset;
+            const y = generateY(t, centerY, amplitude);
+            points.push({ x, y });
+        }
+        
+        // Draw waveform
+        this.drawWaveform(points, width, height, centerY, colorScheme);
+        
+        // Draw playhead
+        this.drawPlayhead(now, width, height);
+        
+        // Draw information
+        this.drawInfo(width, height);
+    }
+    
+    drawGrid(width, height, centerY) {
+        // Draw horizontal center line
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, centerY);
+        this.ctx.lineTo(width, centerY);
+        this.ctx.strokeStyle = 'rgba(150, 150, 200, 0.4)';
+        this.ctx.lineWidth = 1;
+        this.ctx.stroke();
+        
+        // Draw additional horizontal grid lines
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = 'rgba(100, 100, 150, 0.15)';
+        this.ctx.moveTo(0, height * 0.25);
+        this.ctx.lineTo(width, height * 0.25);
+        this.ctx.moveTo(0, height * 0.75);
+        this.ctx.lineTo(width, height * 0.75);
+        this.ctx.stroke();
+        
+        // Draw vertical grid lines
+        this.ctx.beginPath();
+        for (let i = 0; i <= 8; i++) {
+            const x = (i / 8) * width;
+            this.ctx.moveTo(x, 0);
+            this.ctx.lineTo(x, height);
+        }
+        this.ctx.stroke();
+    }
+    
+    drawWaveform(points, width, height, centerY, colorScheme) {
+        if (points.length === 0) return;
+        
+        // Fill area under the curve
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, centerY);
+        
+        points.forEach(point => {
+            this.ctx.lineTo(point.x, point.y);
+        });
+        
+        this.ctx.lineTo(width, centerY);
+        this.ctx.closePath();
+        
+        // Apply fill gradient
+        const fillGradient = this.ctx.createLinearGradient(0, 0, 0, height);
+        fillGradient.addColorStop(0, colorScheme.fill);
+        fillGradient.addColorStop(1, colorScheme.fillBottom);
+        this.ctx.fillStyle = fillGradient;
+        this.ctx.fill();
+        
+        // Draw the line
+        this.ctx.beginPath();
+        this.ctx.moveTo(points[0].x, points[0].y);
+        
+        for (let i = 1; i < points.length; i++) {
+            this.ctx.lineTo(points[i].x, points[i].y);
+        }
+        
+        this.ctx.strokeStyle = colorScheme.main;
+        this.ctx.lineWidth = 2;
+        this.ctx.shadowColor = colorScheme.shadow;
+        this.ctx.shadowBlur = 4;
+        this.ctx.stroke();
+        
+        // Reset shadow
+        this.ctx.shadowBlur = 0;
+    }
+    
+    drawPlayhead(now, width, height) {
+        const cyclePosition = (now * this.rate) % 1;
+        const playheadX = cyclePosition * (width / this.cyclesShown);
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(playheadX, 0);
+        this.ctx.lineTo(playheadX, height);
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        this.ctx.lineWidth = 1;
+        this.ctx.stroke();
+    }
+    
+    drawInfo(width, height) {
+        // Add frequency and destination info
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        this.ctx.font = '10px sans-serif';
+        
+        // Rate value on right
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText(`${this.rate.toFixed(1)} Hz`, width - 5, height - 5);
+        
+        // Destination on left (if active)
+        if (this.isRunning && this.destination !== 'off') {
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText(this.destination, 5, height - 5);
+        }
+    }
+    
+    handleResize() {
+        if (!this.canvas || !this.container) return;
+        
+        // Check visibility
+        this.checkVisibility();
+        
+        // Only update dimensions if container is visible
+        if (!this.isVisible) {
+            return;
+        }
+        
+        // Update canvas dimensions
+        const newWidth = this.container.clientWidth || 300;
+        const newHeight = this.container.clientHeight || 80;
+        
+        if (this.canvas.width !== newWidth || this.canvas.height !== newHeight) {
+            this.canvas.width = newWidth;
+            this.canvas.height = newHeight;
+            
+            // Force a render update
+            this.render(performance.now());
+        }
+    }
+    
+    // External API to update LFO parameters
+    updateParameters(waveform, rate, amount, destination) {
+        let needsUpdate = false;
+        
+        if (waveform !== undefined && this.waveform !== waveform) {
+            this.waveform = waveform;
+            needsUpdate = true;
+        }
+        
+        if (rate !== undefined && this.rate !== rate) {
+            this.rate = rate;
+            needsUpdate = true;
+        }
+        
+        if (amount !== undefined && this.amount !== amount) {
+            this.amount = amount;
+            needsUpdate = true;
+        }
+        
+        if (destination !== undefined && this.destination !== destination) {
+            this.destination = destination;
+            this.isRunning = destination !== 'off';
+            needsUpdate = true;
+            
+            // Start or stop animation based on destination
+            if (this.isRunning && !this.isActive && this.checkVisibility()) {
+                this.start();
+            } else if (!this.isRunning && this.isActive) {
+                this.stop();
+            }
+        }
+        
+        // Update immediately if needed
+        if (needsUpdate) {
+            this.render(performance.now());
+        }
+    }
+    
+    // Helper method to check if the visualizer is visible
+    isVisible() {
+        return this.checkVisibility();
+    }
+}
+
+// Create the global instance
+window.lfoOscilloscope = new LfoOscilloscope();
+
 // Export the function for manual initialization
 window.initEnhancedVisualizers = initEnhancedVisualizers;

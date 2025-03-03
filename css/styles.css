@@ -1140,6 +1140,7 @@ input[type="range"] {
 @media (max-width: 768px) {
     .brand {
         margin-bottom: 15px;
+        grid-column: 1 / 13;
     }
     
     .main-modules-2 {
@@ -1288,6 +1289,53 @@ input[type="range"] {
     width: 100%;
     height: 100%;
     display: block;
+}
+
+/* Enhanced LFO Visualizer */
+.lfo-visualizer-container {
+    height: 80px;
+    margin-top: 10px;
+    background: var(--background);
+    border-radius: 6px;
+    position: relative;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.lfo-scope-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Visualizer selector */
+.visualizer-select {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.visualizer-btn {
+    background: var(--surface-dark);
+    border: none;
+    color: var(--text-secondary);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.visualizer-btn:hover {
+    background: var(--surface-light);
+}
+
+.visualizer-btn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 0 5px var(--primary);
 }
 
 /* Drone module styles */
@@ -2029,4 +2077,84 @@ input[type="range"] {
 
 .flex-spacer {
     flex: 1;
+}
+/* Improved sequencer step dropdown styling */
+.step select {
+    /* Base styles */
+    background-color: var(--surface-dark);
+    color: var(--text);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    width: 100%;
+    max-width: 100%;
+    
+    /* Fix excessive padding that causes overflow */
+    padding: 5px 20px 5px 5px; /* Right padding for the dropdown arrow */
+    
+    /* Prevent text overflow */
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    
+    /* Better dropdown arrow positioning */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 5px center;
+    background-size: 12px;
+    
+    /* Appearance tweaks */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    
+    /* Transitions */
+    transition: border-color 0.2s, box-shadow 0.2s;
+    
+    /* Better focus styles */
+    outline: none;
+}
+
+/* Hover and focus states */
+.step select:hover {
+    border-color: var(--primary);
+}
+
+.step select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 1px var(--primary);
+}
+
+/* Option styling */
+.step select option {
+    background-color: var(--surface);
+    color: var(--text);
+    padding: 8px;
+    font-size: 13px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .step select {
+        font-size: 0.75rem;
+        padding: 4px 16px 4px 4px;
+        background-position: right 4px center;
+        background-size: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .step select {
+        font-size: 0.7rem;
+        padding: 3px 14px 3px 3px;
+        background-position: right 3px center;
+        background-size: 8px;
+        min-width: 0; /* Allow selects to be narrower on small screens */
+    }
+}
+
+/* Fix for Firefox which renders dropdowns differently */
+@-moz-document url-prefix() {
+    .step select {
+        padding-right: 25px; /* More space for the dropdown arrow in Firefox */
+    }
 }

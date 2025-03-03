@@ -20,8 +20,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="js/enhanced-visualizers.js"></script>
-
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script type="module">
@@ -33,7 +32,7 @@
     <div class="synth-container">
         <div class="brand">
             <div class="brand-name">Synth XR</div>
-            <div class="version">v5.0</div>
+            <img height="35" src="https://avatars.githubusercontent.com/u/11019186?s=200&v=4" alt="Synth XR Logo" class="brand-logo">
         </div>
         
         <div class="master-controls">
@@ -486,8 +485,8 @@
                             <!-- Mid frequency marker -->
                             <line id="eqMidMarker" class="eq-mid-marker" x1="50%" y1="0" x2="50%" y2="100%"></line>
                             <!-- The EQ curve and area -->
-                            <path id="eqArea" class="eq-area" d="M0,50% L100%,50% L100%,50% L0,50% Z" fill="url(#eqGradient)" />
-                            <path id="eqCurve" class="eq-curve" d="M0,50% L100%,50%" />
+                            <path id="eqArea" class="eq-area" d="M0,50 L100,50 L100,50 L0,50 Z" fill="url(#eqGradient)" />
+                            <path id="eqCurve" class="eq-curve" d="M0,50 L100,50" />
                         </svg>
                     </div>
                 </div>
@@ -646,6 +645,9 @@
                                 <optgroup label="Oscillator">
                                     <option value="oscillatorLevel">Oscillator Level</option>
                                     <option value="detune">Detune</option>
+                                    <option value="pulseWidth">Pulse Width</option>
+                                    <option value="harmonicity">Harmonicity</option>
+                                    <option value="modulationIndex">Mod Index</option>
                                 </optgroup>
                                 
                                 <optgroup label="Filter">
@@ -684,7 +686,7 @@
                                 
                                 <optgroup label="Master">
                                     <option value="masterVolume">Main Volume</option>
-                                    <option value="pan">Stereo Pan</option>
+                                    <option value="masterPan">Stereo Pan</option>
                                     <option value="stereoWidth">Stereo Width</option>
                                 </optgroup>
                             </select>
@@ -711,7 +713,7 @@
                         </div>
                     </div>
                     
-                    <!-- Add LFO Scope with clear height -->
+                    <!-- Just show the basic LFO scope -->
                     <div class="lfo-scope">
                         <canvas id="lfoScope" width="100%" height="80"></canvas>
                     </div>
@@ -747,8 +749,8 @@
                             <div class="small-knob" id="masterVolumeKnob">
                                 <div class="small-knob-inner"></div>
                             </div>
-                            <input type="range" id="masterVolume" min="0" max="2" step="0.01" value="0.8">
-                            <span class="knob-value" id="masterVolumeValue">0.80</span>
+                            <input type="range" id="masterVolume" min="0" max="2" step="0.01" value="0.25">
+                            <span class="knob-value" id="masterVolumeValue">0.25</span>
                         </div>
                         <div class="small-knob-container">
                             <label class="knob-label">Pan</label>
@@ -884,5 +886,7 @@
     
 
     <script type="module" src="js/main.js"></script>
+    <script src="js/enhanced-visualizers.js"></script>
+
 </body>
 </html>

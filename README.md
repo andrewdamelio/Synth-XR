@@ -9,45 +9,65 @@ Synth XR is an advanced web-based synthesizer built with modern web technologies
 ## Features
 
 ### Synthesis Engine
-- Multiple voice modes (Polyphonic, Monophonic)
+- Polyphonic voice mode
+- Adjustable voice count (1-8 voices)
+- Detune control for rich, wide sounds
 - Classic waveforms (Sine, Square, Sawtooth, Triangle)
+- Pulse width modulation for square wave
+- FM synthesis with harmonicity and modulation index controls
 - Octave and semitone controls
-- ADSR envelope (Attack, Decay, Sustain, Release)
+- ADSR envelope (Attack, Decay, Sustain, Release) with visual representation
 
 ### Sound Processing
 - Filter module with resonance control and precise cutoff adjustment
-- Three-band equalizer (Low, Mid, High)
+- Multiple filter types
+- Advanced three-band equalizer with:
+  - Low, Mid, High gain controls
+  - Adjustable mid frequency
+  - Q factor control
+  - Visual EQ response curve
+- Compression with adjustable amount
+- Stereo width control
+- Master volume and pan controls
 - Effects chain:
   - Chorus
   - Distortion
   - Flanger
   - Phaser
-  - Reverb
-  - Delay
+  - Reverb with adjustable decay
+  - Delay with time and feedback controls
 
 ### Modulation
-- LFO (Low Frequency Oscillator) with multiple waveforms
+- LFO (Low Frequency Oscillator) with multiple waveforms (Sine, Square, Triangle, Sawtooth)
+- Real-time LFO waveform visualization with frequency display
 - Adjustable rate and amount
 - Multiple routing destinations
 
 ### Performance Tools
-- Built-in sequencer with 16 steps
-- Drum machine with kick, snare, hi-hat, and clap
+- Built-in sequencer with 16 programmable steps
+- Drum machine with kick, snare, hi-hat, and clap with individual volume controls
 - Quick chord generator with various chord types
-- Drone generator with different sound options
+- Drone generator with octave control and volume adjustment
 - Full keyboard interface
 
 ### Visual Feedback
 - Oscilloscope display
 - Frequency analysis
-- EQ response visualization
-- LFO waveform display
+- EQ response visualization with frequency grid and labels
+- LFO waveform display with playhead position
+- ADSR envelope graph
 - VU meter for level monitoring
 
+### Preset System
+- Comprehensive preset management
+- Categorized presets (Pads, Leads, Keys, Plucks, Bass, FX, Drums, Sequences, Ambient, Arpeggios)
+- Save, load, and share custom presets
+- Optimized preset browsing with category headers
+
 ### Utility Features
-- Preset system for saving and loading sounds
 - MIDI device support
 - Panic button for audio emergencies
+- Optimized performance for modern browsers
 
 ## Getting Started
 
