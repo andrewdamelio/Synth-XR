@@ -46,12 +46,42 @@ function initArpeggiator(knobUpdaters, synth, activeNotes) {
         } else {
             stopArpeggiator();
             
-            // If there are active notes, trigger them directly when turning off arp
-            activeNotes.forEach(note => {
-                if (synth && !synth.disposed) {
-                    synth.triggerAttack(note);
-                }
-            });
+            // Release ALL active notes to ensure no hanging notes
+            if (synth && !synth.disposed) {
+                synth.releaseAll();
+                
+                // Only retrigger notes that are being held with the computer keyboard
+                // This will prevent quick chord notes from continuing to play
+                setTimeout(() => {
+                    if (synth && !synth.disposed && window.activeComputerKeys) {
+                        // Create a set of notes that are actually being pressed on computer keyboard
+                        const keyboardNotes = new Set();
+                        
+                        // Add notes from computer keyboard
+                        window.activeComputerKeys.forEach(key => {
+                            // If there's a keyboardNoteMap that maps keys to notes
+                            if (window.keyboardNoteMap && window.keyboardNoteMap[key]) {
+                                const baseNote = window.keyboardNoteMap[key];
+                                // Convert key to actual note with octave
+                                const note = baseNote.includes('+1') 
+                                    ? `${baseNote.replace('+1', '')}${window.currentOctave + 1}` 
+                                    : `${baseNote}${window.currentOctave}`;
+                                    
+                                keyboardNotes.add(note);
+                            }
+                        });
+                        
+                        // Trigger only the notes from keyboard
+                        keyboardNotes.forEach(note => {
+                            synth.triggerAttack(note);
+                        });
+                        
+                        // Reset activeNotes to only contain notes that are actually being held
+                        activeNotes.clear();
+                        keyboardNotes.forEach(note => activeNotes.add(note));
+                    }
+                }, 50);
+            }
         }
     });
     
@@ -123,6 +153,8 @@ function stopArpeggiator() {
             console.warn("Error releasing arp note:", e);
         }
     }
+
+    arpeggiatorNotes = [];
 }
 
 // Update arpeggiator timing based on rate and swing
@@ -277,7 +309,21 @@ function playArpeggiatorStep(synth) {
 
 // Add a note to the arpeggiator
 function addNoteToArpeggiator(note) {
-    // Only add if not already present
+    // Check if this is a computer-keyboard generated note that needs octave adjustment
+    // Notes from keyboard follow pattern like 'C4', 'D#5', etc.
+    const match = note.match(/([A-G]#?)(\d+)/);
+    if (match) {
+        const noteName = match[1];
+        const noteOctave = parseInt(match[2]);
+        
+        // If global currentOctave exists and differs from the note's octave,
+        // adjust the note to use the current global octave
+        if (window.currentOctave !== undefined && noteOctave !== window.currentOctave) {
+            note = noteName + window.currentOctave;
+        }
+    }
+    
+    // Continue with regular note handling
     if (!arpeggiatorNotes.includes(note)) {
         arpeggiatorNotes.push(note);
         
@@ -352,6 +398,50 @@ function highlightKeyFromArpeggiator(note, duration) {
     }
 }
 
+function updateArpeggiatorOctave(oldOctave, newOctave) {
+    if (!isArpeggiatorEnabled || arpeggiatorNotes.length === 0) return;
+    
+    // Calculate the octave difference
+    const octaveDiff = newOctave - oldOctave;
+    if (octaveDiff === 0) return; // No change needed
+    
+    // Create a new array to store the transposed notes
+    const newNotes = [];
+    
+    // Transpose each note in the arpeggiator
+    arpeggiatorNotes.forEach(note => {
+        const match = note.match(/([A-G]#?)(\d+)/);
+        if (match) {
+            const noteName = match[1];
+            const noteOctave = parseInt(match[2]);
+            
+            // Calculate new octave with bounds checking
+            let newNoteOctave = noteOctave + octaveDiff;
+            // Keep octaves in a reasonable range (0-8)
+            newNoteOctave = Math.max(0, Math.min(8, newNoteOctave));
+            
+            // Add the transposed note
+            newNotes.push(noteName + newNoteOctave);
+        } else {
+            // If not a valid note format, keep as is
+            newNotes.push(note);
+        }
+    });
+    
+    // Replace the current arpeggiator notes
+    arpeggiatorNotes = newNotes;
+    
+    // Sort notes by pitch
+    arpeggiatorNotes.sort((a, b) => {
+        const aPitch = noteToPitch(a);
+        const bPitch = noteToPitch(b);
+        return aPitch - bPitch;
+    });
+    
+    console.log(`Arpeggiator notes transposed by ${octaveDiff} octaves:`, arpeggiatorNotes);
+}
+
+
 // Export the necessary functions and variables
 export {
     isArpeggiatorEnabled,
@@ -360,5 +450,6 @@ export {
     startArpeggiator,
     stopArpeggiator,
     addNoteToArpeggiator,
-    removeNoteFromArpeggiator
+    removeNoteFromArpeggiator,
+    updateArpeggiatorOctave
 };

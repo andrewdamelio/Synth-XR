@@ -3,18 +3,13 @@ import {
     updateVUMeter
 } from './utils.js';
 
-// Initialize MIDI system when the page is loaded
-// import { initMIDI, toggleLearnMode, setActiveDevice, clearAllMappings, exportMappings } from './midi.js';
-
 // Import arpeggiator module
 import { 
     isArpeggiatorEnabled, 
-    arpeggiatorNotes, 
     initArpeggiator, 
-    startArpeggiator,
-    stopArpeggiator,
     addNoteToArpeggiator,
-    removeNoteFromArpeggiator
+    removeNoteFromArpeggiator,
+    updateArpeggiatorOctave
 } from './arpeggiator.js';
 
 
@@ -4126,6 +4121,9 @@ document.getElementById('tempo').addEventListener('input', (e) => {
 
 // Add octave control with polyphony support
 let currentOctave = 4;
+window.currentOctave = currentOctave; // Make it accessible globally
+
+
 
 // Create a more efficient keyboard handler with optimized event listeners and DOM access
 // Create cached keyMap and DOM element lookup tables
@@ -4170,8 +4168,10 @@ function resetKeyboardCache() {
     keyElementCache.clear();
 }
 
-// Update octave indicator efficiently
 function updateOctaveIndicator(octave) {
+    // Store old octave for comparison
+    const oldOctave = currentOctave;
+    
     // Cache the indicator element reference
     if (!updateOctaveIndicator.element) {
         updateOctaveIndicator.element = document.querySelector('.octave-indicator');
@@ -4179,6 +4179,22 @@ function updateOctaveIndicator(octave) {
     
     if (updateOctaveIndicator.element) {
         updateOctaveIndicator.element.textContent = octave;
+    }
+    
+    // Update currentOctave and window.currentOctave
+    currentOctave = octave;
+    window.currentOctave = octave;
+    
+    // Update Quick Chord octave display as well
+    const quickChordOctaveDisplay = document.getElementById('currentOctave');
+    if (quickChordOctaveDisplay) {
+        quickChordOctaveDisplay.textContent = `C${octave}`;
+    }
+    
+    // KEY FIX: Call updateArpeggiatorOctave with the old and new octave
+    // This is the function that actually transposes the arpeggiator notes
+    if (typeof updateArpeggiatorOctave === 'function') {
+        updateArpeggiatorOctave(oldOctave, octave);
     }
 }
 
@@ -4195,8 +4211,14 @@ document.addEventListener('keydown', e => {
 
     // Handle octave shifting with performance optimizations
     if (e.key === 'z' && currentOctave > 2) {
+        const oldOctave = currentOctave;
         currentOctave--;
         updateOctaveIndicator(currentOctave);
+        
+        // Update arpeggiator notes to match new octave
+        if (typeof updateArpeggiatorOctave === 'function') {
+            updateArpeggiatorOctave(oldOctave, currentOctave);
+        }
         
         // Simplified throttling optimization
         if (typeof animations !== 'undefined' && animations.settings) {
@@ -4211,8 +4233,14 @@ document.addEventListener('keydown', e => {
     }
     
     if (e.key === 'x' && currentOctave < 7) {
+        const oldOctave = currentOctave;
         currentOctave++;
         updateOctaveIndicator(currentOctave);
+        
+        // Update arpeggiator notes to match new octave
+        if (typeof updateArpeggiatorOctave === 'function') {
+            updateArpeggiatorOctave(oldOctave, currentOctave);
+        }
         
         // Simplified throttling optimization
         if (typeof animations !== 'undefined' && animations.settings) {
@@ -4944,54 +4972,27 @@ function setupChordOctaveSwitcher() {
         return;
     }
 
-    // Keep track of current octave
-    let currentOctave = 4; // Default starting octave
-
-    // Function to update both displays and the actual synth octave
+    // Function to update octave
     function updateOctave(newOctave) {
         // Ensure octave stays within valid range
         newOctave = Math.max(1, Math.min(7, newOctave));
 
-        // Update our local tracking variable
-        currentOctave = newOctave;
-
-        // Update the display
-        currentOctaveDisplay.textContent = `C${currentOctave}`;
-
-        // Update the synth's octave
-        // This assumes there's a global octave variable that the keyboard uses
-        if (typeof window.octave !== 'undefined') {
-            window.octave = currentOctave;
-        }
-
-        // If there's a keyboard octave indicator, update it too
-        const keyboardOctaveIndicator = document.querySelector('.octave-indicator');
-        if (keyboardOctaveIndicator) {
-            keyboardOctaveIndicator.textContent = currentOctave;
-        }
+        // Call updateOctaveIndicator which now handles everything including arpeggiator updates
+        updateOctaveIndicator(newOctave);
     }
 
     // Decrease octave button
     decreaseOctaveBtn.addEventListener('click', function() {
-        updateOctave(currentOctave - 1);
+        updateOctave(window.currentOctave - 1);
     });
 
     // Increase octave button
     increaseOctaveBtn.addEventListener('click', function() {
-        updateOctave(currentOctave + 1);
+        updateOctave(window.currentOctave + 1);
     });
 
-    // Hook into Z/X keys
-    document.addEventListener('keydown', function(e) {
-        if (e.key.toLowerCase() === 'z') {
-            updateOctave(currentOctave - 1);
-        } else if (e.key.toLowerCase() === 'x') {
-            updateOctave(currentOctave + 1);
-        }
-    });
-
-    // Initialize display
-    updateOctave(currentOctave);
+    // Initialize display with the global currentOctave
+    updateOctave(window.currentOctave || 4);
 }
 
 // Add Quick Chord functionality for playing chords
