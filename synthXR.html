@@ -1012,5 +1012,94 @@
     <script type="module" src="js/main.js"></script>
     <script src="js/enhanced-visualizers.js"></script>
 
+    <!-- Help Modal -->
+    <div class="modal-overlay" id="helpModal">
+        <div class="modal help-modal">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fas fa-lightbulb"></i> Synth XR Guide</h3>
+            </div>
+            <div class="modal-body">
+                <div class="help-section">
+                    <h4><i class="fas fa-keyboard"></i> Keyboard Shortcuts</h4>
+                    <div class="help-grid">
+                        <div class="help-grid-item">
+                            <div class="help-command">
+                                <span class="key-combo">A-K, W-U</span>
+                                <span class="key-desc">Play white and black keys</span>
+                            </div>
+                            <div class="help-command">
+                                <span class="key-combo">Z / X</span>
+                                <span class="key-desc">Decrease / Increase octave</span>
+                            </div>
+                            <div class="help-command">
+                                <span class="key-combo">Space</span>
+                                <span class="key-desc">Start/Stop sequencer</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="help-section">
+                    <h4><i class="fas fa-mobile-alt"></i> iOS Installation</h4>
+                    <div class="ios-install-steps">
+                        <div class="ios-step">
+                            <div class="ios-step-icon"><i class="fas fa-safari"></i></div>
+                            <p>Open SynthXR in Safari browser</p>
+                        </div>
+                        <div class="ios-step">
+                            <div class="ios-step-icon"><i class="fas fa-share-square"></i></div>
+                            <p>Tap the Share button <span class="ios-note">(box with arrow)</span></p>
+                        </div>
+                        <div class="ios-step">
+                            <div class="ios-step-icon"><i class="fas fa-plus-square"></i></div>
+                            <p>Tap "Add to Home Screen"</p>
+                        </div>
+                        <div class="ios-step">
+                            <div class="ios-step-icon"><i class="fas fa-check-circle"></i></div>
+                            <p>Name the app and tap "Add"</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="help-section">
+                    <h4><i class="fas fa-star"></i> Pro Tips</h4>
+                    <ul class="pro-tips">
+                        <li>
+                            <i class="fas fa-random"></i>
+                            <span>Use "Nudge" for subtle randomization of parameters</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-bolt"></i>
+                            <span>Try "Chaos" for wild, experimental sounds</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-save"></i>
+                            <span>Save your favorite sounds as presets for later use</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-plug"></i>
+                            <span>Connect a MIDI controller for enhanced performance</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-sliders-h"></i>
+                            <span>Use the Arpeggiator with chords for complex patterns</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="help-section">
+                    <h4><i class="fas fa-link"></i> Links</h4>
+                    <div class="links-container">
+                        <a href="https://github.com/andrewdamelio/Synth-XR/" target="_blank" class="help-link">
+                            <i class="fab fa-github"></i> GitHub Repository
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-button confirm" id="closeHelpBtn">Close</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

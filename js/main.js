@@ -5603,6 +5603,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Add MIDI button for desktop (not mobile)
     addMidiButtonIfDesktop();
+    
+    // Add Help button
+    addHelpButtonIfDesktop();
 
     console.log('SynthXR: Initialization complete');
 });
@@ -5870,4 +5873,31 @@ function formatControlValue(controlId, value) {
                 return Math.round(value);
             }
     }
+}
+
+// Function to add Help button next to MIDI button
+function addHelpButtonIfDesktop() {
+    // Create Help button
+    const helpButton = document.createElement('button');
+    helpButton.id = 'helpButton';
+    helpButton.className = 'help-button';
+    helpButton.innerHTML = '<i class="fas fa-question-circle"></i> Help';
+    helpButton.title = 'View Help and Instructions';
+    
+    // Add click handler to open help modal
+    helpButton.addEventListener('click', openHelpModal);
+    
+    // Append to body for fixed positioning
+    document.body.appendChild(helpButton);
+    
+    // Set up event listener for closing help modal
+    document.getElementById('closeHelpBtn').addEventListener('click', () => {
+        document.getElementById('helpModal').classList.remove('active');
+    });
+}
+
+// Function to open help modal
+function openHelpModal() {
+    const helpModal = document.getElementById('helpModal');
+    helpModal.classList.add('active');
 }

@@ -2592,3 +2592,239 @@ input[type="range"] {
     from { opacity: 0; }
     to { opacity: 1; }
 }
+
+/* Help Button - styled to match the MIDI button exactly */
+.help-button {
+    position: absolute;
+    top: 10px;
+    right: 140px; /* Position next to MIDI button */
+    z-index: 1000;
+    padding: 8px 12px;
+    margin: 0;
+    background-color: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.help-button:hover {
+    background-color: #1a2530;
+}
+
+/* Help Modal specific styles */
+.help-modal {
+    max-width: 550px;
+    max-height: 85vh;
+    overflow-y: auto;
+    background: linear-gradient(145deg, #1e1e1e, #121212);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+}
+
+.help-modal .modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 15px;
+}
+
+.help-modal .modal-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.2rem;
+    color: var(--primary-light);
+}
+
+.help-modal .modal-title i {
+    font-size: 1.4rem;
+}
+
+.help-section {
+    margin-bottom: 28px;
+}
+
+.help-section h4 {
+    color: var(--primary-light);
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
+}
+
+.help-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.help-grid-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.help-command {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    border-left: 3px solid var(--primary);
+}
+
+.key-combo {
+    min-width: 80px;
+    font-weight: 600;
+    color: var(--primary-light);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-right: 15px;
+    text-align: center;
+    font-size: 0.9rem;
+    font-family: monospace;
+}
+
+.key-desc {
+    color: var(--text);
+    font-size: 0.95rem;
+}
+
+.ios-install-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.ios-step {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    transition: transform 0.2s;
+}
+
+.ios-step:hover {
+    transform: translateX(5px);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.ios-step-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-dark);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    font-size: 1.2rem;
+    color: white;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.ios-step p {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.ios-note {
+    opacity: 0.7;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.pro-tips {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pro-tips li {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    transition: transform 0.2s;
+}
+
+.pro-tips li:hover {
+    transform: translateX(5px);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.pro-tips li i {
+    font-size: 1.1rem;
+    color: var(--secondary);
+    width: 24px;
+    text-align: center;
+}
+
+.links-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.help-link {
+    color: var(--primary-light);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.help-link:hover {
+    color: white;
+    background: var(--primary-dark);
+    transform: translateX(5px);
+    text-decoration: none;
+}
+
+.help-link i {
+    font-size: 1.2rem;
+}
+
+/* Make help button responsive */
+@media (max-width: 768px) {
+    .help-button {
+        top: 10px;
+        right: 10px;
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+    
+    .help-modal {
+        max-width: 90vw;
+    }
+    
+    .key-combo {
+        min-width: 60px;
+        font-size: 0.8rem;
+    }
+    
+    .help-command {
+        padding: 6px 8px;
+    }
+}
