@@ -2163,6 +2163,11 @@ input[type="range"] {
 .midi-module {
     grid-column: span 2;
     margin-top: 2rem;
+    display: none; /* Hide by default */
+}
+
+.midi-module.active {
+    display: block; /* Only show when active */
 }
 
 .midi-status-indicator {
@@ -2232,7 +2237,86 @@ input[type="range"] {
     font-size: 0.9rem;
 }
 
-/* Toggle switch for MIDI Learn */
+/* Added styles for the MIDI mappings section */
+.midi-mappings {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: var(--surface-dark);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.midi-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 0;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 8px;
+}
+
+.midi-mappings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+/* Styling for individual MIDI mapping items that get added via JS */
+.midi-mapping-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.midi-mapping-item:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+.midi-mapping-param {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.midi-mapping-cc {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.midi-mapping-delete {
+    background: none;
+    border: none;
+    color: var(--error);
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    padding: 4px;
+}
+
+.midi-mapping-delete:hover {
+    opacity: 1;
+}
+
+.no-mappings-msg {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-style: italic;
+    text-align: center;
+    padding: 15px 0;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+/* Improved toggle switch for MIDI Learn */
 .toggle-switch {
     position: relative;
     width: 50px;
@@ -2268,225 +2352,95 @@ input[type="range"] {
     min-width: 30px;
 }
 
-/* MIDI buttons */
-.midi-button {
-    background-color: var(--surface-light);
-    color: var(--text);
-    border: none;
-    border-radius: 4px;
-    padding: 8px 12px;
-    font-size: 0.8rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: background-color 0.2s;
-}
-
-.midi-button:hover {
-    background-color: var(--primary);
-}
-
-.midi-button i {
-    font-size: 0.9rem;
-}
-
+/* MIDI mapping controls section */
 .midi-mapping-controls {
     display: flex;
-    gap: 8px;
     flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 5px;
 }
 
-/* Mappings list */
-.midi-section-title {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin-bottom: 10px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 5px;
-}
-
-.midi-mappings-list {
-    max-height: 150px;
-    overflow-y: auto;
+/* MIDI button styling - better contrast and positioning */
+#loadMidiButton {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    padding: 8px 12px;
+    margin-left: 8px;
+    background-color: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 5px;
 }
 
-.midi-mapping-item {
-    display: flex;
-    align-items: center;
-    padding: 6px 8px;
-    background-color: var(--surface-dark);
-    border-radius: 4px;
-    font-size: 0.8rem;
-}
-
-.mapping-param {
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.mapping-cc {
-    background-color: var(--primary);
-    padding: 2px 6px;
-    border-radius: 3px;
-    margin: 0 8px;
-    font-size: 0.75rem;
-}
-
-.mapping-remove-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 2px;
-    font-size: 0.8rem;
-    transition: color 0.2s;
-}
-
-.mapping-remove-btn:hover {
-    color: var(--error);
-}
-
-.no-mappings-msg {
-    color: var(--text-secondary);
-    font-size: 0.8rem;
-    font-style: italic;
-    padding: 10px 0;
-}
-
-/* MIDI Learn tooltip */
-.midi-learn-tooltip {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: var(--primary);
-    color: white;
-    padding: 10px 15px;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    z-index: 1000;
-    box-shadow: var(--shadow-normal);
-    text-align: center;
-    max-width: 300px;
-}
-
-/* MIDI mapping tooltip */
-.midi-mapping-tooltip {
-    position: absolute;
-    background-color: var(--surface);
-    color: var(--text);
+.midi-button {
     padding: 8px 12px;
+    margin: 0;
+    background-color: #2c3e50;
+    color: white;
+    border: none;
     border-radius: 4px;
-    font-size: 0.8rem;
-    z-index: 1000;
-    box-shadow: var(--shadow-normal);
-    width: 200px;
-    text-align: center;
-}
-
-.midi-mapping-tooltip.success {
-    border-left: 3px solid var(--success);
-}
-
-.midi-mapping-tooltip.error {
-    border-left: 3px solid var(--error);
-}
-
-.midi-mapping-tooltip.info {
-    border-left: 3px solid var(--info);
-}
-
-/* Highlight for parameters when receiving MIDI data */
-.midi-active {
-    transition: box-shadow 0.1s, background-color 0.1s;
-    box-shadow: 0 0 8px var(--secondary) !important;
-}
-
-.knob.midi-active .knob-inner {
-    background-color: var(--secondary) !important;
-}
-
-.small-knob.midi-active .small-knob-inner {
-    background-color: var(--secondary) !important;
-}
-
-/* MIDI Learn Mode improved visuals for custom knobs */
-.midi-learn-mode .knob.midi-learnable,
-.midi-learn-mode .small-knob.midi-learnable {
     cursor: pointer;
-    transition: box-shadow 0.3s;
 }
 
-.midi-learn-mode .knob.midi-learnable:hover,
-.midi-learn-mode .small-knob.midi-learnable:hover {
-    box-shadow: 0 0 12px var(--info) !important;
+.midi-button:hover {
+    background-color: #1a2530;
 }
 
-.knob.midi-learn-highlight,
-.small-knob.midi-learn-highlight {
-    box-shadow: 0 0 15px var(--info) !important;
-    animation: midi-learn-pulse 1.5s infinite alternate;
+.midi-loaded {
+    background-color: #27ae60;
 }
 
-@keyframes midi-learn-pulse {
-    0% {
-        box-shadow: 0 0 7px var(--info);
+.midi-error {
+    background-color: #e74c3c;
+}
+
+.midi-loading {
+    font-style: italic;
+    opacity: 0.8;
+}
+
+/* Scrollbar styling for the mappings list */
+.midi-mappings-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.midi-mappings-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.midi-mappings-list::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.midi-mappings-list::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Media queries for MIDI module */
+@media (max-width: 768px) {
+    #loadMidiButton {
+        display: none;
     }
-    100% {
-        box-shadow: 0 0 20px var(--info);
-    }
-}
-
-.knob.midi-learn-highlight .knob-inner,
-.small-knob.midi-learn-highlight .small-knob-inner {
-    background-color: var(--info) !important;
-}
-
-/* MIDI Learn status indicator */
-.midi-learn-status.active {
-    color: var(--info);
-    font-weight: bold;
-}
-
-/* Make sure toggle switch looks correct */
-#midiLearnToggle {
-    position: relative;
-    width: 50px;
-    height: 24px;
-    background-color: var(--surface-dark);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-#midiLearnToggle.active {
-    background-color: var(--info);
-}
-
-#midiLearnToggle .toggle-switch-slider {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 20px;
-    height: 20px;
-    background-color: var(--text);
-    border-radius: 50%;
-    transition: transform 0.3s ease;
-}
-
-#midiLearnToggle.active .toggle-switch-slider {
-    transform: translateX(26px);
-}
-
-/* MIDI Module Responsive Handling */
-@media (max-width: 1024px) {
+    
     .midi-module {
-        display: none !important;
+        margin-top: 1rem;
+    }
+    
+    .midi-mappings-list {
+        max-height: 150px;
+    }
+    
+    .midi-section label {
+        min-width: 80px;
+        font-size: 0.8rem;
     }
 }

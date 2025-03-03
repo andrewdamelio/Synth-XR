@@ -593,6 +593,69 @@
                         <!-- Removed the previous octave counter since we now have it in the header -->
                     </div>
                 </div>
+
+                <!-- Arpeggiator Module - Place after Quick Chord module -->
+                <div class="module arpeggiator-module">
+                    <div class="module-header">
+                        <h2 class="module-title"><i class="fas fa-stream"></i> ARPEGGIATOR</h2>
+                        <button class="module-collapse-btn" title="Collapse module">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </div>
+                    <div class="control-group">
+                        <!-- Toggle switch for enabling/disabling -->
+                        <div class="toggle-container">
+                            <label class="toggle-label">ENABLE</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="arpEnabled">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <div class="toggle-state" id="arpEnabledState">OFF</div>
+                        </div>
+                        
+                        <!-- Rate knob -->
+                        <div class="knob-container">
+                            <label class="knob-label">RATE</label>
+                            <div class="knob" id="arpRateKnob">
+                                <div class="knob-inner"></div>
+                            </div>
+                            <div class="knob-value" id="arpRateValue">120 BPM</div>
+                            <input type="range" id="arpRate" min="60" max="240" value="120" step="1">
+                        </div>
+                        
+                        <!-- Direction select -->
+                        <div class="select-container">
+                            <label class="select-label">DIRECTION</label>
+                            <select id="arpDirection">
+                                <option value="up">Up</option>
+                                <option value="down">Down</option>
+                                <option value="upDown">Up & Down</option>
+                                <option value="downUp">Down & Up</option>
+                                <option value="random">Random</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Gate Length knob -->
+                        <div class="knob-container">
+                            <label class="knob-label">GATE</label>
+                            <div class="knob" id="arpGateKnob">
+                                <div class="knob-inner"></div>
+                            </div>
+                            <div class="knob-value" id="arpGateValue">50%</div>
+                            <input type="range" id="arpGate" min="10" max="100" value="50" step="1">
+                        </div>
+
+                        <!-- Swing knob -->
+                        <div class="knob-container">
+                            <label class="knob-label">SWING</label>
+                            <div class="knob" id="arpSwingKnob">
+                                <div class="knob-inner"></div>
+                            </div>
+                            <div class="knob-value" id="arpSwingValue">0%</div>
+                            <input type="range" id="arpSwing" min="0" max="100" value="0" step="1">
+                        </div>                        
+                    </div>
+                </div>                
             </div>
     
             <div class="visualization">

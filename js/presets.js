@@ -575,6 +575,385 @@ const builtInPresets = [
             {"note": "F#4", "active": false}
         ]
     }),
+    
+    createPreset("Crystalline Pluck", "pluck", {
+        voiceMode: "poly",
+        waveform: "triangle",
+        filterCutoff: "3400",
+        filterRes: "2.5",
+        filterType: false,
+        reverbMix: "0.68",
+        reverbDecay: "3.2",
+        delayTime: "0.375", // Dotted eighth note at 120 BPM
+        delayFeedback: "0.54",
+        tempo: "120",
+        attack: "0.001",
+        decay: "0.28",
+        sustain: "0.12",
+        release: "0.9",
+        oscillatorOctave: "0",
+        oscillatorSemi: "7", // Perfect fifth
+        oscillatorLevel: "0.82",
+        chorusMix: "0.24",
+        distortionMix: "0.05",
+        flangerMix: "0.15",
+        phaserMix: "0",
+        lfoRate: "0.35",
+        lfoAmount: "42",
+        lfoDestination: "eqMidFreq",
+        lfoWaveform: "triangle",
+        lfoSync: false,
+        droneOctave: "-1",
+        eqLow: "1",
+        eqMid: "2",
+        eqHigh: "3.5",
+        eqMidFreq: "1800",
+        eqQ: "1.6",
+        compressor: "0.3",
+        sequencer: [
+            {"note": "E4", "active": true},
+            {"note": "B4", "active": true},
+            {"note": "E5", "active": true},
+            {"note": "G5", "active": true},
+            {"note": "F#5", "active": true},
+            {"note": "E5", "active": true},
+            {"note": "B4", "active": true},
+            {"note": "A4", "active": false},
+            {"note": "G4", "active": true},
+            {"note": "D5", "active": true},
+            {"note": "G5", "active": true},
+            {"note": "B5", "active": true},
+            {"note": "A5", "active": true},
+            {"note": "G5", "active": true},
+            {"note": "D5", "active": true},
+            {"note": "B4", "active": false}
+        ]
+    }),
+         
+    createPreset("Future Pluck", "pluck", {
+        voiceMode: "poly",
+        waveform: "square",
+        filterCutoff: "950",
+        filterRes: "8.5",
+        filterType: false,
+        reverbMix: "0.42",
+        reverbDecay: "2.2",
+        delayTime: "0.25", // 8th note at 120 BPM
+        delayFeedback: "0.56",
+        tempo: "128",
+        attack: "0.001",
+        decay: "0.15",
+        sustain: "0.08",
+        release: "0.25",
+        oscillatorOctave: "0",
+        oscillatorSemi: "0",
+        oscillatorLevel: "0.88",
+        chorusMix: "0.15",
+        distortionMix: "0.18",
+        flangerMix: "0.08",
+        phaserMix: "0",
+        lfoRate: "3.85",
+        lfoAmount: "8",
+        lfoDestination: "filterCutoff",
+        lfoWaveform: "sawtooth",
+        lfoSync: true,
+        droneOctave: "-1",
+        eqLow: "3",
+        eqMid: "-2",
+        eqHigh: "4",
+        eqMidFreq: "950",
+        eqQ: "1.8",
+        compressor: "0.6",
+        sequencer: [
+            {"note": "C4", "active": true},
+            {"note": "C4", "active": true},
+            {"note": "G4", "active": true},
+            {"note": "C4", "active": true},
+            {"note": "D#4", "active": true},
+            {"note": "C4", "active": true},
+            {"note": "G4", "active": true},
+            {"note": "D#4", "active": false},
+            {"note": "C4", "active": true},
+            {"note": "C4", "active": true},
+            {"note": "G4", "active": true},
+            {"note": "C4", "active": true},
+            {"note": "F4", "active": true},
+            {"note": "C4", "active": true},
+            {"note": "G4", "active": true},
+            {"note": "F4", "active": false}
+        ]
+    }),
+
+    createPreset("Quantum Particles", "pluck", {
+        voiceMode: "poly",
+        waveform: "triangle",
+        filterCutoff: "4600", // Very bright
+        filterRes: "1.2", // Low resonance for grain-like quality
+        filterType: false,
+        reverbMix: "0.77",
+        reverbDecay: "5.2",
+        delayTime: "0.041667", // 64th note at 90 BPM
+        delayFeedback: "0.65",
+        tempo: "90",
+        attack: "0.001", // Instant attack
+        decay: "0.08", // Very short
+        sustain: "0.02", // Minimal sustain
+        release: "0.15", // Short release
+        oscillatorOctave: "1",
+        oscillatorSemi: "4", // Major third
+        oscillatorLevel: "0.92",
+        chorusMix: "0.05",
+        distortionMix: "0.12",
+        flangerMix: "0.04",
+        phaserMix: "0.02",
+        lfoRate: "5", // Ultra-fast modulation
+        lfoAmount: "35",
+        lfoDestination: "oscillatorLevel", // Amplitude modulation
+        lfoWaveform: "random", // Random variation
+        lfoSync: true,
+        droneOctave: "0",
+        eqLow: "1.2",
+        eqMid: "-2.4",
+        eqHigh: "5.6", // Strong high end
+        eqMidFreq: "3200", // Higher mid frequency
+        eqQ: "1.5",
+        compressor: "0.4",
+        sequencer: [
+            {"note": "C6", "active": true},
+            {"note": "G5", "active": true},
+            {"note": "E6", "active": true},
+            {"note": "C6", "active": true},
+            {"note": "D6", "active": true},
+            {"note": "A5", "active": true},
+            {"note": "F6", "active": true},
+            {"note": "D6", "active": true},
+            {"note": "E6", "active": true},
+            {"note": "B5", "active": true},
+            {"note": "G6", "active": true},
+            {"note": "E6", "active": true},
+            {"note": "C7", "active": true},
+            {"note": "G6", "active": true},
+            {"note": "E7", "active": true},
+            {"note": "C7", "active": true}
+        ]
+    }),
+
+    createPreset("Temporal Flux", "pluck", {
+        voiceMode: "poly",
+        waveform: "sawtooth",
+        filterCutoff: "1650",
+        filterRes: "9.4",
+        filterType: false,
+        reverbMix: "0.56",
+        reverbDecay: "3.8",
+        delayTime: "0.166667", // Triplet 8th note
+        delayFeedback: "0.72", // High feedback for flowing echoes
+        tempo: "98", // Prime number tempo
+        attack: "0.001", 
+        decay: "0.25",
+        sustain: "0.15",
+        release: "0.85",
+        oscillatorOctave: "0",
+        oscillatorSemi: "3", // Minor third
+        oscillatorLevel: "0.86",
+        chorusMix: "0.28",
+        distortionMix: "0.14",
+        flangerMix: "0.46", // Strong flanger for time-warping effect
+        phaserMix: "0.32",
+        lfoRate: "0.36",
+        lfoAmount: "88",
+        lfoDestination: "delayFeedback",
+        lfoWaveform: "sawtooth", 
+        lfoSync: true,
+        droneOctave: "-1",
+        eqLow: "2.2",
+        eqMid: "0.8",
+        eqHigh: "3.4",
+        eqMidFreq: "1350",
+        eqQ: "1.85",
+        compressor: "0.48",
+        sequencer: [
+            {"note": "E4", "active": true},
+            {"note": "E4", "active": false},
+            {"note": "G4", "active": true},
+            {"note": "A4", "active": false},
+            {"note": "B4", "active": true},
+            {"note": "B4", "active": false},
+            {"note": "D5", "active": true},
+            {"note": "E5", "active": false},
+            {"note": "G4", "active": true},
+            {"note": "G4", "active": false},
+            {"note": "B4", "active": true},
+            {"note": "C5", "active": false},
+            {"note": "D5", "active": true},
+            {"note": "D5", "active": false},
+            {"note": "F5", "active": true},
+            {"note": "G5", "active": false}
+        ]
+    }),
+
+    createPreset("Molecular Pluck", "pluck", {
+        voiceMode: "poly",
+        waveform: "triangle",
+        filterCutoff: "3200",
+        filterRes: "4.8",
+        filterType: false,
+        reverbMix: "0.72",
+        reverbDecay: "2.6",
+        delayTime: "0.25", // 8th note
+        delayFeedback: "0.68",
+        tempo: "132",
+        attack: "0.001", 
+        decay: "0.08", // Ultra short decay
+        sustain: "0.05", // Minimal sustain
+        release: "0.2",
+        oscillatorOctave: "0",
+        oscillatorSemi: "7", // Perfect fifth
+        oscillatorLevel: "0.88",
+        chorusMix: "0.12",
+        distortionMix: "0.06",
+        flangerMix: "0.22",
+        phaserMix: "0.04",
+        lfoRate: "0.1", // Very slow
+        lfoAmount: "35",
+        lfoDestination: "eqHigh", // Evolving brightness
+        lfoWaveform: "sine",
+        lfoSync: false,
+        droneOctave: "0",
+        eqLow: "1.5",
+        eqMid: "-1.2",
+        eqHigh: "4.5", // Very bright top end
+        eqMidFreq: "2500",
+        eqQ: "1.4",
+        compressor: "0.45",
+        sequencer: [
+            {"note": "C5", "active": true},
+            {"note": "G4", "active": true},
+            {"note": "E5", "active": true},
+            {"note": "G4", "active": true},
+            {"note": "C5", "active": true},
+            {"note": "G4", "active": true},
+            {"note": "E5", "active": true},
+            {"note": "G4", "active": true},
+            {"note": "B4", "active": true},
+            {"note": "F#4", "active": true},
+            {"note": "D5", "active": true},
+            {"note": "F#4", "active": true},
+            {"note": "B4", "active": true},
+            {"note": "F#4", "active": true},
+            {"note": "D5", "active": true},
+            {"note": "F#4", "active": true}
+        ]
+    }),
+
+    createPreset("Holographic Harp", "pluck", {
+        voiceMode: "poly",
+        waveform: "sine",
+        filterCutoff: "4800",
+        filterRes: "2.4",
+        filterType: false,
+        reverbMix: "0.85", // Very wet
+        reverbDecay: "6.2", // Long decay
+        delayTime: "0.375", // Dotted eighth note
+        delayFeedback: "0.58",
+        tempo: "110",
+        attack: "0.001", // Instant attack
+        decay: "1.4",
+        sustain: "0.08", // Low sustain
+        release: "1.8", // Long release for continuity
+        oscillatorOctave: "1", // One octave up
+        oscillatorSemi: "7", // Perfect fifth
+        oscillatorLevel: "0.75",
+        chorusMix: "0.35",
+        distortionMix: "0.0", // No distortion
+        flangerMix: "0.28",
+        phaserMix: "0.18",
+        lfoRate: "0.18",
+        lfoAmount: "45",
+        lfoDestination: "flangerMix", // Shifting flanger
+        lfoWaveform: "sine",
+        lfoSync: false,
+        droneOctave: "0",
+        eqLow: "1.2",
+        eqMid: "-0.8",
+        eqHigh: "4.2", // Very bright high end
+        eqMidFreq: "1800",
+        eqQ: "0.85",
+        compressor: "0.25",
+        sequencer: [
+            {"note": "E5", "active": true},
+            {"note": "B4", "active": true},
+            {"note": "G5", "active": true},
+            {"note": "E5", "active": true},
+            {"note": "B5", "active": true},
+            {"note": "G5", "active": true},
+            {"note": "E6", "active": true},
+            {"note": "B5", "active": true},
+            {"note": "D5", "active": true},
+            {"note": "A4", "active": true},
+            {"note": "F#5", "active": true},
+            {"note": "D5", "active": true},
+            {"note": "A5", "active": true},
+            {"note": "F#5", "active": true},
+            {"note": "D6", "active": true},
+            {"note": "A5", "active": true}
+        ]
+    }),
+
+    createPreset("Quantum Pluck", "pluck", {
+        voiceMode: "poly",
+        waveform: "sawtooth",
+        filterCutoff: "920", // Low filter
+        filterRes: "15.0", // Extreme resonance
+        filterType: false,
+        reverbMix: "0.48",
+        reverbDecay: "2.2",
+        delayTime: "0.083333", // 32nd note
+        delayFeedback: "0.72", // High feedback
+        tempo: "144",
+        attack: "0.001",
+        decay: "0.12",
+        sustain: "0.0", // No sustain
+        release: "0.1",
+        oscillatorOctave: "0",
+        oscillatorSemi: "0",
+        oscillatorLevel: "0.95",
+        chorusMix: "0.0",
+        distortionMix: "0.22",
+        flangerMix: "0.0",
+        phaserMix: "0.0",
+        lfoRate: "5", // Ultra fast
+        lfoAmount: "95", // Extreme amount
+        lfoDestination: "chorusMix",
+        lfoWaveform: "sawtooth",
+        lfoSync: true,
+        droneOctave: "-1",
+        eqLow: "2.5",
+        eqMid: "-3.0", // Cut mids
+        eqHigh: "4.0",
+        eqMidFreq: "750",
+        eqQ: "2.8", // Sharp Q
+        compressor: "0.65",
+        sequencer: [
+            {"note": "C4", "active": true},
+            {"note": "C4", "active": false},
+            {"note": "G4", "active": true},
+            {"note": "G4", "active": false},
+            {"note": "C5", "active": true},
+            {"note": "C5", "active": false},
+            {"note": "G4", "active": true},
+            {"note": "G4", "active": false},
+            {"note": "D4", "active": true},
+            {"note": "D4", "active": false},
+            {"note": "A4", "active": true},
+            {"note": "A4", "active": false},
+            {"note": "D5", "active": true},
+            {"note": "D5", "active": false},
+            {"note": "A4", "active": true},
+            {"note": "A4", "active": false}
+        ]
+    }),
+
 
     // ==== BASS PRESETS ====
     createPreset("Deep Sub", "bass", {
@@ -1236,62 +1615,7 @@ const professionalPresets = [
             {"note": "B3", "active": false}
         ]
     }),
-    
-    // ==== TEXTURED PLUCK ====
-    createPreset("Crystalline Pluck", "pluck", {
-        voiceMode: "poly",
-        waveform: "triangle",
-        filterCutoff: "3400",
-        filterRes: "2.5",
-        filterType: false,
-        reverbMix: "0.68",
-        reverbDecay: "3.2",
-        delayTime: "0.375", // Dotted eighth note at 120 BPM
-        delayFeedback: "0.54",
-        tempo: "120",
-        attack: "0.001",
-        decay: "0.28",
-        sustain: "0.12",
-        release: "0.9",
-        oscillatorOctave: "0",
-        oscillatorSemi: "7", // Perfect fifth
-        oscillatorLevel: "0.82",
-        chorusMix: "0.24",
-        distortionMix: "0.05",
-        flangerMix: "0.15",
-        phaserMix: "0",
-        lfoRate: "0.35",
-        lfoAmount: "42",
-        lfoDestination: "eqMidFreq",
-        lfoWaveform: "triangle",
-        lfoSync: false,
-        droneOctave: "-1",
-        eqLow: "1",
-        eqMid: "2",
-        eqHigh: "3.5",
-        eqMidFreq: "1800",
-        eqQ: "1.6",
-        compressor: "0.3",
-        sequencer: [
-            {"note": "E4", "active": true},
-            {"note": "B4", "active": true},
-            {"note": "E5", "active": true},
-            {"note": "G5", "active": true},
-            {"note": "F#5", "active": true},
-            {"note": "E5", "active": true},
-            {"note": "B4", "active": true},
-            {"note": "A4", "active": false},
-            {"note": "G4", "active": true},
-            {"note": "D5", "active": true},
-            {"note": "G5", "active": true},
-            {"note": "B5", "active": true},
-            {"note": "A5", "active": true},
-            {"note": "G5", "active": true},
-            {"note": "D5", "active": true},
-            {"note": "B4", "active": false}
-        ]
-    }),
-    
+
     // ==== EXPERIMENTAL FX ====
     createPreset("Event Horizon", "fx", {
         voiceMode: "poly",
@@ -1370,7 +1694,7 @@ const professionalPresets = [
         distortionMix: "0.12",
         flangerMix: "0",
         phaserMix: "0.25",
-        lfoRate: "6",
+        lfoRate: "1.16",
         lfoAmount: "28",
         lfoDestination: "chorusMix",
         lfoWaveform: "triangle",
@@ -1401,61 +1725,7 @@ const professionalPresets = [
             {"note": "G4", "active": true}
         ]
     }),
-    
-    // ==== MODERN EDM PLUCK ====
-    createPreset("Future Pluck", "pluck", {
-        voiceMode: "poly",
-        waveform: "square",
-        filterCutoff: "950",
-        filterRes: "8.5",
-        filterType: false,
-        reverbMix: "0.42",
-        reverbDecay: "2.2",
-        delayTime: "0.25", // 8th note at 120 BPM
-        delayFeedback: "0.56",
-        tempo: "128",
-        attack: "0.001",
-        decay: "0.15",
-        sustain: "0.08",
-        release: "0.25",
-        oscillatorOctave: "0",
-        oscillatorSemi: "0",
-        oscillatorLevel: "0.88",
-        chorusMix: "0.15",
-        distortionMix: "0.18",
-        flangerMix: "0.08",
-        phaserMix: "0",
-        lfoRate: "4.2",
-        lfoAmount: "70",
-        lfoDestination: "filterCutoff",
-        lfoWaveform: "sawtooth",
-        lfoSync: true,
-        droneOctave: "-1",
-        eqLow: "3",
-        eqMid: "-2",
-        eqHigh: "4",
-        eqMidFreq: "950",
-        eqQ: "1.8",
-        compressor: "0.6",
-        sequencer: [
-            {"note": "C4", "active": true},
-            {"note": "C4", "active": true},
-            {"note": "G4", "active": true},
-            {"note": "C4", "active": true},
-            {"note": "D#4", "active": true}, // Changed from Eb4
-            {"note": "C4", "active": true},
-            {"note": "G4", "active": true},
-            {"note": "D#4", "active": false}, // Changed from Eb4
-            {"note": "C4", "active": true},
-            {"note": "C4", "active": true},
-            {"note": "G4", "active": true},
-            {"note": "C4", "active": true},
-            {"note": "F4", "active": true},
-            {"note": "C4", "active": true},
-            {"note": "G4", "active": true},
-            {"note": "F4", "active": false}
-        ]
-    }),
+
     
     // ==== CINEMATIC ATMOSPHERIC ====
     createPreset("Interstellar", "pad", {
@@ -1913,61 +2183,6 @@ const elitePresets = [
         ]
     }),
 
-    // ==== MICRO-GRANULAR INSPIRED TEXTURE ====
-    createPreset("Quantum Particles", "pluck", {
-        voiceMode: "poly",
-        waveform: "triangle",
-        filterCutoff: "4600", // Very bright
-        filterRes: "1.2", // Low resonance for grain-like quality
-        filterType: false,
-        reverbMix: "0.77",
-        reverbDecay: "5.2",
-        delayTime: "0.041667", // 64th note at 90 BPM
-        delayFeedback: "0.65",
-        tempo: "90",
-        attack: "0.001", // Instant attack
-        decay: "0.08", // Very short
-        sustain: "0.02", // Minimal sustain
-        release: "0.15", // Short release
-        oscillatorOctave: "1",
-        oscillatorSemi: "4", // Major third
-        oscillatorLevel: "0.92",
-        chorusMix: "0.05",
-        distortionMix: "0.12",
-        flangerMix: "0.04",
-        phaserMix: "0.02",
-        lfoRate: "18", // Ultra-fast modulation
-        lfoAmount: "35",
-        lfoDestination: "oscillatorLevel", // Amplitude modulation
-        lfoWaveform: "random", // Random variation
-        lfoSync: true,
-        droneOctave: "0",
-        eqLow: "1.2",
-        eqMid: "-2.4",
-        eqHigh: "5.6", // Strong high end
-        eqMidFreq: "3200", // Higher mid frequency
-        eqQ: "1.5",
-        compressor: "0.4",
-        sequencer: [
-            {"note": "C6", "active": true},
-            {"note": "G5", "active": true},
-            {"note": "E6", "active": true},
-            {"note": "C6", "active": true},
-            {"note": "D6", "active": true},
-            {"note": "A5", "active": true},
-            {"note": "F6", "active": true},
-            {"note": "D6", "active": true},
-            {"note": "E6", "active": true},
-            {"note": "B5", "active": true},
-            {"note": "G6", "active": true},
-            {"note": "E6", "active": true},
-            {"note": "C7", "active": true},
-            {"note": "G6", "active": true},
-            {"note": "E7", "active": true},
-            {"note": "C7", "active": true}
-        ]
-    }),
-
     // ==== HYBRID MECHANICAL/ORGANIC SOUND ====
     createPreset("Cybernetic Organism", "lead", {
         voiceMode: "poly",
@@ -2136,60 +2351,6 @@ const elitePresets = [
         ]
     }),
 
-    // ==== TIME-BENDING RHYTHMIC PATTERN ====
-    createPreset("Temporal Flux", "pluck", {
-        voiceMode: "poly",
-        waveform: "sawtooth",
-        filterCutoff: "1650",
-        filterRes: "9.4",
-        filterType: false,
-        reverbMix: "0.56",
-        reverbDecay: "3.8",
-        delayTime: "0.166667", // Triplet 8th note
-        delayFeedback: "0.72", // High feedback for flowing echoes
-        tempo: "98", // Prime number tempo
-        attack: "0.001", 
-        decay: "0.25",
-        sustain: "0.15",
-        release: "0.85",
-        oscillatorOctave: "0",
-        oscillatorSemi: "3", // Minor third
-        oscillatorLevel: "0.86",
-        chorusMix: "0.28",
-        distortionMix: "0.14",
-        flangerMix: "0.46", // Strong flanger for time-warping effect
-        phaserMix: "0.32",
-        lfoRate: "7.5",
-        lfoAmount: "88",
-        lfoDestination: "delayTime", // Modulating delay time
-        lfoWaveform: "sawtooth", 
-        lfoSync: true,
-        droneOctave: "-1",
-        eqLow: "2.2",
-        eqMid: "0.8",
-        eqHigh: "3.4",
-        eqMidFreq: "1350",
-        eqQ: "1.85",
-        compressor: "0.48",
-        sequencer: [
-            {"note": "E4", "active": true},
-            {"note": "E4", "active": false},
-            {"note": "G4", "active": true},
-            {"note": "A4", "active": false},
-            {"note": "B4", "active": true},
-            {"note": "B4", "active": false},
-            {"note": "D5", "active": true},
-            {"note": "E5", "active": false},
-            {"note": "G4", "active": true},
-            {"note": "G4", "active": false},
-            {"note": "B4", "active": true},
-            {"note": "C5", "active": false},
-            {"note": "D5", "active": true},
-            {"note": "D5", "active": false},
-            {"note": "F5", "active": true},
-            {"note": "G5", "active": false}
-        ]
-    }),
 
     // ==== EXTREME BASS DESIGN ====
     createPreset("Singularity Bass", "bass", {
@@ -2474,61 +2635,6 @@ const advancedPresets = [
         ]
     }),
 
-    // ==== PRECISION PLUCK ====
-    createPreset("Molecular Pluck", "pluck", {
-        voiceMode: "poly",
-        waveform: "triangle",
-        filterCutoff: "3200",
-        filterRes: "4.8",
-        filterType: false,
-        reverbMix: "0.72",
-        reverbDecay: "2.6",
-        delayTime: "0.25", // 8th note
-        delayFeedback: "0.68",
-        tempo: "132",
-        attack: "0.001", 
-        decay: "0.08", // Ultra short decay
-        sustain: "0.05", // Minimal sustain
-        release: "0.2",
-        oscillatorOctave: "0",
-        oscillatorSemi: "7", // Perfect fifth
-        oscillatorLevel: "0.88",
-        chorusMix: "0.12",
-        distortionMix: "0.06",
-        flangerMix: "0.22",
-        phaserMix: "0.04",
-        lfoRate: "0.1", // Very slow
-        lfoAmount: "35",
-        lfoDestination: "eqHigh", // Evolving brightness
-        lfoWaveform: "sine",
-        lfoSync: false,
-        droneOctave: "0",
-        eqLow: "1.5",
-        eqMid: "-1.2",
-        eqHigh: "4.5", // Very bright top end
-        eqMidFreq: "2500",
-        eqQ: "1.4",
-        compressor: "0.45",
-        sequencer: [
-            {"note": "C5", "active": true},
-            {"note": "G4", "active": true},
-            {"note": "E5", "active": true},
-            {"note": "G4", "active": true},
-            {"note": "C5", "active": true},
-            {"note": "G4", "active": true},
-            {"note": "E5", "active": true},
-            {"note": "G4", "active": true},
-            {"note": "B4", "active": true},
-            {"note": "F#4", "active": true},
-            {"note": "D5", "active": true},
-            {"note": "F#4", "active": true},
-            {"note": "B4", "active": true},
-            {"note": "F#4", "active": true},
-            {"note": "D5", "active": true},
-            {"note": "F#4", "active": true}
-        ]
-    }),
-
     // ==== CINEMATIC KEYS ====
     createPreset("Interstellar Keys", "keys", {
         voiceMode: "poly",
@@ -2697,61 +2803,6 @@ const advancedPresets = [
         ]
     }),
 
-    // ==== EXOTIC PLUCK ====
-    createPreset("Holographic Harp", "pluck", {
-        voiceMode: "poly",
-        waveform: "sine",
-        filterCutoff: "4800",
-        filterRes: "2.4",
-        filterType: false,
-        reverbMix: "0.85", // Very wet
-        reverbDecay: "6.2", // Long decay
-        delayTime: "0.375", // Dotted eighth note
-        delayFeedback: "0.58",
-        tempo: "110",
-        attack: "0.001", // Instant attack
-        decay: "1.4",
-        sustain: "0.08", // Low sustain
-        release: "1.8", // Long release for continuity
-        oscillatorOctave: "1", // One octave up
-        oscillatorSemi: "7", // Perfect fifth
-        oscillatorLevel: "0.75",
-        chorusMix: "0.35",
-        distortionMix: "0.0", // No distortion
-        flangerMix: "0.28",
-        phaserMix: "0.18",
-        lfoRate: "0.18",
-        lfoAmount: "45",
-        lfoDestination: "flangerMix", // Shifting flanger
-        lfoWaveform: "sine",
-        lfoSync: false,
-        droneOctave: "0",
-        eqLow: "1.2",
-        eqMid: "-0.8",
-        eqHigh: "4.2", // Very bright high end
-        eqMidFreq: "1800",
-        eqQ: "0.85",
-        compressor: "0.25",
-        sequencer: [
-            {"note": "E5", "active": true},
-            {"note": "B4", "active": true},
-            {"note": "G5", "active": true},
-            {"note": "E5", "active": true},
-            {"note": "B5", "active": true},
-            {"note": "G5", "active": true},
-            {"note": "E6", "active": true},
-            {"note": "B5", "active": true},
-            {"note": "D5", "active": true},
-            {"note": "A4", "active": true},
-            {"note": "F#5", "active": true},
-            {"note": "D5", "active": true},
-            {"note": "A5", "active": true},
-            {"note": "F#5", "active": true},
-            {"note": "D6", "active": true},
-            {"note": "A5", "active": true}
-        ]
-    }),
-
     // ==== SYNTHETIC BRASS ====
     createPreset("Synthetic Brass", "lead", {
         voiceMode: "poly",
@@ -2859,61 +2910,6 @@ const advancedPresets = [
             {"note": "D4", "active": true},
             {"note": "B3", "active": true},
             {"note": "D4", "active": true}
-        ]
-    }),
-
-    // ==== HYPER PLUCK ====
-    createPreset("Quantum Pluck", "pluck", {
-        voiceMode: "poly",
-        waveform: "sawtooth",
-        filterCutoff: "920", // Low filter
-        filterRes: "15.0", // Extreme resonance
-        filterType: false,
-        reverbMix: "0.48",
-        reverbDecay: "2.2",
-        delayTime: "0.083333", // 32nd note
-        delayFeedback: "0.72", // High feedback
-        tempo: "144",
-        attack: "0.001",
-        decay: "0.12",
-        sustain: "0.0", // No sustain
-        release: "0.1",
-        oscillatorOctave: "0",
-        oscillatorSemi: "0",
-        oscillatorLevel: "0.95",
-        chorusMix: "0.0",
-        distortionMix: "0.22",
-        flangerMix: "0.0",
-        phaserMix: "0.0",
-        lfoRate: "16.0", // Ultra fast
-        lfoAmount: "95", // Extreme amount
-        lfoDestination: "filterCutoff", // Filter modulation
-        lfoWaveform: "sawtooth",
-        lfoSync: true,
-        droneOctave: "-1",
-        eqLow: "2.5",
-        eqMid: "-3.0", // Cut mids
-        eqHigh: "4.0",
-        eqMidFreq: "750",
-        eqQ: "2.8", // Sharp Q
-        compressor: "0.65",
-        sequencer: [
-            {"note": "C4", "active": true},
-            {"note": "C4", "active": false},
-            {"note": "G4", "active": true},
-            {"note": "G4", "active": false},
-            {"note": "C5", "active": true},
-            {"note": "C5", "active": false},
-            {"note": "G4", "active": true},
-            {"note": "G4", "active": false},
-            {"note": "D4", "active": true},
-            {"note": "D4", "active": false},
-            {"note": "A4", "active": true},
-            {"note": "A4", "active": false},
-            {"note": "D5", "active": true},
-            {"note": "D5", "active": false},
-            {"note": "A4", "active": true},
-            {"note": "A4", "active": false}
         ]
     }),
 

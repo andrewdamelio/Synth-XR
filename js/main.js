@@ -4,7 +4,18 @@ import {
 } from './utils.js';
 
 // Initialize MIDI system when the page is loaded
-import { initMIDI, toggleLearnMode, setActiveDevice, clearAllMappings, exportMappings } from './midi.js';
+// import { initMIDI, toggleLearnMode, setActiveDevice, clearAllMappings, exportMappings } from './midi.js';
+
+// Import arpeggiator module
+import { 
+    isArpeggiatorEnabled, 
+    arpeggiatorNotes, 
+    initArpeggiator, 
+    startArpeggiator,
+    stopArpeggiator,
+    addNoteToArpeggiator,
+    removeNoteFromArpeggiator
+} from './arpeggiator.js';
 
 
 // Create a centralized audio node factory
@@ -1436,7 +1447,7 @@ function clearSequencerKeyHighlights() {
 const generateNotes = () => {
     const notes = [];
     const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    for (let octave = 1; octave <= 6; octave++) {
+    for (let octave = 1; octave <= 8; octave++) {  // Changed from 6 to 8
         noteNames.forEach(note => {
             notes.push(`${note}${octave}`);
         });
@@ -1492,6 +1503,78 @@ const createSequencer = () => {
     }
 };
 
+const keyboardMouseHandlers = {
+    // Handle mouse down on any key
+    handleMouseDown: function(e) {
+        // Find closest .key or .black-key parent
+        const key = e.target.closest('.key, .black-key');
+        if (!key) return;
+        
+        const note = key.getAttribute('data-note');
+        if (!note) return;
+        
+        key.classList.add('active');
+        
+        // For polyphonic mode
+        if (!activeNotes.has(note)) {
+            activeNotes.add(note);
+            if (synth && !synth.disposed) {
+                // If arpeggiator is enabled, add the note to it
+                if (isArpeggiatorEnabled) {
+                    addNoteToArpeggiator(note);
+                } else {
+                    // Otherwise play normally
+                    synth.triggerAttack(note);
+                    updateVUMeter(0.8);
+                }
+            }
+        }
+    },
+    
+    // Handle mouse up on any key
+    handleMouseUp: function(e) {
+        // Find closest .key or .black-key parent
+        const key = e.target.closest('.key, .black-key');
+        if (!key) return;
+        
+        const note = key.getAttribute('data-note');
+        if (!note) return;
+        
+        key.classList.remove('active');
+        
+        if (activeNotes.has(note)) {
+            activeNotes.delete(note);
+            if (synth && !synth.disposed) {
+                // If arpeggiator is enabled, remove the note from it
+                if (isArpeggiatorEnabled) {
+                    removeNoteFromArpeggiator(note);
+                } else {
+                    synth.triggerRelease(note);
+                }
+            }
+        }
+    },
+    
+    // Handle mouse leave on any key
+    handleMouseLeave: function(e) {
+        // Find closest .key or .black-key parent
+        const key = e.target.closest('.key, .black-key');
+        if (!key || !key.classList.contains('active')) return;
+        
+        const note = key.getAttribute('data-note');
+        if (!note) return;
+        
+        key.classList.remove('active');
+        
+        if (activeNotes.has(note)) {
+            activeNotes.delete(note);
+            if (synth && !synth.disposed) {
+                synth.triggerRelease(note);
+            }
+        }
+    }
+};
+
 // Create keyboard with polyphonic support - optimized for memory and performance
 const createKeyboard = () => {
     const keyboardElement = document.getElementById('keyboard');
@@ -1507,71 +1590,6 @@ const createKeyboard = () => {
     // Clear keyboard and reset the key element cache
     keyboardElement.innerHTML = '';
     resetKeyboardCache();
-    
-    // Pre-define the event handlers to avoid creating new function closures for each key
-    // This dramatically reduces memory usage and improves performance
-    
-    // Shared event handlers for all keys using event delegation
-    const keyboardMouseHandlers = {
-        // Handle mouse down on any key
-        handleMouseDown: function(e) {
-            // Find closest .key or .black-key parent
-            const key = e.target.closest('.key, .black-key');
-            if (!key) return;
-            
-            const note = key.getAttribute('data-note');
-            if (!note) return;
-            
-            key.classList.add('active');
-            
-            // For polyphonic mode
-            if (!activeNotes.has(note)) {
-                activeNotes.add(note);
-                if (synth && !synth.disposed) {
-                    synth.triggerAttack(note);
-                    updateVUMeter(0.8);
-                }
-            }
-        },
-        
-        // Handle mouse up on any key
-        handleMouseUp: function(e) {
-            // Find closest .key or .black-key parent
-            const key = e.target.closest('.key, .black-key');
-            if (!key) return;
-            
-            const note = key.getAttribute('data-note');
-            if (!note) return;
-            
-            key.classList.remove('active');
-            
-            if (activeNotes.has(note)) {
-                activeNotes.delete(note);
-                if (synth && !synth.disposed) {
-                    synth.triggerRelease(note);
-                }
-            }
-        },
-        
-        // Handle mouse leave on any key
-        handleMouseLeave: function(e) {
-            // Find closest .key or .black-key parent
-            const key = e.target.closest('.key, .black-key');
-            if (!key || !key.classList.contains('active')) return;
-            
-            const note = key.getAttribute('data-note');
-            if (!note) return;
-            
-            key.classList.remove('active');
-            
-            if (activeNotes.has(note)) {
-                activeNotes.delete(note);
-                if (synth && !synth.disposed) {
-                    synth.triggerRelease(note);
-                }
-            }
-        }
-    };
     
     // Add event listeners to the keyboard container (event delegation)
     // This dramatically reduces the number of event listeners
@@ -1721,7 +1739,11 @@ const knobs = [
     ['compressorKnob', 'compressor'],
     ['stereoWidthKnob', 'stereoWidth'],
     ['masterVolumeKnob', 'masterVolume'],
-    ['masterPanKnob', 'masterPan']
+    ['masterPanKnob', 'masterPan'],
+    // Add arpeggiator knobs
+    ['arpRateKnob', 'arpRate'],
+    ['arpGateKnob', 'arpGate'],
+    ['arpSwingKnob', 'arpSwing']
 ];
 
 // Add detune and voices knobs to the knobs array
@@ -4220,8 +4242,13 @@ document.addEventListener('keydown', e => {
         
         // Ensure synth exists before triggering
         if (synth && !synth.disposed) {
-            synth.triggerAttack(note);
-            updateVUMeter(0.8);
+            if (isArpeggiatorEnabled) {
+                // Add note to arpeggiator instead of playing directly
+                addNoteToArpeggiator(note);
+            } else {
+                synth.triggerAttack(note);
+                updateVUMeter(0.8);
+            }
             
             // Update visual keyboard using cached element
             const keyElement = getKeyElement(note);
@@ -4250,8 +4277,13 @@ document.addEventListener('keyup', e => {
         try {
             // Only trigger release if synth exists and isn't disposed
             if (synth && !synth.disposed) {
-                synth.triggerRelease(note);
-                
+                if (isArpeggiatorEnabled) {
+                    // Remove note from arpeggiator
+                    removeNoteFromArpeggiator(note);
+                } else {
+                    synth.triggerRelease(note);
+                }
+
                 // Update visual keyboard using cached element
                 const keyElement = getKeyElement(note);
                 if (keyElement) {
@@ -4588,6 +4620,21 @@ function updateAudioParameter(paramId, value) {
             masterCompressor.ratio.value = 1 + (compValue * 19);
             document.getElementById('compressorValue').textContent = compValue.toFixed(2);
             break;
+        case 'arpRate':
+            arpeggiatorSettings.rate = value;
+            document.getElementById('arpRateValue').textContent = `${Math.round(value)} BPM`;
+            if (isArpeggiatorEnabled) {
+                updateArpeggiatorTiming();
+            }
+            break;
+        case 'arpGate':
+            arpeggiatorSettings.gate = value;
+            document.getElementById('arpGateValue').textContent = `${Math.round(value)}%`;
+            break;
+        case 'arpSwing':
+            arpeggiatorSettings.swing = value;
+            document.getElementById('arpSwingValue').textContent = `${Math.round(value)}%`;
+            break;            
         case 'stereoWidth':
             const widthValue = value;
 
@@ -5390,6 +5437,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setupChordOctaveSwitcher();
     setupChordPads();
     
+    // Step 7.5: Initialize the arpeggiator
+    initArpeggiator(knobUpdaters, synth, activeNotes);
+
+    
     // Step 8: Update LFO destination options to include EQ parameters
     const lfoDestinationSelect = document.getElementById('lfoDestination');
     if (lfoDestinationSelect) {
@@ -5429,17 +5480,170 @@ document.addEventListener('DOMContentLoaded', () => {
     // Step 10: Trigger initial setup events
     document.getElementById('lfoDestination').dispatchEvent(new Event('change'));
     
-    initMIDI().catch(error => {
-        console.warn("Failed to initialize MIDI:", error);
-    });
-
-    // Set up event listeners for MIDI UI controls
-    setupMIDIControls();
-    
-
+    // Add MIDI button for desktop (not mobile)
+    addMidiButtonIfDesktop();
 
     console.log('SynthXR: Initialization complete');
 });
+
+// Function to add MIDI button if on desktop
+function addMidiButtonIfDesktop() {
+    // Check if we're on mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+    
+    if (!isMobile) {
+        // Create MIDI button - position at top right corner
+        const midiButton = document.createElement('button');
+        midiButton.id = 'loadMidiButton';
+        midiButton.className = 'midi-button';
+        midiButton.innerHTML = '<i class="fas fa-keyboard"></i> MIDI';
+        midiButton.title = 'Load MIDI Controller Support';
+        
+        // Add click handler to load MIDI module
+        midiButton.addEventListener('click', loadMidiModule);
+        
+        // Append to body for fixed positioning
+        document.body.appendChild(midiButton);
+        console.log('MIDI button added for desktop');
+    } else {
+        console.log('Mobile detected, skipping MIDI button');
+    }
+}
+
+// Flag to track if MIDI is loaded
+let midiLoaded = false;
+
+// Function to dynamically load MIDI module
+function loadMidiModule() {
+    // Get the MIDI module element
+    const midiModule = document.querySelector('.midi-module');
+    
+    // Skip if already loaded
+    if (midiLoaded) {
+        // Toggle visibility if already loaded
+        if (midiModule) {
+            midiModule.classList.toggle('active');
+            const isActive = midiModule.classList.contains('active');
+            
+            // Update button text based on module visibility
+            const midiButton = document.getElementById('loadMidiButton');
+            if (midiButton) {
+                if (isActive) {
+                    midiButton.innerHTML = '<i class="fas fa-keyboard"></i> Hide MIDI';
+                } else {
+                    midiButton.innerHTML = '<i class="fas fa-keyboard"></i> Show MIDI';
+                }
+            }
+        }
+        return;
+    }
+    
+    console.log('Loading MIDI module...');
+    const loadingIndicator = document.createElement('span');
+    loadingIndicator.textContent = ' Loading...';
+    loadingIndicator.className = 'midi-loading';
+    
+    const midiButton = document.getElementById('loadMidiButton');
+    if (midiButton) {
+        midiButton.disabled = true;
+        midiButton.appendChild(loadingIndicator);
+    }
+    
+    // Dynamically import MIDI module
+    import('./midi.js')
+        .then(midiModule => {
+            // Store module exports in global scope for later use
+            window.midiModule = midiModule;
+            
+            // Initialize MIDI
+            return midiModule.initMIDI();
+        })
+        .then(() => {
+            // Setup UI for MIDI controls
+            setupMIDIControls();
+            
+            // Show the MIDI module
+            const midiModuleElement = document.querySelector('.midi-module');
+            if (midiModuleElement) {
+                midiModuleElement.classList.add('active');
+            }
+            
+            // Update button to show "Hide MIDI"
+            if (midiButton) {
+                midiButton.innerHTML = '<i class="fas fa-keyboard"></i> Hide MIDI';
+                midiButton.classList.add('midi-loaded');
+                midiButton.disabled = false;
+            }
+            
+            midiLoaded = true;
+            console.log('MIDI module loaded successfully');
+        })
+        .catch(error => {
+            console.warn('Failed to load MIDI module:', error);
+            
+            // Update button to show error
+            if (midiButton) {
+                midiButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> MIDI Failed';
+                midiButton.classList.add('midi-error');
+                midiButton.title = 'Error loading MIDI. Click to try again.';
+                midiButton.disabled = false;
+            }
+        });
+}
+
+// Update the setupMIDIControls function to use the dynamic imports
+function setupMIDIControls() {
+    // Skip if MIDI module is not loaded
+    if (!window.midiModule) {
+        console.warn('Cannot setup MIDI controls - module not loaded');
+        return;
+    }
+    
+    const { toggleLearnMode, setActiveDevice, clearAllMappings, exportMappings } = window.midiModule;
+    
+    // MIDI Learn toggle
+    const midiLearnToggle = document.getElementById('midiLearnToggle');
+    if (midiLearnToggle) {
+        midiLearnToggle.addEventListener('click', (e) => {
+            toggleLearnMode();
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    }
+    
+    // Clear all mappings button
+    const clearMappingsBtn = document.getElementById('clearMappingsBtn');
+    if (clearMappingsBtn) {
+        clearMappingsBtn.addEventListener('click', (e) => {
+            clearAllMappings();
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    }
+    
+    // Device selector
+    const deviceSelector = document.getElementById('midiDeviceSelector');
+    if (deviceSelector) {
+        deviceSelector.addEventListener('change', () => {
+            setActiveDevice(deviceSelector.value);
+        });
+    }
+    
+    // Export and import buttons
+    const exportMappingsBtn = document.getElementById('exportMappingsBtn');
+    if (exportMappingsBtn) {
+        exportMappingsBtn.addEventListener('click', () => {
+            exportMappings();
+        });
+    }
+    
+    // Show MIDI controls container if it exists
+    const midiControlsContainer = document.getElementById('midiControlsContainer') || 
+                                 document.querySelector('.midi-controls-container');
+    if (midiControlsContainer) {
+        midiControlsContainer.style.display = 'block';
+    }
+}
 
 // Function to adjust FM Sine knob labels for mobile devices
 function adjustFMSineLabelsForMobile() {
@@ -5545,45 +5749,4 @@ function formatControlValue(controlId, value) {
                 return Math.round(value);
             }
     }
-}
-
-// Set up event listeners for MIDI UI controls
-function setupMIDIControls() {
-    // MIDI Learn toggle
-    const midiLearnToggle = document.getElementById('midiLearnToggle');
-    if (midiLearnToggle) {
-        midiLearnToggle.addEventListener('click', (e) => {
-            toggleLearnMode();
-            e.preventDefault();
-            e.stopPropagation();
-        });
-    }
-    
-    // Clear all mappings button
-    const clearMappingsBtn = document.getElementById('clearMappingsBtn');
-    if (clearMappingsBtn) {
-        clearMappingsBtn.addEventListener('click', (e) => {
-            clearAllMappings();
-            e.preventDefault();
-            e.stopPropagation();
-        });
-    }
-    
-    // Device selector
-    const deviceSelector = document.getElementById('midiDeviceSelector');
-    if (deviceSelector) {
-        deviceSelector.addEventListener('change', () => {
-            setActiveDevice(deviceSelector.value);
-        });
-    }
-    
-    // Export and import buttons
-    const exportMappingsBtn = document.getElementById('exportMappingsBtn');
-    if (exportMappingsBtn) {
-        exportMappingsBtn.addEventListener('click', () => {
-            exportMappings();
-        });
-    }
-    
-    // Rest of the existing code...
 }
