@@ -1202,7 +1202,7 @@ const builtInPresets = [
         phaserMix: "0",
         lfoRate: "0.08",
         lfoAmount: "25",
-        lfoDestination: "filterCutoff",
+        lfoDestination: "off",
         lfoWaveform: "sine",
         lfoSync: false,
         droneOctave: "-2",
@@ -1212,6 +1212,7 @@ const builtInPresets = [
         eqMidFreq: "800",
         eqQ: "1.5",
         compressor: "0.3",
+        masterVolume: "0.8",
         sequencer: [
             {"note": "C2", "active": true},
             {"note": "C2", "active": false},
@@ -1323,20 +1324,20 @@ const builtInPresets = [
         sequencer: [
             {"note": "C2", "active": true},
             {"note": "C2", "active": false},
-            {"note": "G2", "active": true},
+            {"note": "C2", "active": true},
             {"note": "C2", "active": false},
-            {"note": "A#2", "active": true},
-            {"note": "A#2", "active": false},
+            {"note": "C2", "active": true},
+            {"note": "C2", "active": false},
+            {"note": "C2", "active": true},
+            {"note": "C2", "active": false},
+            {"note": "D#2", "active": true}, 
+            {"note": "D#2", "active": false},
+            {"note": "D#2", "active": true}, 
+            {"note": "D#2", "active": false},
             {"note": "G2", "active": true},
             {"note": "G2", "active": false},
-            {"note": "F2", "active": true},
-            {"note": "F2", "active": false},
-            {"note": "F2", "active": true},
-            {"note": "F2", "active": false},
             {"note": "G2", "active": true},
-            {"note": "G2", "active": false},
-            {"note": "G2", "active": true},
-            {"note": "G2", "active": false}
+            {"note": "F2", "active": true}
         ]
     }),
 
@@ -1993,62 +1994,6 @@ const builtInPresets = [
             {"note": "B3", "active": true},
             {"note": "D4", "active": true},
             {"note": "G4", "active": true}
-        ]
-    }),
-
-    // ==== TECHNO SEQUENCE ====
-    createPreset("Berlin Techno", "bass", {
-        voiceMode: "poly",
-        waveform: "pulse",
-        filterCutoff: "600",
-        filterRes: "9.8",
-        filterType: false,
-        reverbMix: "0.15",
-        reverbDecay: "1.5",
-        delayTime: "0.125", // 16th note at 120 BPM
-        delayFeedback: "0.35",
-        tempo: "126",
-        attack: "0.001",
-        decay: "0.18",
-        sustain: "0.3",
-        release: "0.15",
-        oscillatorOctave: "-1",
-        oscillatorSemi: "0",
-        oscillatorLevel: "0.92",
-        chorusMix: "0",
-        distortionMix: "0.25",
-        flangerMix: "0",
-        phaserMix: "0.1",
-        lfoRate: "8",
-        lfoAmount: "75",
-        lfoDestination: "pulseWidth",
-        lfoWaveform: "square",
-        lfoSync: true,
-        droneOctave: "-2",
-        eqLow: "5",
-        eqMid: "-1",
-        eqHigh: "-2",
-        eqMidFreq: "780",
-        eqQ: "1.8",
-        compressor: "0.68",
-        pulseWidth: "0.25",
-        sequencer: [
-            {"note": "C2", "active": true},
-            {"note": "C2", "active": false},
-            {"note": "C2", "active": true},
-            {"note": "C2", "active": false},
-            {"note": "C2", "active": true},
-            {"note": "C2", "active": false},
-            {"note": "C2", "active": true},
-            {"note": "C2", "active": false},
-            {"note": "D#2", "active": true}, // Changed from Eb2
-            {"note": "D#2", "active": false}, // Changed from Eb2
-            {"note": "D#2", "active": true}, // Changed from Eb2
-            {"note": "D#2", "active": false}, // Changed from Eb2
-            {"note": "G2", "active": true},
-            {"note": "G2", "active": false},
-            {"note": "G2", "active": true},
-            {"note": "F2", "active": true}
         ]
     }),
     

@@ -1760,40 +1760,24 @@ class EnhancedVisualizers {
     }
 }
 
-// Create global instance but with a slight delay to ensure main.js analyzers are ready
+// Modified DOMContentLoaded event listener to prevent auto-creating visualizers
 window.addEventListener('DOMContentLoaded', () => {
-    // Wait a short time to ensure audio system is fully initialized
-    setTimeout(() => {
-        console.log('Creating enhanced visualizers with delay to ensure analyzers are ready');
-        window.enhancedVisualizers = new EnhancedVisualizers();
-        
-        if (!window.enhancedVisualizers.isInitialized) {
-            window.enhancedVisualizers.init();
-            
-            // Ensure visualizers are hidden by default
-            const container = document.getElementById('enhanced-visualizers-container');
-            if (container) {
-                container.style.maxHeight = '0';
-                container.style.overflow = 'hidden';
-                container.style.marginTop = '10px';
-                container.style.marginBottom = '10px';
-            }
-        }
-        
-        // Ensure the LFO oscilloscope is properly initialized
-        if (window.lfoOscilloscope) {
-            // Give a bit of time for the DOM to settle
-            setTimeout(() => {
-                window.lfoOscilloscope.handleResize();
-            }, 100);
-        }
-    }, 300); // 300ms delay should be enough for analyzers to be ready
+    // Don't automatically create the enhanced visualizers
+    // Instead, set up a lazy initialization approach
+    
+    // Keep a reference to the constructor without initializing
+    window.enhancedVisualizers = null;
+    
+    // Only set up the LFO oscilloscope (which is lighter weight)
+    if (window.lfoOscilloscope) {
+        // Give a bit of time for the DOM to settle
+        setTimeout(() => {
+            window.lfoOscilloscope.handleResize();
+        }, 100);
+    }
 });
 
-// Keep a placeholder for now - will be set in the delayed initialization
-window.enhancedVisualizers = null;
-
-// Handle the visualizer toggle setup
+// Modify the visualizer toggle handler
 document.addEventListener('DOMContentLoaded', () => {
     const visualizerToggle = document.getElementById('visualizerToggle');
 
@@ -1806,6 +1790,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Replace the old click handler
         const oldClickHandler = visualizerToggle.onclick;
         
+        // Keep original container for restoration
+        let originalContainer = null;
+        
         visualizerToggle.onclick = function() {
             // Toggle as before, but also show our new visualizers
             if (oldClickHandler) {
@@ -1813,19 +1800,82 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Fallback if old handler not found
                 const isExpanded = visualizerToggle.classList.toggle('active');
-                const container = document.getElementById('enhanced-visualizers-container');
+            }
+            
+            const isExpanded = visualizerToggle.classList.contains('active');
+            let container = document.getElementById('enhanced-visualizers-container');
+            
+            if (isExpanded) {
+                // Restore container if it was previously removed
+                if (!container && originalContainer) {
+                    // Insert the original container back into the DOM
+                    const advanceVisualizer = document.querySelector('.advance-visualizer');
+                    if (advanceVisualizer) {
+                        advanceVisualizer.appendChild(originalContainer);
+                    } else {
+                        // Fallback - add to the end of the synth container
+                        const synthContainer = document.querySelector('.synth-container');
+                        if (synthContainer) {
+                            synthContainer.appendChild(originalContainer);
+                        } else {
+                            document.body.appendChild(originalContainer);
+                        }
+                    }
+                    container = originalContainer;
+                    
+                    // Reinitialize visualizers if needed
+                    if (window.enhancedVisualizers && !window.enhancedVisualizers.isInitialized) {
+                        window.enhancedVisualizers.init();
+                    }
+                } else if (!container) {
+                    // First time initialization - create new container and visualizers
+                    // This is the lazy loading part - only create when requested
+                    
+                    // First create the EnhancedVisualizers instance if it doesn't exist
+                    if (!window.enhancedVisualizers) {
+                        console.log('Creating enhanced visualizers on demand');
+                        window.enhancedVisualizers = new EnhancedVisualizers();
+                    }
+                    
+                    // Then initialize it which will create the container
+                    if (window.enhancedVisualizers && !window.enhancedVisualizers.isInitialized) {
+                        window.enhancedVisualizers.init();
+                        container = document.getElementById('enhanced-visualizers-container');
+                        originalContainer = container;
+                    }
+                }
                 
-                if (isExpanded && container) {
+                if (container) {
                     container.style.maxHeight = '500px';
                     container.style.marginTop = '20px';
                     container.style.marginBottom = '20px';
-                    visualizerToggle.querySelector('span').textContent = 'Hide Advanced Visualizations';
-                } else if (container) {
-                    container.style.maxHeight = '0';
-                    container.style.marginTop = '10px';
-                    container.style.marginBottom = '10px';
-                    visualizerToggle.querySelector('span').textContent = 'Show Advanced Visualizations';
                 }
+                
+                visualizerToggle.querySelector('span').textContent = 'Hide Advanced Visualizations';
+            } else {
+                // When hiding, completely remove the container from DOM
+                if (container) {
+                    // Store original container for future restoration
+                    originalContainer = container;
+                    
+                    // Stop all visualizer animations before removing
+                    if (window.enhancedVisualizers) {
+                        // Stop all animation frames and clean up resources
+                        if (window.enhancedVisualizers.visualizers) {
+                            Object.keys(window.enhancedVisualizers.visualizers).forEach(vizId => {
+                                if (window.enhancedVisualizers.visualizers[vizId].animationFrame) {
+                                    cancelAnimationFrame(window.enhancedVisualizers.visualizers[vizId].animationFrame);
+                                    window.enhancedVisualizers.visualizers[vizId].animationFrame = null;
+                                }
+                            });
+                        }
+                    }
+                    
+                    // Remove from DOM
+                    container.parentNode.removeChild(container);
+                }
+                
+                visualizerToggle.querySelector('span').textContent = 'Show Advanced Visualizations';
             }
         };
     }
@@ -3396,7 +3446,6 @@ EnhancedVisualizers.prototype.drawHolographicScanlines = function(ctx, width, he
     // Reset composite operation
     ctx.globalCompositeOperation = 'source-over';
 };
-
 // Helper for drawing holographic UI elements
 EnhancedVisualizers.prototype.drawHolographicUI = function(ctx, width, height, bassEnergy, midEnergy, trebleEnergy) {
     const centerX = width / 2;
