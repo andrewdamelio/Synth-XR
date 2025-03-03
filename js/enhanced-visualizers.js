@@ -1775,6 +1775,11 @@ window.addEventListener('DOMContentLoaded', () => {
             window.lfoOscilloscope.handleResize();
         }, 100);
     }
+    
+    // Add a patch to the EnhancedVisualizers prototype to implement on-demand canvas creation
+    if (typeof EnhancedVisualizers !== 'undefined') {
+        patchEnhancedVisualizersPrototype();
+    }
 });
 
 // Modify the visualizer toggle handler
@@ -1964,7 +1969,136 @@ visualizerStyles.textContent = `
 
 document.head.appendChild(visualizerStyles);
 
-// Function to initialize the visualizers manually
+// Patch the EnhancedVisualizers prototype to implement on-demand canvas creation
+function patchEnhancedVisualizersPrototype() {
+    // Save reference to original methods
+    const originalInitCanvases = EnhancedVisualizers.prototype.initCanvases;
+    const originalShowVisualizer = EnhancedVisualizers.prototype.showVisualizer;
+    
+    // Override initCanvases to create placeholder canvas objects but not DOM elements
+    EnhancedVisualizers.prototype.initCanvases = function() {
+        this.canvases = {};
+        this.contexts = {};
+        
+        // Get container dimensions for reference
+        const containerWidth = this.container ? this.container.clientWidth : 800;
+        const containerHeight = this.container ? this.container.clientHeight : 300;
+        
+        // Create placeholder objects with dimensions but no actual DOM elements
+        const visualizerIds = ['spectrum', 'waveform3d', 'particles', 'waterfall', 'circular', 
+                              'neural', 'terrain', 'vortex', 'fractal', 'bloom', 'holographic', 'caustics'];
+        
+        visualizerIds.forEach(id => {
+            // Create a canvas object but don't add it to the DOM
+            const canvas = document.createElement('canvas');
+            canvas.id = `visualizer-${id}`;
+            canvas.className = 'visualizer-canvas';
+            
+            // Set dimensions but keep it detached from DOM
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
+            
+            // Store canvas reference and context but don't append to DOM
+            this.canvases[id] = canvas;
+            this.contexts[id] = canvas.getContext('2d', { willReadFrequently: true });
+            
+            // Mark as not in DOM
+            canvas._inDOM = false;
+        });
+        
+        console.log('Created placeholder canvases for initialization - will only add to DOM when needed');
+    };
+    
+    // Override showVisualizer to manage canvas DOM presence
+    EnhancedVisualizers.prototype.showVisualizer = function(id) {
+        if (!this.isInitialized) this.init();
+        
+        // Track previous visualizer for cleanup
+        const previousVisualizer = this.activeVisualizer;
+        
+        // Stop all animation frames
+        Object.keys(this.visualizers).forEach(vizId => {
+            if (this.visualizers[vizId].animationFrame) {
+                cancelAnimationFrame(this.visualizers[vizId].animationFrame);
+                this.visualizers[vizId].animationFrame = null;
+            }
+        });
+        
+        // Remove previously shown canvas from DOM
+        Object.keys(this.canvases).forEach(vizId => {
+            const canvas = this.canvases[vizId];
+            if (canvas && canvas._inDOM && vizId !== id) {
+                if (canvas.parentNode) {
+                    canvas.parentNode.removeChild(canvas);
+                    canvas._inDOM = false;
+                    console.log(`Removed canvas ${vizId} from DOM`);
+                }
+                
+                // Clean up canvas when not in use
+                if (this.contexts[vizId]) {
+                    this.contexts[vizId].clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+        });
+        
+        // Ensure the selected canvas is in the DOM
+        const canvas = this.canvases[id];
+        if (canvas) {
+            // Update dimensions now that we're actually adding to DOM
+            canvas.width = this.container.clientWidth;
+            canvas.height = this.container.clientHeight;
+            
+            // Set styles
+            Object.assign(canvas.style, {
+                position: 'absolute',
+                top: '0',
+                left: '0',
+                width: '100%',
+                height: '100%',
+                display: 'block'
+            });
+            
+            // Add to DOM if not already there
+            if (!canvas._inDOM) {
+                this.container.appendChild(canvas);
+                canvas._inDOM = true;
+                console.log(`Added canvas ${id} to DOM`);
+            }
+            
+            // Ensure it's visible
+            canvas.style.display = 'block';
+        }
+        
+        // Special handling for visualizers that need resetting when shown
+        if (id === 'particles' && this.visualizers.particles) {
+            const options = this.visualizers.particles.options;
+            if (options.oldParticleCount) {
+                options.particleCount = options.oldParticleCount;
+                options.init(); // Reinitialize particles
+            }
+        }
+        
+        // Reset performance metrics when changing visualizers
+        this.performanceMetrics.frameCount = 0;
+        this.performanceMetrics.startTime = performance.now();
+        this.performanceMetrics.renderTimes = [];
+        
+        // Start the selected visualizer
+        this.activeVisualizer = id;
+        this.startVisualizer(id);
+        
+        // Update the selector if it exists (use cached query selector)
+        if (!this._selectorElement) {
+            this._selectorElement = this.container.querySelector('.visualizer-selector');
+        }
+        
+        if (this._selectorElement && this._selectorElement.value !== id) {
+            this._selectorElement.value = id;
+        }
+    };
+}
+
+// Make sure initEnhancedVisualizers is defined for manual calls
 function initEnhancedVisualizers() {
     if (!window.enhancedVisualizers) {
         // Create it if it doesn't exist yet
@@ -1996,7 +2130,6 @@ function initEnhancedVisualizers() {
         window.lfoOscilloscope.render(performance.now());
     }
 }
-
 // Extend EnhancedVisualizers class with more advanced visualizations
 // Add these functions to the existing EnhancedVisualizers class
 
