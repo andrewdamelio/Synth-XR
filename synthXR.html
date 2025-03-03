@@ -884,7 +884,68 @@
             </div>
         </div>
     
-
+        <div class="module midi-module">
+            <div class="module-header">
+                <h3 class="module-title">
+                    <i class="fas fa-keyboard"></i>
+                    MIDI
+                </h3>
+                <div id="midiStatusIndicator" class="midi-status-indicator" title="MIDI status">
+                    <span></span>
+                </div>
+            </div>
+            <div class="midi-content">
+                <div class="midi-controls">
+                    <div class="control-group">
+                        <div class="midi-section">
+                            <label for="midiDeviceSelector">MIDI Device</label>
+                            <select id="midiDeviceSelector" class="midi-select">
+                                <option value="">-- Select MIDI Device --</option>
+                                <!-- Devices will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        
+                        <div class="midi-section">
+                            <label>MIDI Learn</label>
+                            <div class="toggle-switch" id="midiLearnToggle">
+                                <div class="toggle-switch-slider"></div>
+                            </div>
+                            <div class="midi-learn-status">Off</div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <div class="midi-mapping-controls">
+                            <button id="clearMappingsBtn" class="midi-button">
+                                <i class="fas fa-trash-alt"></i>
+                                Clear All Mappings
+                            </button>
+                            <!-- <button id="exportMappingsBtn" class="midi-button">
+                                <i class="fas fa-file-export"></i>
+                                Export
+                            </button>
+                            <button id="importMappingsBtn" class="midi-button">
+                                <i class="fas fa-file-import"></i>
+                                Import
+                            </button>
+                            <input type="file" id="importMappingsFile" accept=".json" style="display: none"> -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="midi-mappings">
+                    <h4 class="midi-section-title">Current Mappings</h4>
+                    <div id="midiMappingsList" class="midi-mappings-list">
+                        <!-- Mappings will be populated by JavaScript -->
+                    </div>
+                    <div id="noMappingsMsg" class="no-mappings-msg">
+                        No MIDI mappings yet. Enable MIDI Learn mode and move controls on your MIDI device to create mappings.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <script type="module" src="js/main.js"></script>
     <script src="js/enhanced-visualizers.js"></script>
 

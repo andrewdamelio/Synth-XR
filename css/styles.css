@@ -2158,3 +2158,335 @@ input[type="range"] {
         padding-right: 25px; /* More space for the dropdown arrow in Firefox */
     }
 }
+
+/* MIDI Module Styles */
+.midi-module {
+    grid-column: span 2;
+    margin-top: 2rem;
+}
+
+.midi-status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-left: 10px;
+    position: relative;
+}
+
+.midi-status-indicator span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: var(--text-secondary);
+    transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.midi-status-indicator.success span {
+    background-color: var(--success);
+    box-shadow: 0 0 5px var(--success);
+}
+
+.midi-status-indicator.warning span {
+    background-color: var(--warning);
+    box-shadow: 0 0 5px var(--warning);
+}
+
+.midi-status-indicator.error span {
+    background-color: var(--error);
+    box-shadow: 0 0 5px var(--error);
+}
+
+.midi-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.midi-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.midi-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.midi-section label {
+    min-width: 100px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.midi-select {
+    flex: 1;
+    background-color: var(--surface-dark);
+    color: var(--text);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 0.9rem;
+}
+
+/* Toggle switch for MIDI Learn */
+.toggle-switch {
+    position: relative;
+    width: 50px;
+    height: 24px;
+    background-color: var(--surface-dark);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.toggle-switch-slider {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background-color: var(--text);
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+}
+
+.toggle-switch.active {
+    background-color: var(--primary);
+}
+
+.toggle-switch.active .toggle-switch-slider {
+    transform: translateX(26px);
+}
+
+.midi-learn-status {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 30px;
+}
+
+/* MIDI buttons */
+.midi-button {
+    background-color: var(--surface-light);
+    color: var(--text);
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s;
+}
+
+.midi-button:hover {
+    background-color: var(--primary);
+}
+
+.midi-button i {
+    font-size: 0.9rem;
+}
+
+.midi-mapping-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Mappings list */
+.midi-section-title {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 5px;
+}
+
+.midi-mappings-list {
+    max-height: 150px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.midi-mapping-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    background-color: var(--surface-dark);
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.mapping-param {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mapping-cc {
+    background-color: var(--primary);
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin: 0 8px;
+    font-size: 0.75rem;
+}
+
+.mapping-remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 2px;
+    font-size: 0.8rem;
+    transition: color 0.2s;
+}
+
+.mapping-remove-btn:hover {
+    color: var(--error);
+}
+
+.no-mappings-msg {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-style: italic;
+    padding: 10px 0;
+}
+
+/* MIDI Learn tooltip */
+.midi-learn-tooltip {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--primary);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    z-index: 1000;
+    box-shadow: var(--shadow-normal);
+    text-align: center;
+    max-width: 300px;
+}
+
+/* MIDI mapping tooltip */
+.midi-mapping-tooltip {
+    position: absolute;
+    background-color: var(--surface);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    z-index: 1000;
+    box-shadow: var(--shadow-normal);
+    width: 200px;
+    text-align: center;
+}
+
+.midi-mapping-tooltip.success {
+    border-left: 3px solid var(--success);
+}
+
+.midi-mapping-tooltip.error {
+    border-left: 3px solid var(--error);
+}
+
+.midi-mapping-tooltip.info {
+    border-left: 3px solid var(--info);
+}
+
+/* Highlight for parameters when receiving MIDI data */
+.midi-active {
+    transition: box-shadow 0.1s, background-color 0.1s;
+    box-shadow: 0 0 8px var(--secondary) !important;
+}
+
+.knob.midi-active .knob-inner {
+    background-color: var(--secondary) !important;
+}
+
+.small-knob.midi-active .small-knob-inner {
+    background-color: var(--secondary) !important;
+}
+
+/* MIDI Learn Mode improved visuals for custom knobs */
+.midi-learn-mode .knob.midi-learnable,
+.midi-learn-mode .small-knob.midi-learnable {
+    cursor: pointer;
+    transition: box-shadow 0.3s;
+}
+
+.midi-learn-mode .knob.midi-learnable:hover,
+.midi-learn-mode .small-knob.midi-learnable:hover {
+    box-shadow: 0 0 12px var(--info) !important;
+}
+
+.knob.midi-learn-highlight,
+.small-knob.midi-learn-highlight {
+    box-shadow: 0 0 15px var(--info) !important;
+    animation: midi-learn-pulse 1.5s infinite alternate;
+}
+
+@keyframes midi-learn-pulse {
+    0% {
+        box-shadow: 0 0 7px var(--info);
+    }
+    100% {
+        box-shadow: 0 0 20px var(--info);
+    }
+}
+
+.knob.midi-learn-highlight .knob-inner,
+.small-knob.midi-learn-highlight .small-knob-inner {
+    background-color: var(--info) !important;
+}
+
+/* MIDI Learn status indicator */
+.midi-learn-status.active {
+    color: var(--info);
+    font-weight: bold;
+}
+
+/* Make sure toggle switch looks correct */
+#midiLearnToggle {
+    position: relative;
+    width: 50px;
+    height: 24px;
+    background-color: var(--surface-dark);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#midiLearnToggle.active {
+    background-color: var(--info);
+}
+
+#midiLearnToggle .toggle-switch-slider {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background-color: var(--text);
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+}
+
+#midiLearnToggle.active .toggle-switch-slider {
+    transform: translateX(26px);
+}
+
+/* MIDI Module Responsive Handling */
+@media (max-width: 1024px) {
+    .midi-module {
+        display: none !important;
+    }
+}

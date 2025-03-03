@@ -3,6 +3,9 @@ import {
     updateVUMeter
 } from './utils.js';
 
+// Initialize MIDI system when the page is loaded
+import { initMIDI, toggleLearnMode, setActiveDevice, clearAllMappings, exportMappings } from './midi.js';
+
 
 // Create a centralized audio node factory
 // This factory pattern improves efficiency and organization
@@ -876,15 +879,7 @@ function updateLfoModulation(timestamp) {
         }
     }
     
-    // Directly update audio parameters based on destination type
-    // This ensures audio updates even when the input event isn't triggered
-    if (lfoDestination === 'masterPan' && masterPanner) {
-        masterPanner.pan.value = newValue;
-    } else if (lfoDestination === 'masterVolume' && masterVolume) {
-        masterVolume.gain.value = newValue;
-    } else if (lfoDestination === 'stereoWidth' && stereoWidener) {
-        stereoWidener.width.value = newValue;
-    }
+    updateAudioParameter(lfoDestination, newValue);
     
     // Update knob position if a knob updater exists
     if (knobUpdaters[lfoDestination]) {
@@ -1027,6 +1022,11 @@ function createSynth() {
         console.log(`Synth creation took ${duration.toFixed(2)}ms`);
     }
     
+    window.synth = synth;
+    window.activeNotes = activeNotes;
+
+    // Also expose updateVUMeter function for visual feedback from MIDI
+    window.updateVUMeter = updateVUMeter;
     return synth;
     
     // Helper function to create a new synth instance
@@ -5429,6 +5429,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Step 10: Trigger initial setup events
     document.getElementById('lfoDestination').dispatchEvent(new Event('change'));
     
+    initMIDI().catch(error => {
+        console.warn("Failed to initialize MIDI:", error);
+    });
+
+    // Set up event listeners for MIDI UI controls
+    setupMIDIControls();
+    
+
+
     console.log('SynthXR: Initialization complete');
 });
 
@@ -5536,4 +5545,45 @@ function formatControlValue(controlId, value) {
                 return Math.round(value);
             }
     }
+}
+
+// Set up event listeners for MIDI UI controls
+function setupMIDIControls() {
+    // MIDI Learn toggle
+    const midiLearnToggle = document.getElementById('midiLearnToggle');
+    if (midiLearnToggle) {
+        midiLearnToggle.addEventListener('click', (e) => {
+            toggleLearnMode();
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    }
+    
+    // Clear all mappings button
+    const clearMappingsBtn = document.getElementById('clearMappingsBtn');
+    if (clearMappingsBtn) {
+        clearMappingsBtn.addEventListener('click', (e) => {
+            clearAllMappings();
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    }
+    
+    // Device selector
+    const deviceSelector = document.getElementById('midiDeviceSelector');
+    if (deviceSelector) {
+        deviceSelector.addEventListener('change', () => {
+            setActiveDevice(deviceSelector.value);
+        });
+    }
+    
+    // Export and import buttons
+    const exportMappingsBtn = document.getElementById('exportMappingsBtn');
+    if (exportMappingsBtn) {
+        exportMappingsBtn.addEventListener('click', () => {
+            exportMappings();
+        });
+    }
+    
+    // Rest of the existing code...
 }
