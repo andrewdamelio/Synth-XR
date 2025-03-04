@@ -547,7 +547,7 @@ function updateOscilloscope(timestamp) {
     // Calculate a step size to reduce the number of points sampled
     const step = Math.max(1, Math.floor(values.length / 80));  // Even fewer points for simplicity
     // Scale the amplitude down significantly to make the wave more compact
-    const amplitudeScale = 0.2;  // Reduce amplitude to 20% (matches level at 0.15 volume)
+    const amplitudeScale = 0.4; 
     
     for (let i = 0; i < values.length; i += step) {
         const x = (i / values.length) * width;
