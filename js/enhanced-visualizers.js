@@ -263,9 +263,9 @@ class EnhancedVisualizers {
         const visualizerOptions = [
             { id: 'spectrum', label: 'Spectrum Analyzer' },
             { id: 'waveform3d', label: '3D Waveform' },
-            { id: 'particles', label: 'Particle System' },
+            // { id: 'particles', label: 'Particle System' },
             // { id: 'waterfall', label: 'Frequency Waterfall' },
-            { id: 'circular', label: 'Circular Visualizer' }
+            // { id: 'circular', label: 'Circular Visualizer' }
         ];
         
         visualizerOptions.forEach(option => {
@@ -456,7 +456,7 @@ class EnhancedVisualizers {
     
     // Initialize all canvas elements
     initCanvases() {
-        const visualizerIds = ['spectrum', 'waveform3d', 'particles', 'waterfall', 'circular'];
+        const visualizerIds = ['spectrum', 'waveform3d', 'waterfall'];
         
         visualizerIds.forEach(id => {
             const canvas = document.createElement('canvas');
@@ -516,43 +516,6 @@ class EnhancedVisualizers {
             }
         };
         
-        // Particle System
-        this.visualizers.particles = {
-            render: this.renderParticles.bind(this),
-            animationFrame: null,
-            options: {
-                particles: [],
-                particleCount: 250,
-                baseSizeMultiplier: 3,
-                speedMultiplier: 1.2,
-                trailLength: 8,
-                connectParticles: true,
-                maxConnections: 5,
-                maxConnectionDistance: 120,
-                // Initialize particles
-                init: () => {
-                    const options = this.visualizers.particles.options;
-                    options.particles = [];
-                    const width = this.canvases.particles.width;
-                    const height = this.canvases.particles.height;
-                    
-                    for (let i = 0; i < options.particleCount; i++) {
-                        options.particles.push({
-                            x: Math.random() * width,
-                            y: Math.random() * height,
-                            size: Math.random() * 2 + 1,
-                            speedX: (Math.random() - 0.5) * options.speedMultiplier,
-                            speedY: (Math.random() - 0.5) * options.speedMultiplier,
-                            trail: [],
-                            hue: Math.random() * 60 + 180, // Blue to purple range
-                            opacity: Math.random() * 0.5 + 0.5,
-                            energy: 0
-                        });
-                    }
-                }
-            }
-        };
-        
         // Frequency Waterfall
         this.visualizers.waterfall = {
             render: this.renderWaterfall.bind(this),
@@ -566,28 +529,6 @@ class EnhancedVisualizers {
                 lastUpdate: 0
             }
         };
-        
-        // Circular Visualizer
-        this.visualizers.circular = {
-            render: this.renderCircular.bind(this),
-            animationFrame: null,
-            options: {
-                rings: 3,
-                segments: 128,
-                rotation: 0,
-                rotationSpeed: 0.002,
-                bassImpact: 5,
-                midImpact: 3,
-                trebleImpact: 2,
-                radius: 0,
-                innerRadius: 20,
-                centerX: 0,
-                centerY: 0
-            }
-        };
-        
-        // Initialize particles
-        this.visualizers.particles.options.init();
     }
     
     // Show a specific visualizer with performance optimizations
@@ -623,16 +564,6 @@ class EnhancedVisualizers {
                         }
                     }
                     
-                    // For particle-based visualizers, reduce memory usage
-                    if ((vizId === 'particles' || vizId === 'neural') && this.visualizers[vizId]) {
-                        const options = this.visualizers[vizId].options;
-                        if (options.particles && options.particles.length > 0) {
-                            options.oldParticleCount = options.particleCount;
-                            options.particleCount = 0;
-                            options.particles = [];
-                        }
-                    }
-                    
                     // Clear canvas context to free memory
                     if (this.contexts[vizId]) {
                         this.contexts[vizId].clearRect(0, 0, 
@@ -650,15 +581,6 @@ class EnhancedVisualizers {
             
             // Ensure canvas dimensions are optimized
             this.resizeCanvasIfNeeded(id);
-            
-            // For particle visualizers, restore particle count if it was reduced
-            if (id === 'particles' && this.visualizers.particles) {
-                const options = this.visualizers.particles.options;
-                if (options.oldParticleCount) {
-                    options.particleCount = options.oldParticleCount;
-                    options.init(); // Reinitialize particles
-                }
-            }
         }
         
         // Reset performance metrics when changing visualizers
@@ -697,14 +619,7 @@ class EnhancedVisualizers {
             
             canvas.width = containerWidth;
             canvas.height = containerHeight;
-            
-            // For certain visualizers, we need additional setup after resize
-            if (id === 'circular' && this.visualizers.circular) {
-                this.visualizers.circular.options.centerX = containerWidth / 2;
-                this.visualizers.circular.options.centerY = containerHeight / 2;
-                this.visualizers.circular.options.radius = Math.min(containerWidth, containerHeight) * 0.4;
-            }
-            
+                        
             console.log(`Canvas ${id} resized to ${containerWidth}x${containerHeight}`);
         }
     }
@@ -730,12 +645,6 @@ class EnhancedVisualizers {
             
             // Limit history length for better performance
             visualizer.options.maxHistory = this.renderCache.waveform3d.maxHistoryLength;
-        } else if (id === 'circular') {
-            // Set dynamic properties
-            const canvas = this.canvases[id];
-            visualizer.options.centerX = canvas.width / 2;
-            visualizer.options.centerY = canvas.height / 2;
-            visualizer.options.radius = Math.min(canvas.width, canvas.height) * 0.40;
         }
         
         // Initialize performance tracking
@@ -919,8 +828,6 @@ class EnhancedVisualizers {
         
         // Reinitialize particles and other dynamic visualizers
         const dynamicVisualizers = [
-            'particles', 
-            'neural', 
             'terrain', 
             'vortex', 
             'bloom', 
@@ -1140,181 +1047,7 @@ class EnhancedVisualizers {
         
         // FPS counter removed
     }
-    
-    // Render particle system
-    renderParticles() {
-        const canvas = this.canvases.particles;
-        const ctx = this.contexts.particles;
-        const options = this.visualizers.particles.options;
-        const particles = options.particles;
         
-        // Get audio data - use global analyzers if available, fall back to local ones
-        const waveformData = (window.waveform || this.waveform).getValue();
-        const fftData = (window.fft || this.fft).getValue();
-        
-        // Calculate audio energy in different frequency bands
-        const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10) * 2;
-        const midEnergy = this.getFrequencyBandEnergy(fftData, 20, 60);
-        const trebleEnergy = this.getFrequencyBandEnergy(fftData, 80, 120);
-        
-        // Overall energy affects particles
-        const overallEnergy = (bassEnergy * 3 + midEnergy + trebleEnergy) / 5;
-        
-        // Clear canvas with semi-transparent fade effect
-        ctx.fillStyle = `rgba(${parseInt(this.colorScheme.background.slice(1, 3), 16)}, 
-                              ${parseInt(this.colorScheme.background.slice(3, 5), 16)}, 
-                              ${parseInt(this.colorScheme.background.slice(5, 7), 16)}, 0.15)`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Update and draw particles
-        const connections = [];
-        
-        particles.forEach((p, i) => {
-            // Store previous position for trail
-            if (p.trail.length >= options.trailLength) {
-                p.trail.pop();
-            }
-            p.trail.unshift({x: p.x, y: p.y});
-            
-            // Apply audio reactivity
-            p.energy = p.energy * 0.7 + overallEnergy * 0.3;
-            
-            // Update size based on energy
-            const energyImpact = p.energy * 2;
-            const currentSize = p.size * (1 + energyImpact * options.baseSizeMultiplier);
-            
-            // Update position
-            p.x += p.speedX * (1 + bassEnergy * 2);
-            p.y += p.speedY * (1 + midEnergy * 2);
-            
-            // Influence direction based on treble
-            p.speedX += (Math.random() - 0.5) * trebleEnergy * 0.3;
-            p.speedY += (Math.random() - 0.5) * trebleEnergy * 0.3;
-            
-            // Apply damping
-            p.speedX *= 0.98;
-            p.speedY *= 0.98;
-            
-            // Wrap around edges
-            if (p.x < 0) p.x = canvas.width;
-            if (p.x > canvas.width) p.x = 0;
-            if (p.y < 0) p.y = canvas.height;
-            if (p.y > canvas.height) p.y = 0;
-            
-            // Find connections to nearby particles
-            if (options.connectParticles && overallEnergy > 0.15) {
-                for (let j = i + 1; j < particles.length; j++) {
-                    const p2 = particles[j];
-                    const dx = p.x - p2.x;
-                    const dy = p.y - p2.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < options.maxConnectionDistance * (1 + overallEnergy)) {
-                        connections.push({
-                            p1: p,
-                            p2: p2,
-                            distance: distance,
-                            opacity: (1 - distance / (options.maxConnectionDistance * (1 + overallEnergy))) * p.opacity * p2.opacity
-                        });
-                    }
-                }
-            }
-            
-            // Draw particle trail using gradient
-            if (p.trail.length > 1) {
-                ctx.beginPath();
-                
-                // Create gradient for trail
-                const trailGradient = ctx.createLinearGradient(
-                    p.trail[0].x, p.trail[0].y,
-                    p.trail[p.trail.length - 1].x, p.trail[p.trail.length - 1].y
-                );
-                
-                const hue = p.hue + (trebleEnergy * 50);
-                trailGradient.addColorStop(0, `hsla(${hue}, 100%, 60%, ${p.opacity})`);
-                trailGradient.addColorStop(1, `hsla(${hue}, 100%, 60%, 0)`);
-                
-                ctx.strokeStyle = trailGradient;
-                ctx.lineWidth = currentSize / 2;
-                
-                ctx.moveTo(p.trail[0].x, p.trail[0].y);
-                for (let t = 1; t < p.trail.length; t++) {
-                    ctx.lineTo(p.trail[t].x, p.trail[t].y);
-                }
-                
-                ctx.stroke();
-            }
-            
-            // Draw particle
-            ctx.globalAlpha = p.opacity;
-            
-            // Create radial gradient for particle
-            const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, currentSize);
-            gradient.addColorStop(0, `hsla(${p.hue}, 100%, 70%, ${p.opacity})`);
-            gradient.addColorStop(1, `hsla(${p.hue}, 100%, 40%, 0)`);
-            
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, currentSize, 0, Math.PI * 2);
-            ctx.fill();
-        });
-        
-        // Draw connections
-        ctx.globalAlpha = 1;
-        
-        // Sort connections by distance (furthest first for better layering)
-        connections.sort((a, b) => b.distance - a.distance);
-        
-        // Limit the number of connections for performance
-        const maxConnections = Math.min(connections.length, Math.ceil(options.maxConnections * (1 + overallEnergy * 10)));
-        
-        for (let i = 0; i < maxConnections; i++) {
-            const c = connections[i];
-            
-            // Create gradient for connection
-            const gradient = ctx.createLinearGradient(c.p1.x, c.p1.y, c.p2.x, c.p2.y);
-            const hue1 = c.p1.hue;
-            const hue2 = c.p2.hue;
-            
-            gradient.addColorStop(0, `hsla(${hue1}, 100%, 60%, ${c.opacity})`);
-            gradient.addColorStop(1, `hsla(${hue2}, 100%, 60%, ${c.opacity})`);
-            
-            ctx.strokeStyle = gradient;
-            ctx.lineWidth = Math.max(0.5, Math.min(c.p1.size, c.p2.size) / 2 * c.opacity);
-            
-            ctx.beginPath();
-            ctx.moveTo(c.p1.x, c.p1.y);
-            ctx.lineTo(c.p2.x, c.p2.y);
-            ctx.stroke();
-        }
-        
-        // Draw pulsing background circle on bass hit
-        if (bassEnergy > 0.6) {
-            const pulseRadius = Math.min(canvas.width, canvas.height) * 0.3 * bassEnergy;
-            
-            const pulseGradient = ctx.createRadialGradient(
-                canvas.width / 2, canvas.height / 2, 0,
-                canvas.width / 2, canvas.height / 2, pulseRadius
-            );
-            
-            pulseGradient.addColorStop(0, `rgba(${parseInt(this.colorScheme.primary.slice(1, 3), 16)}, 
-                                            ${parseInt(this.colorScheme.primary.slice(3, 5), 16)}, 
-                                            ${parseInt(this.colorScheme.primary.slice(5, 7), 16)}, ${bassEnergy * 0.3})`);
-            pulseGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            
-            ctx.fillStyle = pulseGradient;
-            ctx.beginPath();
-            ctx.arc(canvas.width / 2, canvas.height / 2, pulseRadius, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        
-        // Reset global alpha
-        ctx.globalAlpha = 1;
-        
-        // Draw FPS counter
-        this.drawFPS(ctx, canvas.width, canvas.height);
-    }
-    
     // Render frequency waterfall
     renderWaterfall() {
         const canvas = this.canvases.waterfall;
@@ -1768,14 +1501,6 @@ window.addEventListener('DOMContentLoaded', () => {
     // Keep a reference to the constructor without initializing
     window.enhancedVisualizers = null;
     
-    // Only set up the LFO oscilloscope (which is lighter weight)
-    if (window.lfoOscilloscope) {
-        // Give a bit of time for the DOM to settle
-        setTimeout(() => {
-            window.lfoOscilloscope.handleResize();
-        }, 100);
-    }
-    
     // Add a patch to the EnhancedVisualizers prototype to implement on-demand canvas creation
     if (typeof EnhancedVisualizers !== 'undefined') {
         patchEnhancedVisualizersPrototype();
@@ -1985,8 +1710,8 @@ function patchEnhancedVisualizersPrototype() {
         const containerHeight = this.container ? this.container.clientHeight : 300;
         
         // Create placeholder objects with dimensions but no actual DOM elements
-        const visualizerIds = ['spectrum', 'waveform3d', 'particles', 'waterfall', 'circular', 
-                              'neural', 'terrain', 'vortex', 'fractal', 'bloom', 'holographic', 'caustics'];
+        const visualizerIds = ['spectrum', 'waveform3d','waterfall', 'circular', 
+                              'terrain', 'vortex', 'fractal', 'bloom', 'holographic', 'caustics'];
         
         visualizerIds.forEach(id => {
             // Create a canvas object but don't add it to the DOM
@@ -2069,15 +1794,6 @@ function patchEnhancedVisualizersPrototype() {
             canvas.style.display = 'block';
         }
         
-        // Special handling for visualizers that need resetting when shown
-        if (id === 'particles' && this.visualizers.particles) {
-            const options = this.visualizers.particles.options;
-            if (options.oldParticleCount) {
-                options.particleCount = options.oldParticleCount;
-                options.init(); // Reinitialize particles
-            }
-        }
-        
         // Reset performance metrics when changing visualizers
         this.performanceMetrics.frameCount = 0;
         this.performanceMetrics.startTime = performance.now();
@@ -2109,26 +1825,7 @@ function initEnhancedVisualizers() {
     if (window.enhancedVisualizers && !window.enhancedVisualizers.isInitialized) {
         window.enhancedVisualizers.init();
     }
-    
-    // Also ensure the LFO oscilloscope is properly initialized/reinitialized
-    if (window.lfoOscilloscope) {
-        if (!window.lfoOscilloscope.isInitialized) {
-            window.lfoOscilloscope.init();
-        }
-        
-        window.lfoOscilloscope.handleResize();
-        
-        // Update with current LFO values
-        const waveform = document.getElementById('lfoWaveform')?.value || 'sine';
-        const rate = parseFloat(document.getElementById('lfoRate')?.value || '1');
-        const amount = parseInt(document.getElementById('lfoAmount')?.value || '50') / 100;
-        const destination = document.getElementById('lfoDestination')?.value || 'off';
-        
-        window.lfoOscilloscope.updateParameters(waveform, rate, amount, destination);
-        
-        // Force a render to ensure the display is fresh
-        window.lfoOscilloscope.render(performance.now());
-    }
+
 }
 // Extend EnhancedVisualizers class with more advanced visualizations
 // Add these functions to the existing EnhancedVisualizers class
@@ -2140,63 +1837,6 @@ EnhancedVisualizers.prototype.initVisualizers = function() {
     originalInitVisualizers.call(this);
     
     // Add our new fancy visualizers
-    
-    // Neural Network visualizer
-    this.visualizers.neural = {
-        render: this.renderNeuralNetwork.bind(this),
-        animationFrame: null,
-        options: {
-            nodes: [],
-            connections: [],
-            nodeCount: 60,
-            initialConnectionCount: 100,
-            maxConnections: 200,
-            nodeSize: 4,
-            pulseSpeed: 0.05,
-            init: () => {
-                const options = this.visualizers.neural.options;
-                options.nodes = [];
-                options.connections = [];
-                
-                const width = this.canvases.neural.width;
-                const height = this.canvases.neural.height;
-                
-                // Create nodes with random positions
-                for (let i = 0; i < options.nodeCount; i++) {
-                    options.nodes.push({
-                        x: Math.random() * width,
-                        y: Math.random() * height,
-                        size: options.nodeSize * (0.5 + Math.random()),
-                        color: Math.random() > 0.5 ? this.colorScheme.secondary : this.colorScheme.primary,
-                        pulsePhase: Math.random() * Math.PI * 2,
-                        energy: 0,
-                        isActive: false
-                    });
-                }
-                
-                // Create initial connections
-                for (let i = 0; i < options.initialConnectionCount; i++) {
-                    const nodeA = Math.floor(Math.random() * options.nodes.length);
-                    let nodeB = Math.floor(Math.random() * options.nodes.length);
-                    
-                    // Avoid self-connections
-                    while (nodeB === nodeA) {
-                        nodeB = Math.floor(Math.random() * options.nodes.length);
-                    }
-                    
-                    options.connections.push({
-                        from: nodeA,
-                        to: nodeB,
-                        strength: Math.random(),
-                        active: false,
-                        pulsePosition: 0,
-                        direction: Math.random() > 0.5 ? 1 : -1,
-                        speed: 0.01 + Math.random() * 0.05
-                    });
-                }
-            }
-        }
-    };
     
     // Audio Terrain (3D landscape) visualizer
     this.visualizers.terrain = {
@@ -2431,7 +2071,6 @@ EnhancedVisualizers.prototype.initVisualizers = function() {
     };
     
     // Initialize the new visualizers if needed
-    this.visualizers.neural.options.init();
     this.visualizers.terrain.options.init();
     this.visualizers.vortex.options.init();
     this.visualizers.bloom.options.init();
@@ -2450,7 +2089,7 @@ EnhancedVisualizers.prototype.createToolbar = function() {
     if (visualizerSelector) {
         // Add our new visualizer options
         const newOptions = [
-            { id: 'neural', label: 'Neural Network' },
+            // { id: 'neural', label: 'Neural Network' },
             // { id: 'terrain', label: 'Audio Terrain' },
             { id: 'vortex', label: 'Vortex Tunnel' },
             // { id: 'fractal', label: 'Fractal Aurora' },
@@ -2475,7 +2114,7 @@ EnhancedVisualizers.prototype.initCanvases = function() {
     originalInitCanvases.call(this);
     
     // Add canvases for our new visualizers
-    const newVisualizerIds = ['neural', 'terrain', 'vortex', 'fractal', 'bloom', 'holographic', 'caustics'];
+    const newVisualizerIds = ['terrain', 'vortex', 'fractal', 'bloom', 'holographic', 'caustics'];
     
     newVisualizerIds.forEach(id => {
         const canvas = document.createElement('canvas');
@@ -2503,192 +2142,6 @@ EnhancedVisualizers.prototype.initCanvases = function() {
         // Add canvas to container
         this.container.appendChild(canvas);
     });
-};
-
-// 1. Neural Network Visualization
-EnhancedVisualizers.prototype.renderNeuralNetwork = function() {
-    const canvas = this.canvases.neural;
-    const ctx = this.contexts.neural;
-    const options = this.visualizers.neural.options;
-    
-    // Get audio data - use global analyzer if available, fall back to local one
-    const fftData = (window.fft || this.fft).getValue();
-    
-    // Calculate energy in different frequency bands
-    const bassEnergy = this.getFrequencyBandEnergy(fftData, 0, 10);
-    const midEnergy = this.getFrequencyBandEnergy(fftData, 20, 60);
-    const trebleEnergy = this.getFrequencyBandEnergy(fftData, 80, 120);
-    const overallEnergy = (bassEnergy * 3 + midEnergy + trebleEnergy) / 5;
-    
-    // Clear canvas with fade effect
-    ctx.fillStyle = `rgba(${parseInt(this.colorScheme.background.slice(1, 3), 16)}, 
-                          ${parseInt(this.colorScheme.background.slice(3, 5), 16)}, 
-                          ${parseInt(this.colorScheme.background.slice(5, 7), 16)}, 0.1)`;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Update node pulses
-    options.nodes.forEach((node, i) => {
-        node.pulsePhase += options.pulseSpeed * (1 + overallEnergy);
-        
-        // Get specific frequency data for this node
-        const fftIndex = Math.floor((i / options.nodes.length) * (fftData.length / 4));
-        const value = this.normalizeFFTValue(fftData[fftIndex]);
-        
-        // Update node energy
-        node.energy = node.energy * 0.9 + value * 0.1;
-        
-        // Detect audio peaks to activate nodes
-        if (value > 0.7 && Math.random() < value * 0.2) {
-            node.isActive = true;
-            
-            // Activate random connections from this node
-            const nodeConnections = options.connections.filter(c => c.from === i || c.to === i);
-            if (nodeConnections.length > 0) {
-                const connection = nodeConnections[Math.floor(Math.random() * nodeConnections.length)];
-                connection.active = true;
-                connection.pulsePosition = 0;
-            }
-        } else {
-            node.isActive = node.isActive && Math.random() > 0.05;
-        }
-    });
-    
-    // Update connections and draw them first (so they're behind the nodes)
-    options.connections.forEach(connection => {
-        const nodeA = options.nodes[connection.from];
-        const nodeB = options.nodes[connection.to];
-        
-        // Calculate distance
-        const dx = nodeB.x - nodeA.x;
-        const dy = nodeB.y - nodeA.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // Update pulse position
-        if (connection.active) {
-            connection.pulsePosition += connection.speed * (1 + overallEnergy);
-            if (connection.pulsePosition >= 1) {
-                connection.pulsePosition = 0;
-                connection.active = Math.random() < 0.3; // 30% chance to keep active
-            }
-        }
-        
-        // Draw connection
-        ctx.beginPath();
-        
-        // Create gradient based on nodes
-        const gradient = ctx.createLinearGradient(nodeA.x, nodeA.y, nodeB.x, nodeB.y);
-        gradient.addColorStop(0, this.hexToRgba(nodeA.color, 0.1 + nodeA.energy * 0.3));
-        gradient.addColorStop(1, this.hexToRgba(nodeB.color, 0.1 + nodeB.energy * 0.3));
-        
-        ctx.strokeStyle = gradient;
-        ctx.lineWidth = 1 + connection.strength * 2 * overallEnergy;
-        
-        ctx.moveTo(nodeA.x, nodeA.y);
-        ctx.lineTo(nodeB.x, nodeB.y);
-        ctx.stroke();
-        
-        // Draw pulse on active connections
-        if (connection.active) {
-            const pulsePos = connection.direction > 0 ? 
-                             connection.pulsePosition : 
-                             1 - connection.pulsePosition;
-            
-            const pulseX = nodeA.x + dx * pulsePos;
-            const pulseY = nodeA.y + dy * pulsePos;
-            
-            // Create pulse gradient
-            const pulseSize = 2 + 4 * overallEnergy;
-            const pulseGradient = ctx.createRadialGradient(
-                pulseX, pulseY, 0,
-                pulseX, pulseY, pulseSize * 2
-            );
-            
-            const pulseColor = connection.direction > 0 ? nodeA.color : nodeB.color;
-            pulseGradient.addColorStop(0, this.hexToRgba(pulseColor, 0.8));
-            pulseGradient.addColorStop(1, this.hexToRgba(pulseColor, 0));
-            
-            ctx.fillStyle = pulseGradient;
-            ctx.beginPath();
-            ctx.arc(pulseX, pulseY, pulseSize * 2, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    });
-    
-    // Draw nodes
-    options.nodes.forEach(node => {
-        // Calculate pulsing effect
-        const pulse = Math.sin(node.pulsePhase) * 0.5 + 0.5;
-        const size = node.size * (1 + pulse * 0.5 + node.energy * 2);
-        
-        // Create node gradient
-        const gradient = ctx.createRadialGradient(
-            node.x, node.y, 0,
-            node.x, node.y, size * 2
-        );
-        
-        const alpha = 0.2 + node.energy * 0.8 + (node.isActive ? 0.5 : 0);
-        
-        gradient.addColorStop(0, this.hexToRgba(node.color, alpha));
-        gradient.addColorStop(0.5, this.hexToRgba(node.color, alpha * 0.5));
-        gradient.addColorStop(1, this.hexToRgba(node.color, 0));
-        
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, size * 2, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Draw node core
-        ctx.fillStyle = this.hexToRgba(node.color, 0.8 + node.energy * 0.2);
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, size * 0.8, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Add highlight
-        if (node.isActive) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.beginPath();
-            ctx.arc(node.x - size * 0.3, node.y - size * 0.3, size * 0.2, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    });
-    
-    // Create new random connections occasionally based on audio energy
-    if (Math.random() < 0.01 + bassEnergy * 0.1 && options.connections.length < options.maxConnections) {
-        const nodeA = Math.floor(Math.random() * options.nodes.length);
-        let nodeB = Math.floor(Math.random() * options.nodes.length);
-        
-        // Avoid self-connections
-        while (nodeB === nodeA) {
-            nodeB = Math.floor(Math.random() * options.nodes.length);
-        }
-        
-        // Check if this connection already exists
-        const connectionExists = options.connections.some(c => 
-            (c.from === nodeA && c.to === nodeB) || 
-            (c.from === nodeB && c.to === nodeA)
-        );
-        
-        if (!connectionExists) {
-            options.connections.push({
-                from: nodeA,
-                to: nodeB,
-                strength: 0.3 + Math.random() * 0.7,
-                active: true,
-                pulsePosition: 0,
-                direction: Math.random() > 0.5 ? 1 : -1,
-                speed: 0.01 + Math.random() * 0.05
-            });
-        }
-    }
-    
-    // Remove random connections occasionally
-    if (options.connections.length > options.initialConnectionCount && Math.random() < 0.005) {
-        const randomIndex = Math.floor(Math.random() * options.connections.length);
-        options.connections.splice(randomIndex, 1);
-    }
-    
-    // Draw FPS counter
-    this.drawFPS(ctx, canvas.width, canvas.height);
 };
 
 // 2. Audio Terrain (3D landscape) Visualization
@@ -4019,438 +3472,3 @@ EnhancedVisualizers.prototype.hslToRgb = function(h, s, l) {
         b: Math.round(b * 255)
     };
 };
-// Add LFO Oscilloscope Visualizer
-class LfoOscilloscope {
-    constructor(containerSelector = '.lfo-visualizer-container') {
-        // Basic setup
-        this.container = document.querySelector(containerSelector);
-        this.isInitialized = false;
-        this.isActive = false;
-        this.lastFrameTime = 0;
-        this.isVisible = false;  // Add this property to track visibility
-        
-        // LFO parameters
-        this.waveform = 'sine';
-        this.rate = 1.0;
-        this.amount = 0.5;
-        this.destination = 'off';
-        this.isRunning = false;
-        
-        // Rendering options
-        this.colors = {
-            sine: {
-                main: '#00e5ff',
-                shadow: '#00e5ff',
-                fill: 'rgba(0, 229, 255, 0.2)',
-                fillBottom: 'rgba(0, 229, 255, 0.05)'
-            },
-            square: {
-                main: '#ff1744',
-                shadow: '#ff1744',
-                fill: 'rgba(255, 23, 68, 0.2)',
-                fillBottom: 'rgba(255, 23, 68, 0.05)'
-            },
-            triangle: {
-                main: '#00c853',
-                shadow: '#00c853',
-                fill: 'rgba(0, 200, 83, 0.2)',
-                fillBottom: 'rgba(0, 200, 83, 0.05)'
-            },
-            sawtooth: {
-                main: '#ffab00',
-                shadow: '#ffab00',
-                fill: 'rgba(255, 171, 0, 0.2)',
-                fillBottom: 'rgba(255, 171, 0, 0.05)'
-            },
-            random: {
-                main: '#d500f9',
-                shadow: '#d500f9',
-                fill: 'rgba(213, 0, 249, 0.2)',
-                fillBottom: 'rgba(213, 0, 249, 0.05)'
-            }
-        };
-        
-        // Waveform generators
-        this.waveformFunctions = {
-            sine: (t, centerY, amplitude) => centerY - Math.sin(t) * amplitude,
-            square: (t, centerY, amplitude) => centerY - (Math.sin(t) > 0 ? 1 : -1) * amplitude,
-            triangle: (t, centerY, amplitude) => centerY - (Math.asin(Math.sin(t)) * (2 / Math.PI)) * amplitude,
-            sawtooth: (t, centerY, amplitude) => centerY - ((t % (Math.PI * 2)) / Math.PI - 1) * amplitude,
-            random: (t, centerY, amplitude) => {
-                const segment = Math.floor(t / (Math.PI / 4)); // Change every 1/8th of cycle
-                return centerY - (Math.sin(segment * 1000) * 2 - 1) * amplitude;
-            }
-        };
-        
-        // Animation state
-        this.animationFrame = null;
-        this.cyclesShown = 2;
-        
-        // Initialize if container exists
-        if (this.container) {
-            this.init();
-        }
-    }
-    
-    init() {
-        if (this.isInitialized) return;
-        
-        // Create canvas if needed
-        if (!this.canvas) {
-            this.canvas = document.createElement('canvas');
-            this.canvas.className = 'lfo-scope-canvas';
-            this.canvas.width = this.container.clientWidth || 300;
-            this.canvas.height = this.container.clientHeight || 80;
-            this.container.appendChild(this.canvas);
-            this.ctx = this.canvas.getContext('2d');
-        }
-        
-        // Set up resize handler
-        window.addEventListener('resize', () => this.handleResize());
-        
-        // Connect to LFO controls
-        this.connectControls();
-        
-        this.isInitialized = true;
-        
-        // Check if container is visible
-        this.checkVisibility();
-        
-        // Initial render
-        this.render(performance.now());
-    }
-    
-    // Check if the container is visible
-    checkVisibility() {
-        if (!this.container) return false;
-        
-        // Check if container is visible
-        const rect = this.container.getBoundingClientRect();
-        const isVisible = rect.width > 0 && 
-                         rect.height > 0 && 
-                         this.container.style.display !== 'none' &&
-                         getComputedStyle(this.container).visibility !== 'hidden';
-        
-        this.isVisible = isVisible;
-        return isVisible;
-    }
-    
-    connectControls() {
-        // Find LFO control elements
-        this.controls = {
-            waveform: document.getElementById('lfoWaveform'),
-            rate: document.getElementById('lfoRate'),
-            amount: document.getElementById('lfoAmount'),
-            destination: document.getElementById('lfoDestination')
-        };
-        
-        // Add event listeners
-        if (this.controls.waveform) {
-            this.controls.waveform.addEventListener('change', () => {
-                this.waveform = this.controls.waveform.value;
-                this.render(performance.now()); // Force immediate update
-            });
-        }
-        
-        if (this.controls.rate) {
-            this.controls.rate.addEventListener('input', () => {
-                this.rate = parseFloat(this.controls.rate.value);
-                this.render(performance.now()); // Force immediate update
-            });
-        }
-        
-        if (this.controls.amount) {
-            this.controls.amount.addEventListener('input', () => {
-                this.amount = parseInt(this.controls.amount.value) / 100;
-                this.render(performance.now()); // Force immediate update
-            });
-        }
-        
-        if (this.controls.destination) {
-            this.controls.destination.addEventListener('change', () => {
-                this.destination = this.controls.destination.value;
-                this.isRunning = this.destination !== 'off';
-                this.render(performance.now()); // Force immediate update
-                
-                // Make sure animation runs when destination changes to valid value
-                if (this.isRunning && !this.isActive) {
-                    this.start();
-                } else if (!this.isRunning && this.isActive) {
-                    this.stop();
-                }
-            });
-        }
-        
-        // Initial values
-        if (this.controls.waveform) this.waveform = this.controls.waveform.value;
-        if (this.controls.rate) this.rate = parseFloat(this.controls.rate.value);
-        if (this.controls.amount) this.amount = parseInt(this.controls.amount.value) / 100;
-        if (this.controls.destination) {
-            this.destination = this.controls.destination.value;
-            this.isRunning = this.destination !== 'off';
-        }
-    }
-    
-    start() {
-        if (this.isActive) return;
-        
-        // Check if container is visible first
-        this.checkVisibility();
-        if (!this.isVisible) {
-            console.log('Enhanced LFO oscilloscope not started - container not visible');
-            return;
-        }
-        
-        this.isActive = true;
-        this.animationLoop();
-        console.log('Enhanced LFO oscilloscope started');
-    }
-    
-    stop() {
-        this.isActive = false;
-        if (this.animationFrame) {
-            cancelAnimationFrame(this.animationFrame);
-            this.animationFrame = null;
-        }
-        console.log('Enhanced LFO oscilloscope stopped');
-    }
-    
-    animationLoop() {
-        if (!this.isActive) return;
-        
-        // Periodically check visibility (every ~1 second)
-        if (Math.random() < 0.05) {
-            this.checkVisibility();
-            if (!this.isVisible) {
-                console.log('Enhanced LFO oscilloscope stopping - container no longer visible');
-                this.stop();
-                return;
-            }
-        }
-        
-        const now = performance.now();
-        this.render(now);
-        
-        this.animationFrame = requestAnimationFrame(() => this.animationLoop());
-    }
-    
-    render(timestamp) {
-        if (!this.ctx || !this.canvas) return;
-        
-        const width = this.canvas.width;
-        const height = this.canvas.height;
-        const centerY = height / 2;
-        
-        // Check if container is visible - if not, don't waste resources rendering
-        this.checkVisibility();
-        if (!this.isVisible) {
-            return;
-        }
-        
-        // Clear canvas
-        this.ctx.clearRect(0, 0, width, height);
-        
-        // Draw background
-        this.ctx.fillStyle = 'rgba(15, 15, 25, 0.9)';
-        this.ctx.fillRect(0, 0, width, height);
-        
-        // Draw grid
-        this.drawGrid(width, height, centerY);
-        
-        // Calculate time and amplitude
-        const now = timestamp / 1000; // seconds
-        const waveOffset = now * this.rate * Math.PI * 2;
-        const amplitude = (height / 2) * 0.8 * this.amount;
-        
-        // Get color scheme and generator function
-        const colorScheme = this.colors[this.waveform] || this.colors.sine;
-        const generateY = this.waveformFunctions[this.waveform] || this.waveformFunctions.sine;
-        
-        // Generate points
-        const points = [];
-        const step = Math.max(1, Math.floor(width / 300));
-        
-        for (let x = 0; x <= width; x += step) {
-            const t = (x / width) * (this.cyclesShown * Math.PI * 2) + waveOffset;
-            const y = generateY(t, centerY, amplitude);
-            points.push({ x, y });
-        }
-        
-        // Draw waveform
-        this.drawWaveform(points, width, height, centerY, colorScheme);
-        
-        // Draw playhead
-        this.drawPlayhead(now, width, height);
-        
-        // Draw information
-        this.drawInfo(width, height);
-    }
-    
-    drawGrid(width, height, centerY) {
-        // Draw horizontal center line
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, centerY);
-        this.ctx.lineTo(width, centerY);
-        this.ctx.strokeStyle = 'rgba(150, 150, 200, 0.4)';
-        this.ctx.lineWidth = 1;
-        this.ctx.stroke();
-        
-        // Draw additional horizontal grid lines
-        this.ctx.beginPath();
-        this.ctx.strokeStyle = 'rgba(100, 100, 150, 0.15)';
-        this.ctx.moveTo(0, height * 0.25);
-        this.ctx.lineTo(width, height * 0.25);
-        this.ctx.moveTo(0, height * 0.75);
-        this.ctx.lineTo(width, height * 0.75);
-        this.ctx.stroke();
-        
-        // Draw vertical grid lines
-        this.ctx.beginPath();
-        for (let i = 0; i <= 8; i++) {
-            const x = (i / 8) * width;
-            this.ctx.moveTo(x, 0);
-            this.ctx.lineTo(x, height);
-        }
-        this.ctx.stroke();
-    }
-    
-    drawWaveform(points, width, height, centerY, colorScheme) {
-        if (points.length === 0) return;
-        
-        // Fill area under the curve
-        this.ctx.beginPath();
-        this.ctx.moveTo(0, centerY);
-        
-        points.forEach(point => {
-            this.ctx.lineTo(point.x, point.y);
-        });
-        
-        this.ctx.lineTo(width, centerY);
-        this.ctx.closePath();
-        
-        // Apply fill gradient
-        const fillGradient = this.ctx.createLinearGradient(0, 0, 0, height);
-        fillGradient.addColorStop(0, colorScheme.fill);
-        fillGradient.addColorStop(1, colorScheme.fillBottom);
-        this.ctx.fillStyle = fillGradient;
-        this.ctx.fill();
-        
-        // Draw the line
-        this.ctx.beginPath();
-        this.ctx.moveTo(points[0].x, points[0].y);
-        
-        for (let i = 1; i < points.length; i++) {
-            this.ctx.lineTo(points[i].x, points[i].y);
-        }
-        
-        this.ctx.strokeStyle = colorScheme.main;
-        this.ctx.lineWidth = 2;
-        this.ctx.shadowColor = colorScheme.shadow;
-        this.ctx.shadowBlur = 4;
-        this.ctx.stroke();
-        
-        // Reset shadow
-        this.ctx.shadowBlur = 0;
-    }
-    
-    drawPlayhead(now, width, height) {
-        const cyclePosition = (now * this.rate) % 1;
-        const playheadX = cyclePosition * (width / this.cyclesShown);
-        
-        this.ctx.beginPath();
-        this.ctx.moveTo(playheadX, 0);
-        this.ctx.lineTo(playheadX, height);
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-        this.ctx.lineWidth = 1;
-        this.ctx.stroke();
-    }
-    
-    drawInfo(width, height) {
-        // Add frequency and destination info
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        this.ctx.font = '10px sans-serif';
-        
-        // Rate value on right
-        this.ctx.textAlign = 'right';
-        this.ctx.fillText(`${this.rate.toFixed(1)} Hz`, width - 5, height - 5);
-        
-        // Destination on left (if active)
-        if (this.isRunning && this.destination !== 'off') {
-            this.ctx.textAlign = 'left';
-            this.ctx.fillText(this.destination, 5, height - 5);
-        }
-    }
-    
-    handleResize() {
-        if (!this.canvas || !this.container) return;
-        
-        // Check visibility
-        this.checkVisibility();
-        
-        // Only update dimensions if container is visible
-        if (!this.isVisible) {
-            return;
-        }
-        
-        // Update canvas dimensions
-        const newWidth = this.container.clientWidth || 300;
-        const newHeight = this.container.clientHeight || 80;
-        
-        if (this.canvas.width !== newWidth || this.canvas.height !== newHeight) {
-            this.canvas.width = newWidth;
-            this.canvas.height = newHeight;
-            
-            // Force a render update
-            this.render(performance.now());
-        }
-    }
-    
-    // External API to update LFO parameters
-    updateParameters(waveform, rate, amount, destination) {
-        let needsUpdate = false;
-        
-        if (waveform !== undefined && this.waveform !== waveform) {
-            this.waveform = waveform;
-            needsUpdate = true;
-        }
-        
-        if (rate !== undefined && this.rate !== rate) {
-            this.rate = rate;
-            needsUpdate = true;
-        }
-        
-        if (amount !== undefined && this.amount !== amount) {
-            this.amount = amount;
-            needsUpdate = true;
-        }
-        
-        if (destination !== undefined && this.destination !== destination) {
-            this.destination = destination;
-            this.isRunning = destination !== 'off';
-            needsUpdate = true;
-            
-            // Start or stop animation based on destination
-            if (this.isRunning && !this.isActive && this.checkVisibility()) {
-                this.start();
-            } else if (!this.isRunning && this.isActive) {
-                this.stop();
-            }
-        }
-        
-        // Update immediately if needed
-        if (needsUpdate) {
-            this.render(performance.now());
-        }
-    }
-    
-    // Helper method to check if the visualizer is visible
-    isVisible() {
-        return this.checkVisibility();
-    }
-}
-
-// Create the global instance
-window.lfoOscilloscope = new LfoOscilloscope();
-
-// Export the function for manual initialization
-window.initEnhancedVisualizers = initEnhancedVisualizers;
