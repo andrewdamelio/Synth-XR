@@ -10,7 +10,8 @@ import {
     addNoteToArpeggiator,
     removeNoteFromArpeggiator,
     updateArpeggiatorOctave,
-    stopArpeggiator
+    stopArpeggiator,
+    clearArpeggiatorNotes
 } from './arpeggiator.js';
 
 
@@ -5311,8 +5312,11 @@ function setupChordPads() {
             };
             
             if (isArpeggiatorEnabled) {
-                // Add all chord notes to arpeggiator
-                notes.forEach(note => addNoteToArpeggiator(note));
+                // Clear previous arpeggiator notes first
+                clearArpeggiatorNotes();
+                
+                // Add all chord notes to arpeggiator, with isQuickChord=true flag
+                notes.forEach(note => addNoteToArpeggiator(note, false));
             } else if (holdModeActive) {
                 // In hold mode, just trigger attack without automatic release
                 synth.triggerAttack(notes);

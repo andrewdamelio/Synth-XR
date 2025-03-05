@@ -468,42 +468,84 @@ function playArpeggiatorStep(synth) {
   }
 }
 
-// Add a note to the arpeggiator
-function addNoteToArpeggiator(note) {
+// Clear all current arpeggiator notes and release any that are playing
+function clearArpeggiatorNotes() {
   try {
-    // Check if this is a computer-keyboard generated note that needs octave adjustment
-    // Notes from keyboard follow pattern like 'C4', 'D#5', etc.
-    const match = note.match(/([A-G][#b]?)(\d+)/);
-    if (match) {
-      const noteName = match[1];
-      const noteOctave = parseInt(match[2]);
-      
-      // If global currentOctave exists and differs from the note's octave,
-      // adjust the note to use the current global octave
-      if (window.currentOctave !== undefined && noteOctave !== window.currentOctave) {
-        note = noteName + window.currentOctave;
+    // Release any currently playing arp note
+    if (lastArpNote && window.synth && !window.synth.disposed) {
+      try {
+        window.synth.triggerRelease(lastArpNote);
+        lastArpNote = null;
+      } catch (e) {
+        console.warn("Error releasing last arp note:", e);
       }
     }
     
-    // Continue with regular note handling
-    if (!arpeggiatorNotes.includes(note)) {
-      arpeggiatorNotes.push(note);
-      
-      // Sort notes by pitch
-      arpeggiatorNotes.sort((a, b) => {
-        const aPitch = noteToPitch(a);
-        const bPitch = noteToPitch(b);
-        return aPitch - bPitch;
-      });
-      
-      // If this is the first note and arpeggiator is enabled, start playing
-      if (arpeggiatorNotes.length === 1 && isArpeggiatorEnabled && !timerID) {
-        startArpeggiator(window.activeNotes);
+    // Clean up any active notes tracked in the Map
+    activeArpNotes.forEach((noteInfo, id) => {
+      if (noteInfo.timeoutId) {
+        clearTimeout(noteInfo.timeoutId);
       }
-    }
+      
+      // Also ensure the note itself is released
+      if (noteInfo.note && window.synth && !window.synth.disposed) {
+        try {
+          window.synth.triggerRelease(noteInfo.note);
+        } catch (e) {
+          // Ignore errors on release
+        }
+      }
+    });
+    activeArpNotes.clear();
+    
+    // Clear the arpeggiator notes array
+    arpeggiatorNotes = [];
+    
+    console.log("Cleared all arpeggiator notes");
   } catch (error) {
-    console.error("Error adding note to arpeggiator:", error);
+    console.error("Error clearing arpeggiator notes:", error);
   }
+}
+
+// Modify addNoteToArpeggiator to not clear on every note
+function addNoteToArpeggiator(note, isQuickChord = false) {
+    try {
+        // We're no longer clearing notes here for each isQuickChord=true
+        // The caller (playChord) will handle clearing before adding the chord
+        
+        // Check if this is a computer-keyboard generated note that needs octave adjustment
+        // Notes from keyboard follow pattern like 'C4', 'D#5', etc.
+        const match = note.match(/([A-G][#b]?)(\d+)/);
+        if (match) {
+            const noteName = match[1];
+            const noteOctave = parseInt(match[2]);
+            
+            // If global currentOctave exists and differs from the note's octave,
+            // adjust the note to use the current global octave
+            if (window.currentOctave !== undefined && noteOctave !== window.currentOctave) {
+                note = noteName + window.currentOctave;
+            }
+        }
+        
+        // Continue with regular note handling
+        if (!arpeggiatorNotes.includes(note)) {
+            arpeggiatorNotes.push(note);
+            
+            // Sort notes by pitch
+            arpeggiatorNotes.sort((a, b) => {
+                const aPitch = noteToPitch(a);
+                const bPitch = noteToPitch(b);
+                return aPitch - bPitch;
+            });
+            
+            // If this is the first note and arpeggiator is enabled, start playing
+            if (arpeggiatorNotes.length === 1 && isArpeggiatorEnabled && !timerID) {
+                startArpeggiator(window.activeNotes);
+            }
+        }
+    } catch (error) {
+        console.error("Error adding note to arpeggiator:", error);
+    }
 }
 
 // Remove a note from the arpeggiator
@@ -623,5 +665,6 @@ export {
     stopArpeggiator,
     addNoteToArpeggiator,
     removeNoteFromArpeggiator,
-    updateArpeggiatorOctave
+    updateArpeggiatorOctave,
+    clearArpeggiatorNotes
 };
