@@ -5315,8 +5315,8 @@ function setupChordPads() {
                 // Clear previous arpeggiator notes first
                 clearArpeggiatorNotes();
                 
-                // Add all chord notes to arpeggiator, with isQuickChord=true flag
-                notes.forEach(note => addNoteToArpeggiator(note, false));
+                // Add all chord notes to arpeggiator
+                notes.forEach(note => addNoteToArpeggiator(note));
             } else if (holdModeActive) {
                 // In hold mode, just trigger attack without automatic release
                 synth.triggerAttack(notes);

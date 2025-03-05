@@ -508,11 +508,8 @@ function clearArpeggiatorNotes() {
 }
 
 // Modify addNoteToArpeggiator to not clear on every note
-function addNoteToArpeggiator(note, isQuickChord = false) {
+function addNoteToArpeggiator(note) {
     try {
-        // We're no longer clearing notes here for each isQuickChord=true
-        // The caller (playChord) will handle clearing before adding the chord
-        
         // Check if this is a computer-keyboard generated note that needs octave adjustment
         // Notes from keyboard follow pattern like 'C4', 'D#5', etc.
         const match = note.match(/([A-G][#b]?)(\d+)/);
