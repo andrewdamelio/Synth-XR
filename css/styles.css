@@ -2828,3 +2828,37 @@ input[type="range"] {
         padding: 6px 8px;
     }
 }
+
+.chord-hold-button {
+    background-color: #444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 10px 0;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+.chord-hold-button.active {
+    background-color: #e91e63;
+}
+
+.chord-hold-button:hover {
+    background-color: #555;
+}
+
+.chord-hold-button.active:hover {
+    background-color: #d81b60;
+}
+
+.hold-button-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.chord-highlighted.hold-active {
+    box-shadow: 0 0 10px rgba(255, 64, 129, 0.8);
+}

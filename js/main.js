@@ -5141,6 +5141,45 @@ function setupChordPads() {
     let selectedChordType = null;
     let selectedNote = null;
     let activeChordTimeout = null;
+    // Add hold state variable
+    let holdModeActive = false;
+    let lastPlayedChord = null;
+
+    // Create HOLD button after the chord pads
+    const chordPadContainer = document.querySelector('.chord-buttons') || noteButtons[0].parentElement.parentElement;
+    
+    if (chordPadContainer) {
+        // Create a container for the hold button
+        const holdBtnContainer = document.createElement('div');
+        holdBtnContainer.className = 'hold-button-container';
+        
+        // Create the hold button
+        const holdBtn = document.createElement('button');
+        holdBtn.id = 'chordHoldButton';
+        holdBtn.className = 'chord-hold-button';
+        holdBtn.innerHTML = '<i class="fas fa-hand-paper"></i> HOLD';
+        holdBtn.title = 'Toggle chord hold mode';
+        
+        // Add to DOM
+        holdBtnContainer.appendChild(holdBtn);
+        chordPadContainer.parentNode.insertBefore(holdBtnContainer, chordPadContainer.nextSibling);
+        
+        // Add click event for toggling hold mode
+        holdBtn.addEventListener('click', function() {
+            holdModeActive = !holdModeActive;
+            this.classList.toggle('active', holdModeActive);
+            
+            // If turning hold off, release any currently held chord
+            if (!holdModeActive && lastPlayedChord) {
+                if (synth && !synth.disposed) {
+                    synth.releaseAll();
+                    activeNotes.clear();
+                    removeKeyboardHighlights();
+                }
+                lastPlayedChord = null;
+            }
+        });
+    }
 
     // Add click event to chord buttons
     chordButtons.forEach(button => {
@@ -5182,10 +5221,12 @@ function setupChordPads() {
 
     // Function to highlight keyboard keys for a chord
     function highlightChordOnKeyboard(notes) {
-        // First remove any existing highlighted chord
+        // Always remove any existing highlighted chord regardless of activeChordTimeout
+        removeKeyboardHighlights();
+        
+        // If there was an active timeout, clear it
         if (activeChordTimeout) {
             clearTimeout(activeChordTimeout);
-            removeKeyboardHighlights();
         }
 
         // For each note in the chord, find and highlight the corresponding key
@@ -5195,7 +5236,6 @@ function setupChordPads() {
             const octave = parseInt(noteWithOctave.match(/\d+$/)[0]);
 
             // Find the key corresponding to this note
-            // The selector will depend on how your keyboard keys are structured
             let keyElement;
 
             // Try different potential selectors based on common implementations
@@ -5210,14 +5250,16 @@ function setupChordPads() {
             }
         });
 
-        // Set a timeout to remove highlights after a short duration
-        activeChordTimeout = setTimeout(removeKeyboardHighlights, 500);
+        // Only set a timeout to remove highlights if not in hold mode
+        if (!holdModeActive) {
+            activeChordTimeout = setTimeout(removeKeyboardHighlights, 500);
+        }
     }
 
     // Function to remove keyboard highlights
     function removeKeyboardHighlights() {
         document.querySelectorAll('.chord-highlighted').forEach(key => {
-            key.classList.remove('active', 'chord-highlighted');
+            key.classList.remove('active', 'chord-highlighted', 'hold-active');
         });
     }
 
@@ -5254,15 +5296,38 @@ function setupChordPads() {
             // Highlight the chord on the keyboard
             highlightChordOnKeyboard(notes);
 
-            // Check if we need to release any currently playing notes to prevent exceeding polyphony
+            // Check if we need to release any currently playing notes
             if (activeNotes.size > 0) {
                 // Release any currently active notes before playing the chord
                 synth.releaseAll();
                 activeNotes.clear();
             }
             
-            // Play the chord using the synth with error handling
-            synth.triggerAttackRelease(notes, "8n");
+            // Store the current chord as the last played chord
+            lastPlayedChord = {
+                note: note,
+                chordType: chordType,
+                notes: notes
+            };
+            
+            if (isArpeggiatorEnabled) {
+                // Add all chord notes to arpeggiator
+                notes.forEach(note => addNoteToArpeggiator(note));
+            } else if (holdModeActive) {
+                // In hold mode, just trigger attack without automatic release
+                synth.triggerAttack(notes);
+                // Keep highlighting active
+                document.querySelectorAll('.chord-highlighted').forEach(key => {
+                    key.classList.add('hold-active');
+                });
+                if (activeChordTimeout) {
+                    clearTimeout(activeChordTimeout);
+                    activeChordTimeout = null;
+                }
+            } else {
+                // Regular mode - trigger with automatic release
+                synth.triggerAttackRelease(notes, "8n");
+            }
             
             // Keep track of chord notes for proper release later
             notes.forEach(note => activeNotes.add(note));
