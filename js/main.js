@@ -4862,11 +4862,11 @@ function setupChordPads() {
                 frequency: 200,
                 Q: 1
             },
-            volume: -12
+            volume: 6
         }).connect(filter);
 
         const octave = parseInt(document.getElementById('currentOctave').textContent.replace(/\D/g, ''));
-        const bassOctave = Math.max(1, octave - 1);
+        const bassOctave = Math.max(1, octave - 2);
         const bassNote = `${rootNote}${bassOctave}`;
 
         if (duration) {

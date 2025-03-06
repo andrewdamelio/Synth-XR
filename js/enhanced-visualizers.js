@@ -1273,7 +1273,6 @@ class VisualizerBase {
         try {
             this.render(ctx, canvas);
         } catch (error) {
-            console.error(`Error rendering ${this.id} visualizer:`, error);
             // Draw a simple error state
             this.renderErrorState(ctx, canvas);
         }
