@@ -1739,8 +1739,8 @@ input[type="range"] {
 /* Rest of the Quick Chord module styles */
 .chord-controls-container {
     display: flex;
-    flex-direction: column;
     gap: 12px;
+    justify-content: center;
 }
 
 .chord-controls {
@@ -1788,6 +1788,10 @@ input[type="range"] {
     background: var(--primary);
     color: white;
     box-shadow: var(--glow-primary);
+}
+
+.bass-highlighted {
+    background: var(--primary-light) !important; /* Distinct color for bass note */
 }
 
 /* For smaller screens, make buttons wrap better */
@@ -2827,4 +2831,115 @@ input[type="range"] {
     .help-command {
         padding: 6px 8px;
     }
+}
+
+.chord-hold-button, .bass-note-button {
+    background-color: #444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 10px 0;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+.chord-hold-button.active, .bass-note-button.active {
+    background-color: #e91e63;
+}
+
+.chord-hold-button:hover, .bass-note-button:hover {
+    background-color: #555;
+}
+
+.chord-hold-button.active:hover, .bass-note-button.active:hover {
+    background-color: #d81b60;
+}
+
+.hold-button-container, .bass-button-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.chord-highlighted.hold-active {
+    box-shadow: 0 0 10px rgba(255, 64, 129, 0.8);
+}
+
+
+#enhanced-visualizers-container {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    background: #121212;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.visualizer-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+}
+
+.visualizer-toolbar {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    height: 40px;
+    display: flex;
+    alignItems: center;
+    justifyContent: space-between;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+    transition: opacity 0.3s ease;
+    opacity: 0.3;
+}
+
+.visualizer-toolbar:hover {
+    opacity: 1;
+}
+
+.visualizer-selector,
+.color-scheme-selector {
+    background: rgba(30, 30, 30, 0.7);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+}
+
+.fullscreen-button {
+    background: rgba(30, 30, 30, 0.7);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    alignItems: center;
+    justifyContent: center;
+}
+
+.visualizer-left-controls,
+.visualizer-right-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }

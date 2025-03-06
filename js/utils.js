@@ -314,3 +314,88 @@ export function throttle(func, limit = 16) { // Default to roughly 60fps
 export function lerp(a, b, t) {
     return a + (b - a) * t;
 }
+
+/**
+ * Checks if an element is visible in viewport and not collapsed
+ * @param {HTMLElement} element - The element to check
+ * @returns {boolean} True if the element is visible
+ */
+export function isElementVisible(element) {
+    if (!element) return false;
+    
+    // Check if parent module is collapsed
+    const moduleParent = element.closest('.module');
+    if (moduleParent && moduleParent.classList.contains('collapsed')) {
+        return false;
+    }
+    
+    // Check if element is in viewport
+    const rect = element.getBoundingClientRect();
+    return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.top < window.innerHeight &&
+        rect.bottom > 0 &&
+        // Also check document visibility
+        document.visibilityState === 'visible'
+    );
+}
+
+/**
+ * Format control value for display based on control type
+ * @param {string} controlId - ID of the control
+ * @param {number} value - Control value
+ * @returns {string} Formatted value string
+ */
+export function formatControlValue(controlId, value) {
+    // Format based on the type of control
+    switch(controlId) {
+        // Volume controls
+        case 'masterVolume':
+        case 'oscillatorLevel':
+            return `${Math.round(value * 100)}%`;
+            
+        // Pan controls
+        case 'masterPan':
+            if (Math.abs(value) < 0.05) return 'C';
+            if (value < 0) return `L${Math.abs(Math.round(value * 100))}`;
+            return `R${Math.round(value * 100)}`;
+            
+        // Width controls
+        case 'stereoWidth':
+            return `${Math.round(value * 100)}%`;
+            
+        // Frequency controls
+        case 'filterFreq':
+        case 'cutoff':
+            if (value >= 1000) return `${(value/1000).toFixed(1)}kHz`;
+            return `${Math.round(value)}Hz`;
+            
+        // Time-based controls
+        case 'attack':
+        case 'decay':
+        case 'release':
+        case 'delayTime':
+            if (value >= 1) return `${value.toFixed(1)}s`;
+            return `${Math.round(value * 1000)}ms`;
+            
+        // Percentage-based controls
+        case 'sustain':
+        case 'resonance':
+        case 'feedback':
+        case 'depth':
+        case 'lfoAmount':
+            return `${Math.round(value * 100)}%`;
+            
+        // Default formatting for other controls
+        default:
+            // Check if value is small
+            if (Math.abs(value) < 0.01 && value !== 0) {
+                return value.toFixed(2);
+            } else if (Math.abs(value) < 1) {
+                return value.toFixed(1);
+            } else {
+                return Math.round(value);
+            }
+    }
+}
