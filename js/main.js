@@ -7,19 +7,17 @@ import {
 } from './utils.js';
 
 // Import arpeggiator module
-import { 
-    isArpeggiatorEnabled, 
-    initArpeggiator, 
+import {
+    isArpeggiatorEnabled,
+    initArpeggiator,
     addNoteToArpeggiator,
     removeNoteFromArpeggiator,
     updateArpeggiatorOctave,
-    stopArpeggiator,
     clearArpeggiatorNotes
 } from './arpeggiator.js';
 
 // Import audio nodes
-import { 
-    AudioNodeFactory,
+import {
     filter,
     reverb,
     delay,
@@ -96,7 +94,7 @@ const animations = {
         lastUpdate: 0
     },
     // Add any other visualizations here
-    
+
     // Performance settings
     settings: {
         isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
@@ -114,10 +112,10 @@ function initAnimationSettings() {
         // Detect mobile device directly instead of using animations.settings.isMobile
         // This fixes the "isMobile is not defined" error
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
+
         // Store the mobile detection in animation settings
         animations.settings.isMobile = isMobile;
-        
+
         // Set performance-related settings based on device capability
         if (isMobile) {
             // More aggressive throttling for mobile devices
@@ -133,13 +131,13 @@ function initAnimationSettings() {
                 console.debug('Could not detect CPU cores, assuming standard device');
                 slowDevice = false;
             }
-            
+
             if (slowDevice) {
                 animations.settings.throttleAmount = 2;
                 animations.settings.fpsLimit = 45; // Compromise for slower desktops
             }
         }
-        
+
         animations.settings.frameInterval = 1000 / animations.settings.fpsLimit;
     } catch (error) {
         console.warn('Error initializing animation settings, using safe defaults:', error);
@@ -148,16 +146,20 @@ function initAnimationSettings() {
         animations.settings.fpsLimit = 30; // Conservative default
         animations.settings.frameInterval = 1000 / 30; // Based on 30fps
     }
-    
+
     // Cache DOM references
     const oscilloscopeElement = document.getElementById('oscilloscope');
     animations.oscilloscope.element = oscilloscopeElement;
-    animations.oscilloscope.context = oscilloscopeElement?.getContext('2d', { alpha: false }); // Optimize canvas for performance
-    
+    animations.oscilloscope.context = oscilloscopeElement?.getContext('2d', {
+        alpha: false
+    }); // Optimize canvas for performance
+
     const lfoScopeElement = document.getElementById('lfoScope');
     animations.lfoScope.element = lfoScopeElement;
-    animations.lfoScope.context = lfoScopeElement?.getContext('2d', { alpha: false });
-    
+    animations.lfoScope.context = lfoScopeElement?.getContext('2d', {
+        alpha: false
+    });
+
     // Pre-size canvases if possible to avoid reflow
     if (oscilloscopeElement) {
         const parent = oscilloscopeElement.parentElement;
@@ -166,7 +168,7 @@ function initAnimationSettings() {
             oscilloscopeElement.height = parent.clientHeight;
         }
     }
-    
+
     if (lfoScopeElement) {
         const parent = lfoScopeElement.parentElement;
         if (parent) {
@@ -174,44 +176,44 @@ function initAnimationSettings() {
             lfoScopeElement.height = parent.clientHeight;
         }
     }
-    
+
     // Create optimized version of element visibility detection with throttling
     animations.checkVisibility = throttle(() => {
         animations.oscilloscope.visible = isElementVisible(animations.oscilloscope.element);
         animations.lfoScope.visible = isElementVisible(animations.lfoScope.element);
     }, 500); // Check visibility at most every 500ms
-    
+
     // Create throttled versions of update functions
     animations.throttledLfoUpdate = throttle(updateLfoModulation, 16); // ~60fps
-        
+
     console.log(`Animation settings initialized: ${animations.settings.isMobile ? 'Mobile' : 'Desktop'} mode, ${animations.settings.fpsLimit}fps target`);
 }
 
 // Optimized main animation loop
 function mainAnimationLoop(timestamp) {
     if (!animations.isRunning) return;
-    
+
     requestAnimationFrame(mainAnimationLoop);
-    
+
     // Throttle frame rate if needed
     const elapsed = timestamp - animations.settings.lastFrameTime;
     if (elapsed < animations.settings.frameInterval) {
         return; // Skip this frame
     }
-    
+
     // Update time tracking with performance optimizations
     animations.settings.lastFrameTime = timestamp - (elapsed % animations.settings.frameInterval);
-    
+
     // Check visibility occasionally (not every frame)
     if (timestamp % 500 < 16) { // Check roughly every 500ms
         animations.checkVisibility();
     }
-    
+
     // Only update what's visible and active
     if (animations.oscilloscope.active && animations.oscilloscope.visible) {
         updateOscilloscope(timestamp);
     }
-    
+
     if (animations.lfoScope.active && animations.lfoScope.visible) {
         updateLfoScope(timestamp);
     }
@@ -219,16 +221,16 @@ function mainAnimationLoop(timestamp) {
     // If LFO is active, update it using throttled function
     if (lfoActive && lfoDestination !== 'off') {
         animations.throttledLfoUpdate(timestamp);
-        
+
         // Check if basic LFO visualizer is visible
         const basicLfoVisible = document.querySelector('.lfo-scope')?.style.display !== 'none';
-        
+
         // Only update the basic LFO scope if it's visible
         if (basicLfoVisible) {
             updateLfoScope(timestamp);
         }
     }
-    
+
     // Performance monitoring in development mode
     if (window.DEBUG_PERFORMANCE && timestamp % 1000 < 16) {
         const fps = Math.round(1000 / elapsed);
@@ -263,9 +265,12 @@ document.addEventListener('visibilitychange', function() {
 
 // Update the oscilloscope visualization
 function updateOscilloscope(timestamp) {
-    const { element, context } = animations.oscilloscope;
+    const {
+        element,
+        context
+    } = animations.oscilloscope;
     if (!element || !context || !window.waveform) return;
-    
+
     const width = element.width;
     const height = element.height;
     const values = window.waveform.getValue();
@@ -276,13 +281,13 @@ function updateOscilloscope(timestamp) {
 
     context.beginPath();
     context.strokeStyle = currentScheme.wave;
-    context.lineWidth = 1;  // Thinner line for simpler appearance
-    
+    context.lineWidth = 1; // Thinner line for simpler appearance
+
     // Calculate a step size to reduce the number of points sampled
-    const step = Math.max(1, Math.floor(values.length / 80));  // Even fewer points for simplicity
+    const step = Math.max(1, Math.floor(values.length / 80)); // Even fewer points for simplicity
     // Scale the amplitude down significantly to make the wave more compact
-    const amplitudeScale = 0.4; 
-    
+    const amplitudeScale = 0.4;
+
     for (let i = 0; i < values.length; i += step) {
         const x = (i / values.length) * width;
         // Scale the amplitude and center in the middle of the canvas
@@ -296,15 +301,18 @@ function updateOscilloscope(timestamp) {
     }
 
     context.stroke();
-    
+
     // Update tracking time
     animations.oscilloscope.lastUpdate = timestamp;
 }
 
 function updateLfoScope(timestamp) {
-    const { element, context } = animations.lfoScope;
+    const {
+        element,
+        context
+    } = animations.lfoScope;
     if (!element || !context) return;
-    
+
     // Get current LFO settings with cached references for better performance
     if (!updateLfoScope.elements) {
         updateLfoScope.elements = {
@@ -313,7 +321,7 @@ function updateLfoScope(timestamp) {
             amount: document.getElementById('lfoAmount')
         };
         updateLfoScope.cyclesShown = 2; // Show 2 complete cycles
-        
+
         // Precompute colors for different waveforms to avoid recreating them each frame
         updateLfoScope.colors = {
             sine: {
@@ -347,7 +355,7 @@ function updateLfoScope(timestamp) {
                 fillBottom: 'rgba(213, 0, 249, 0.05)'
             }
         };
-        
+
         // Pre-computed waveform functions map for better performance
         updateLfoScope.waveformFunctions = {
             sine: (t, centerY, amplitude) => centerY - Math.sin(t) * amplitude,
@@ -360,18 +368,18 @@ function updateLfoScope(timestamp) {
             }
         };
     }
-    
+
     const waveform = updateLfoScope.elements.waveform.value;
     const rate = parseFloat(updateLfoScope.elements.rate.value);
     const amount = parseInt(updateLfoScope.elements.amount.value) / 100;
-    
+
     const width = element.width;
     const height = element.height;
     const centerY = height / 2;
-    
+
     // Clear the canvas
     context.clearRect(0, 0, width, height);
-    
+
     // Draw background (solid color is more efficient than gradient)
     context.fillStyle = 'rgba(15, 15, 25, 0.9)';
     context.fillRect(0, 0, width, height);
@@ -409,126 +417,111 @@ function updateLfoScope(timestamp) {
     // Time is based on current time for animation
     const now = timestamp / 1000; // Current time in seconds
     const waveOffset = now * rate * Math.PI * 2;
-    
+
     // Get the correct waveform generator function
     const generateY = updateLfoScope.waveformFunctions[waveform] || updateLfoScope.waveformFunctions.sine;
-    
+
     // Get color scheme for current waveform
     const colorScheme = updateLfoScope.colors[waveform] || updateLfoScope.colors.sine;
 
     // Points array to store waveform path
     const points = [];
-    
+
     // Calculate points with optimized step size based on screen width
     // Use fewer points for better performance (every 2px is sufficient for most displays)
     const step = Math.max(1, Math.floor(width / 300)); // Adaptive based on canvas width
-    
+
     for (let x = 0; x <= width; x += step) {
         // Calculate phase at this x position
         const t = (x / width) * (updateLfoScope.cyclesShown * Math.PI * 2) + waveOffset;
         // Get y position using the appropriate waveform function
         const y = generateY(t, centerY, amplitude);
-        points.push({ x, y });
+        points.push({
+            x,
+            y
+        });
     }
-    
+
     // Fill the waveform area first
     context.beginPath();
     context.moveTo(0, centerY);
-    
+
     points.forEach(point => {
         context.lineTo(point.x, point.y);
     });
-    
+
     context.lineTo(width, centerY);
     context.closePath();
-    
+
     // Create fill gradient
     const fillGradient = context.createLinearGradient(0, 0, 0, height);
     fillGradient.addColorStop(0, colorScheme.fill);
     fillGradient.addColorStop(1, colorScheme.fillBottom);
     context.fillStyle = fillGradient;
     context.fill();
-    
+
     // Now draw the line itself (more efficiently with a single path)
     context.beginPath();
-    
+
     if (points.length > 0) {
         context.moveTo(points[0].x, points[0].y);
         for (let i = 1; i < points.length; i++) {
             context.lineTo(points[i].x, points[i].y);
         }
     }
-    
+
     // Set line style with glow effect
     context.strokeStyle = colorScheme.main;
     context.lineWidth = 2;
-    
+
     // Optimize rendering with efficient glow effect
     context.shadowColor = colorScheme.shadow;
     context.shadowBlur = 4;
     context.shadowOffsetX = 0;
     context.shadowOffsetY = 0;
     context.stroke();
-    
+
     // Reset shadow for remaining drawing
     context.shadowBlur = 0;
-    
+
     // Draw current playhead position (position indicator)
     const cyclePosition = (now * rate) % 1;
     const playheadX = cyclePosition * (width / updateLfoScope.cyclesShown);
-    
+
     context.beginPath();
     context.moveTo(playheadX, 0);
     context.lineTo(playheadX, height);
     context.strokeStyle = 'rgba(255, 255, 255, 0.5)';
     context.lineWidth = 1;
     context.stroke();
-    
+
     // Add frequency label
     context.fillStyle = 'rgba(255, 255, 255, 0.8)';
     context.font = '10px sans-serif';
     context.textAlign = 'right';
     context.fillText(`${rate.toFixed(1)} Hz`, width - 5, height - 5);
-    
+
     if (lfoActive && lfoDestination !== 'off') {
         // Show active modulation target
         context.fillStyle = 'rgba(255, 255, 255, 0.8)';
         context.textAlign = 'left';
         context.fillText(lfoDestination, 5, height - 5);
     }
-    
+
     // Update tracking time
     animations.lfoScope.lastUpdate = timestamp;
 }
-
-// Cached elements for LFO
-let lfoWaveformElement = null;
-let lfoRateElement = null;
-let lfoAmountElement = null;
-
-// LFO waveform calculation functions (optimization)
-const lfoWaveformFunctions = {
-    sine: (phase) => Math.sin(phase * Math.PI * 2),
-    triangle: (phase) => 1 - Math.abs((phase * 4) % 4 - 2),
-    square: (phase) => phase < 0.5 ? 1 : -1,
-    sawtooth: (phase) => (phase * 2) - 1,
-    random: (phase) => {
-        const segments = 8;
-        const segmentIndex = Math.floor(phase * segments);
-        return Math.sin(segmentIndex * 1000) * 2 - 1;
-    }
-};
 
 // Add this new function to calculate the current LFO value
 function getLfoValue() {
     // Get current LFO settings
     const waveform = document.getElementById('lfoWaveform').value;
     const rate = parseFloat(document.getElementById('lfoRate').value);
-    
+
     // Calculate current phase based on time
     const now = performance.now() / 1000; // Current time in seconds
     const phase = (now * rate) % 1; // Phase between 0 and 1
-    
+
     // Get the appropriate waveform function
     let value;
     switch (waveform) {
@@ -554,7 +547,7 @@ function getLfoValue() {
         default:
             value = Math.sin(phase * Math.PI * 2); // Default to sine
     }
-    
+
     return value; // Value between -1 and 1
 }
 
@@ -562,39 +555,39 @@ function getLfoValue() {
 function updateLfoModulation(timestamp) {
     // Skip if LFO is inactive or destination is off
     if (!lfoActive || lfoDestination === 'off') return;
-    
+
     // Get LFO value (scaled between -1 and 1)
     let lfoValue = getLfoValue();
-    
+
     // Get target element
     const targetElement = document.getElementById(lfoDestination);
     if (!targetElement) return;
-    
+
     // Get amount setting (as a percentage)
     const amount = parseFloat(document.getElementById('lfoAmount').value) / 100;
-    
+
     // Get min and max values from the range input
     const min = parseFloat(targetElement.min);
     const max = parseFloat(targetElement.max);
-    
+
     // Get base value (or use current value if not set)
     let baseValue = lfoBaseValues[lfoDestination];
     if (baseValue === undefined) {
         baseValue = parseFloat(targetElement.value);
         lfoBaseValues[lfoDestination] = baseValue;
     }
-    
+
     // Calculate new value, scaling the LFO output appropriately
     const range = max - min;
     const scaledLfo = lfoValue * range * amount / 2;
     let newValue = baseValue + scaledLfo;
-    
+
     // Ensure value stays within range
     newValue = Math.max(min, Math.min(max, newValue));
-    
+
     // Update input element
     targetElement.value = newValue;
-    
+
     // Update display value
     const valueDisplay = document.getElementById(`${lfoDestination}Value`);
     if (valueDisplay) {
@@ -602,7 +595,7 @@ function updateLfoModulation(timestamp) {
         if (lfoDestination === 'masterPan') {
             // Special formatting for pan display
             let displayText = "C"; // Center by default
-            
+
             if (newValue < -0.05) {
                 // Left side
                 const leftAmount = Math.abs(Math.round(newValue * 100));
@@ -612,16 +605,16 @@ function updateLfoModulation(timestamp) {
                 const rightAmount = Math.round(newValue * 100);
                 displayText = `R${rightAmount}`;
             }
-            
+
             valueDisplay.textContent = displayText;
         } else {
             // Default formatting for other parameters
             valueDisplay.textContent = formatControlValue(lfoDestination, newValue);
         }
     }
-    
+
     updateAudioParameter(lfoDestination, newValue);
-    
+
     // Update knob position if a knob updater exists
     if (knobUpdaters[lfoDestination]) {
         knobUpdaters[lfoDestination](newValue);
@@ -637,13 +630,13 @@ function applyLfoToParameter(paramId, lfoOutput) {
     if (!parameterElementCache.has(paramId)) {
         const input = document.getElementById(paramId);
         if (!input) return;
-        
+
         const min = parseFloat(input.min);
         const max = parseFloat(input.max);
         const range = max - min;
         const modRange = range * 0.5;
         const knob = document.getElementById(`${paramId}Knob`);
-        
+
         parameterElementCache.set(paramId, {
             input,
             min,
@@ -653,34 +646,41 @@ function applyLfoToParameter(paramId, lfoOutput) {
             knob
         });
     }
-    
+
     // Get cached elements and values
     const cache = parameterElementCache.get(paramId);
     if (!cache) return;
-    
-    const { input, min, max, range, modRange, knob } = cache;
-    
+
+    const {
+        input,
+        min,
+        max,
+        range,
+        modRange,
+        knob
+    } = cache;
+
     // Get base value - this still needs to be dynamic
     const baseValue = lfoBaseValues[paramId] || (min + range / 2);
-    
+
     // Calculate modulated value
     const modValue = baseValue + (lfoOutput * modRange);
     const clampedValue = Math.max(min, Math.min(max, modValue));
-    
+
     // Only update the DOM if the value has changed significantly
     // This avoids unnecessary updates that won't be visually noticeable
     if (Math.abs(parseFloat(input.value) - clampedValue) > 0.001) {
         // Update input value
         input.value = clampedValue;
-        
+
         // Update the parameter
         updateAudioParameter(paramId, clampedValue);
-        
+
         // Update knob rotation using GSAP (only if knob exists)
         if (knob) {
             const normalizedValue = (clampedValue - min) / range;
             const rotation = normalizedValue * 270 - 135;
-            
+
             gsap.to(knob, {
                 rotation: rotation,
                 duration: 0.05,
@@ -689,7 +689,6 @@ function applyLfoToParameter(paramId, lfoOutput) {
         }
     }
 }
-
 
 
 
@@ -711,27 +710,27 @@ function updateDetune() {
 function createSynth() {
     // Performance metrics tracking
     const startTime = performance.now();
-    
+
     // Store a reference to the old synth
     const oldSynth = synth;
-    
+
     // Create the new synth first to prevent race conditions
     createNewSynth();
-    
+
     // Properly dispose of old synth if it exists
     if (oldSynth) {
         try {
             // Release all notes to prevent hanging notes
             oldSynth.releaseAll();
-            
+
             // Mark the synth as being disposed using a safer approach
             // Use _disposing flag to avoid the property setter issue
             oldSynth._disposing = true;
-            
+
             // Calculate a dynamic timeout based on current release time
             const releaseTime = parseFloat(document.getElementById('release').value) || 1.0;
             const disposeTimeout = Math.max(500, releaseTime * 1000 + 100); // At least 500ms, but longer for longer release times
-            
+
             // Store the timeout ID so it can be cleared if needed
             oldSynth._disposeTimeoutId = setTimeout(() => {
                 try {
@@ -740,11 +739,11 @@ function createSynth() {
                         if (oldSynth._disposeTimeoutId) {
                             clearTimeout(oldSynth._disposeTimeoutId);
                         }
-                        
+
                         oldSynth.disconnect();
                         oldSynth.dispose();
                         oldSynth._wasDisposed = true;
-                        
+
                         // Clean up references for garbage collection
                         delete oldSynth._disposeTimeoutId;
                     }
@@ -756,20 +755,20 @@ function createSynth() {
             console.warn("Error releasing notes on old synth:", releaseErr);
         }
     }
-    
+
     // Log performance metrics
     const duration = performance.now() - startTime;
     if (window.DEBUG_PERFORMANCE) {
         console.log(`Synth creation took ${duration.toFixed(2)}ms`);
     }
-    
+
     window.synth = synth;
     window.activeNotes = activeNotes;
 
     // Also expose updateVUMeter function for visual feedback from MIDI
     window.updateVUMeter = updateVUMeter;
     return synth;
-    
+
     // Helper function to create a new synth instance
     function createNewSynth() {
         // Clear all active notes when switching synth types
@@ -784,7 +783,7 @@ function createSynth() {
         // Get current settings
         const waveformType = document.getElementById('waveform').value;
         const level = parseFloat(document.getElementById('oscillatorLevel').value || 0.8);
-        
+
         // Prepare enhanced audio settings with better defaults
         const enhancedSettings = {
             ...synthSettings,
@@ -804,19 +803,19 @@ function createSynth() {
             // No portamento needed for poly synth
             portamento: 0
         };
-        
+
         // Get the number of voices from UI or use default
         const maxVoices = parseInt(document.getElementById('voices')?.value || 8);
-        
+
         // Configure polyphonic synth with optimal performance settings (8 voices)
         const increasedVoices = maxVoices; // Use exactly the requested number of voices for better performance
-        
+
         synth = new Tone.PolySynth({
             maxPolyphony: increasedVoices,
             voice: Tone.Synth,
             options: enhancedSettings
         });
-        
+
         // Apply additional polyphonic optimizations
         synth.set({
             // Use voice stealing algorithms for consistent performance
@@ -832,13 +831,13 @@ function createSynth() {
         // Connect directly to filter for now to simplify the chain
         // This avoids potential issues with the limiter
         synth.connect(filter);
-        
+
         // Ensure visualizers are connected when creating a new synth
         ensureVisualizersConnected();
 
         // Apply specific settings
         updateDetune();
-        
+
         // Register with voice manager if it's been created
         if (typeof VoiceManager !== 'undefined') {
             try {
@@ -855,38 +854,38 @@ function createSynth() {
 const VoiceManager = {
     // Track active voices to prevent memory leaks and manage performance
     activeVoices: new Map(),
-    
+
     // Configuration options for voice management - optimized for better performance
     options: {
-        maxTotalVoices: 16,         // Reduced maximum total voices for better performance
-        voiceTimeout: 30000,        // Maximum time in ms to keep an unused voice alive
-        cleanupInterval: 60000,     // Interval in ms to run voice cleanup
-        maxPolyphonyStandard: 8,    // Reduced default max polyphony for better performance
-        maxPolyphonyHigh: 8,        // Set to 8 voices even for high-performance devices
-        maxPolyphonyLow: 4          // Reduced to 4 for low-performance devices
+        maxTotalVoices: 16, // Reduced maximum total voices for better performance
+        voiceTimeout: 30000, // Maximum time in ms to keep an unused voice alive
+        cleanupInterval: 60000, // Interval in ms to run voice cleanup
+        maxPolyphonyStandard: 8, // Reduced default max polyphony for better performance
+        maxPolyphonyHigh: 8, // Set to 8 voices even for high-performance devices
+        maxPolyphonyLow: 4 // Reduced to 4 for low-performance devices
     },
-    
+
     // Initialize voice manager with system detection
     init() {
         // Adjust voice limits based on system capabilities
         const hardwareConcurrency = navigator.hardwareConcurrency || 4;
         const isLowPower = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isHighPower = hardwareConcurrency >= 8 && !isLowPower;
-        
+
         // Set appropriate polyphony limits
         if (isLowPower) {
             this.options.maxPolyphonyStandard = this.options.maxPolyphonyLow;
         } else if (isHighPower) {
             this.options.maxPolyphonyStandard = this.options.maxPolyphonyHigh;
         }
-        
+
         // Set up periodic cleanup to prevent memory leaks
         setInterval(() => this.cleanupVoices(), this.options.cleanupInterval);
-        
+
         console.log(`Voice Manager initialized with max polyphony: ${this.options.maxPolyphonyStandard}`);
         return this;
     },
-    
+
     // Register a new synth for voice management
     registerSynth(synth, type = "poly") {
         const id = this.generateId();
@@ -897,18 +896,20 @@ const VoiceManager = {
             lastUsed: Date.now(),
             activeNotes: new Set()
         });
-        
+
         // Configure voice stealing for polyphonic synths
         if (type === "poly" && synth.set) {
             synth.set({
                 maxPolyphony: this.options.maxPolyphonyStandard,
-                voice: { volume: -6 } // Slightly quieter to prevent clipping with many voices
+                voice: {
+                    volume: -6
+                } // Slightly quieter to prevent clipping with many voices
             });
         }
-        
+
         return id;
     },
-    
+
     // Update a synth's status when used
     useSynth(id) {
         const synthInfo = this.activeVoices.get(id);
@@ -916,7 +917,7 @@ const VoiceManager = {
             synthInfo.lastUsed = Date.now();
         }
     },
-    
+
     // Track active notes for a synth
     noteOn(id, note) {
         const synthInfo = this.activeVoices.get(id);
@@ -925,7 +926,7 @@ const VoiceManager = {
             synthInfo.lastUsed = Date.now();
         }
     },
-    
+
     // Remove tracking for released notes
     noteOff(id, note) {
         const synthInfo = this.activeVoices.get(id);
@@ -934,27 +935,27 @@ const VoiceManager = {
             synthInfo.lastUsed = Date.now();
         }
     },
-    
+
     // Cleanup unused voices to free resources
     cleanupVoices() {
         const now = Date.now();
         let totalVoices = 0;
-        
+
         // Count total active voices
         this.activeVoices.forEach(info => {
             totalVoices += info.activeNotes.size || 1;
         });
-        
+
         // If we're over the limit, aggressively clean up
         if (totalVoices > this.options.maxTotalVoices) {
             // Sort by least recently used
             const entries = Array.from(this.activeVoices.entries())
                 .sort((a, b) => a[1].lastUsed - b[1].lastUsed);
-                
+
             // Dispose of oldest voices until we're under limit
             for (const [id, info] of entries) {
                 if (totalVoices <= this.options.maxTotalVoices * 0.8) break;
-                
+
                 // Only dispose if no active notes and not the main synth
                 if (info.activeNotes.size === 0 && info.synth !== window.synth) {
                     console.debug(`Disposing unused synth to free resources`);
@@ -964,7 +965,7 @@ const VoiceManager = {
                 }
             }
         }
-        
+
         // Clean up synths not used for a while - but never the main synth
         this.activeVoices.forEach((info, id) => {
             // Skip if it's the main active synth
@@ -973,17 +974,17 @@ const VoiceManager = {
                 info.lastUsed = now;
                 return;
             }
-            
-            if (info.activeNotes.size === 0 && 
+
+            if (info.activeNotes.size === 0 &&
                 (now - info.lastUsed > this.options.voiceTimeout)) {
-                
+
                 console.debug(`Disposing idle synth after ${this.options.voiceTimeout}ms`);
                 if (info.synth.dispose) info.synth.dispose();
                 this.activeVoices.delete(id);
             }
         });
     },
-    
+
     // Generate a unique ID for tracking synths
     generateId() {
         return `synth_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -993,10 +994,10 @@ const VoiceManager = {
 // Initialize the voice manager system
 try {
     VoiceManager.init();
-    
+
     // Create initial synth with voice management
     synth = createSynth();
-    
+
     // Let the voice manager track it, but catch any potential errors
     try {
         const synthId = VoiceManager.registerSynth(synth, "poly");
@@ -1074,12 +1075,12 @@ window.addEventListener('resize', resizeCanvas);
 function drawOscilloscope() {
     // This is now just a setup function
     resizeCanvas();
-    
+
     // Register the oscilloscope in the animation system
     animations.oscilloscope.element = canvas;
     animations.oscilloscope.context = ctx;
     animations.oscilloscope.active = true;
-    
+
     // The actual drawing is now done in updateOscilloscope()
     console.log('Oscilloscope initialized in unified animation system');
 }
@@ -1134,13 +1135,13 @@ function highlightKeyFromSequencer(note, duration = 0.2) { // Slightly shorter d
     const timeoutId = setTimeout(() => {
         // Get the current list of timeouts for this note
         const timeouts = sequencerActiveTimeouts.get(note) || [];
-        
+
         // Remove this timeout from the list
         const index = timeouts.indexOf(timeoutId);
         if (index !== -1) {
             timeouts.splice(index, 1);
         }
-        
+
         // If this was the last timeout, remove the highlight
         if (timeouts.length === 0) {
             keyElement.classList.remove('active');
@@ -1162,7 +1163,7 @@ function clearSequencerKeyHighlights() {
     sequencerActiveTimeouts.forEach((timeouts, note) => {
         // Clear all timeouts for this note
         timeouts.forEach(timeoutId => clearTimeout(timeoutId));
-        
+
         // Remove the 'active' class
         const keyElement = document.querySelector(`.key[data-note="${note}"]`) ||
             document.querySelector(`.black-key[data-note="${note}"]`);
@@ -1177,7 +1178,7 @@ function clearSequencerKeyHighlights() {
 const generateNotes = () => {
     const notes = [];
     const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    for (let octave = 1; octave <= 8; octave++) {  // Changed from 6 to 8
+    for (let octave = 1; octave <= 8; octave++) { // Changed from 6 to 8
         noteNames.forEach(note => {
             notes.push(`${note}${octave}`);
         });
@@ -1239,12 +1240,12 @@ const keyboardMouseHandlers = {
         // Find closest .key or .black-key parent
         const key = e.target.closest('.key, .black-key');
         if (!key) return;
-        
+
         const note = key.getAttribute('data-note');
         if (!note) return;
-        
+
         key.classList.add('active');
-        
+
         // For polyphonic mode
         if (!activeNotes.has(note)) {
             activeNotes.add(note);
@@ -1260,18 +1261,18 @@ const keyboardMouseHandlers = {
             }
         }
     },
-    
+
     // Handle mouse up on any key
     handleMouseUp: function(e) {
         // Find closest .key or .black-key parent
         const key = e.target.closest('.key, .black-key');
         if (!key) return;
-        
+
         const note = key.getAttribute('data-note');
         if (!note) return;
-        
+
         key.classList.remove('active');
-        
+
         if (activeNotes.has(note)) {
             activeNotes.delete(note);
             if (synth && !synth.disposed) {
@@ -1284,23 +1285,13 @@ const keyboardMouseHandlers = {
             }
         }
     },
-    
+
     // Handle mouse leave on any key
     handleMouseLeave: function(e) {
-        // Find closest .key or .black-key parent
         const key = e.target.closest('.key, .black-key');
-        if (!key || !key.classList.contains('active')) return;
-        
-        const note = key.getAttribute('data-note');
-        if (!note) return;
-        
-        key.classList.remove('active');
-        
-        if (activeNotes.has(note)) {
-            activeNotes.delete(note);
-            if (synth && !synth.disposed) {
-                synth.triggerRelease(note);
-            }
+        if (key && key.classList.contains('active')) {
+            // Reuse handleMouseUp to avoid duplicating logic
+            this.handleMouseUp(e);
         }
     }
 };
@@ -1309,45 +1300,59 @@ const keyboardMouseHandlers = {
 const createKeyboard = () => {
     const keyboardElement = document.getElementById('keyboard');
     if (!keyboardElement) return;
-    
+
     const notes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
     // Full range from C1 to C8 regardless of device
     const startOctave = 1;
-    const endOctave =8;
+    const endOctave = 8;
 
     // Clear keyboard and reset the key element cache
     keyboardElement.innerHTML = '';
     resetKeyboardCache();
-    
+
     // Add event listeners to the keyboard container (event delegation)
     keyboardElement.addEventListener('mousedown', keyboardMouseHandlers.handleMouseDown);
     keyboardElement.addEventListener('mouseup', keyboardMouseHandlers.handleMouseUp);
     keyboardElement.addEventListener('mouseleave', keyboardMouseHandlers.handleMouseLeave);
-    
+
     // Calculate key dimensions
     const isMobile = window.innerWidth <= 768;
     const keyWidth = isMobile ? 30 : 40; // Smaller on mobile
-    
+
     // Create a container with fixed width to allow horizontal scrolling
     const keysContainer = document.createElement('div');
     keysContainer.className = 'keys-container';
     keysContainer.style.position = 'relative';
     keysContainer.style.display = 'flex';
-    
+
     // Define black key positions (reused for each octave)
-    const blackKeyPositions = [
-        { after: 'C', note: 'C#' },
-        { after: 'D', note: 'D#' },
-        { after: 'F', note: 'F#' },
-        { after: 'G', note: 'G#' },
-        { after: 'A', note: 'A#' }
+    const blackKeyPositions = [{
+            after: 'C',
+            note: 'C#'
+        },
+        {
+            after: 'D',
+            note: 'D#'
+        },
+        {
+            after: 'F',
+            note: 'F#'
+        },
+        {
+            after: 'G',
+            note: 'G#'
+        },
+        {
+            after: 'A',
+            note: 'A#'
+        }
     ];
-    
+
     // Create all white keys
     const whiteKeysFragment = document.createDocumentFragment();
     let whiteKeyCount = 0;
-    
+
     for (let octave = startOctave; octave <= endOctave; octave++) {
         // Only create C for the last octave
         const octaveNotes = octave === endOctave ? ['C'] : notes;
@@ -1355,79 +1360,79 @@ const createKeyboard = () => {
         for (let i = 0; i < octaveNotes.length; i++) {
             const key = document.createElement('div');
             key.className = 'key';
-            
+
             // Add special class for C keys (visual indicator)
             if (octaveNotes[i] === 'C') {
                 key.classList.add('octave-start');
             }
-            
+
             // Highlight keys in the current octave
             if (octave === (window.currentOctave || 4)) {
                 key.classList.add('current-octave');
             }
-            
+
             key.textContent = isMobile ? '' : `${octaveNotes[i]}${octave}`;
             key.setAttribute('data-note', `${octaveNotes[i]}${octave}`);
-            
+
             // Set fixed width instead of flex stretching
             key.style.width = `${keyWidth}px`;
             key.style.flex = '0 0 auto';
-            
+
             whiteKeysFragment.appendChild(key);
             whiteKeyCount++;
         }
     }
-    
+
     // Add all white keys to the container
     keysContainer.appendChild(whiteKeysFragment);
-    
+
     // Now create and position black keys
     const blackKeysFragment = document.createDocumentFragment();
     const whiteKeys = keysContainer.querySelectorAll('.key');
-    
+
     // Create black keys for each octave
     let whiteKeyIndex = 0;
-    
+
     for (let octave = startOctave; octave <= endOctave; octave++) {
         // Skip black keys for the last octave (we only create C8)
         if (octave === endOctave) continue;
-        
+
         for (let i = 0; i < notes.length; i++) {
             const whiteNote = notes[i];
             const blackKeyInfo = blackKeyPositions.find(pos => pos.after === whiteNote);
-            
+
             if (blackKeyInfo) {
                 const blackKey = document.createElement('div');
                 blackKey.className = 'black-key';
                 blackKey.setAttribute('data-note', `${blackKeyInfo.note}${octave}`);
-                
+
                 // Get the current white key
                 const currentWhiteKey = whiteKeys[whiteKeyIndex];
-                
+
                 // Position using absolute positioning relative to the white key's left edge
                 const leftOffset = keyWidth * 0.7; // Position black key 70% to the right of the white key
                 blackKey.style.left = `${whiteKeyIndex * keyWidth + leftOffset}px`;
                 blackKey.style.width = `${keyWidth * 0.6}px`; // 60% of white key width
-                
+
                 // Highlight keys in the current octave
                 if (octave === (window.currentOctave || 4)) {
                     blackKey.classList.add('current-octave');
                 }
-                
+
                 blackKeysFragment.appendChild(blackKey);
             }
-            
+
             whiteKeyIndex++;
         }
     }
-    
+
     // Add all black keys to the container
     keysContainer.appendChild(blackKeysFragment);
-    
+
     // Add octave markers
     for (let octave = startOctave; octave <= endOctave; octave++) {
         const markerPos = (octave - startOctave) * 7 * keyWidth;
-        
+
         const marker = document.createElement('div');
         marker.className = 'octave-marker';
         marker.textContent = `C${octave}`;
@@ -1440,21 +1445,21 @@ const createKeyboard = () => {
         marker.style.pointerEvents = 'none';
         keysContainer.appendChild(marker);
     }
-    
+
     // Add container to keyboard element
     keyboardElement.appendChild(keysContainer);
-    
+
     // Enable horizontal scrolling
     keyboardElement.style.overflowX = 'auto';
     keyboardElement.style.overflowY = 'hidden';
-    
+
     // Scroll to the current octave
     const scrollToOctave = window.currentOctave || 4;
     const scrollPosition = (scrollToOctave - startOctave) * 7 * keyWidth;
     setTimeout(() => {
         keyboardElement.scrollLeft = scrollPosition;
     }, 10);
-    
+
     // Store keyboard API for external access
     window.keyboardAPI = {
         scrollToOctave: (octave) => {
@@ -1468,18 +1473,18 @@ const createKeyboard = () => {
             // Remove highlighting from all keys
             document.querySelectorAll('.key.current-octave, .black-key.current-octave')
                 .forEach(el => el.classList.remove('current-octave'));
-            
+
             // Add highlighting to keys in current octave
             const octaveKeys = document.querySelectorAll(
                 `.key[data-note^="A${octave}"], .key[data-note^="B${octave}"], .key[data-note^="C${octave}"], ` +
                 `.key[data-note^="D${octave}"], .key[data-note^="E${octave}"], .key[data-note^="F${octave}"], ` +
                 `.key[data-note^="G${octave}"], .black-key[data-note$="${octave}"]`
             );
-            
+
             octaveKeys.forEach(key => key.classList.add('current-octave'));
         }
     };
-    
+
     return window.keyboardAPI;
 };
 
@@ -1492,7 +1497,7 @@ const updateSequencer = (currentStep) => {
     if (!cachedStepElements || cachedStepElements.length === 0) {
         cachedStepElements = document.querySelectorAll('.step');
     }
-    
+
     // Update the active class for each step
     // This is more efficient than forEach and requerying each time
     for (let i = 0; i < cachedStepElements.length; i++) {
@@ -1923,7 +1928,7 @@ document.getElementById('eqQ').addEventListener('input', function(e) {
 // Enhanced drum sound initialization with resource optimization
 function initializeDrumSounds() {
     console.log("Initializing drum sounds with optimized resources...");
-    
+
     // Create a dedicated drum processing chain using standard Tone.js objects
     // This helps isolate drum processing from the main synth
     const drumBus = new Tone.Gain(1);
@@ -1934,11 +1939,11 @@ function initializeDrumSounds() {
         release: 0.15,
         knee: 10
     });
-    
+
     // Connect the drum bus to the main output chain
     drumBus.connect(drumCompressor);
     drumCompressor.connect(eq);
-    
+
     // Define drum presets as templates to avoid code duplication
     const drumPresets = {
         kick: {
@@ -2061,7 +2066,7 @@ function initializeDrumSounds() {
             }
         }
     };
-    
+
     // Create and connect each drum sound using the factory pattern
     Object.entries(drumPresets).forEach(([name, preset]) => {
         // Create the appropriate synth type
@@ -2076,24 +2081,24 @@ function initializeDrumSounds() {
                 drumSounds[name] = new Tone.MetalSynth(preset.options);
                 break;
         }
-        
+
         // Apply volume adjustment if specified
         if (preset.volume !== undefined) {
             drumSounds[name].volume.value = preset.volume;
         }
-        
+
         // Connect to drum bus instead of directly to EQ
         drumSounds[name].connect(drumBus);
     });
-    
+
     // Add reference to the drum bus for future use
     drumSounds.bus = drumBus;
     drumSounds.compressor = drumCompressor;
-    
+
     // Buffer optimization
     // Removed the shared resonance optimization as it might cause issues
     // We'll keep each sound independent for better stability
-    
+
     console.log("Optimized drum sounds initialized:", Object.keys(drumSounds).filter(k => k !== 'bus' && k !== 'compressor'));
 }
 
@@ -2105,14 +2110,14 @@ function triggerDrumSound(type) {
         console.warn(`Invalid drum type: ${type}`);
         return;
     }
-    
+
     // Auto-start audio context if needed
     if (Tone.context.state !== 'running') {
         console.log("Starting Tone.js audio context...");
-        
+
         // Show visual indicator while audio is starting
         updateVUMeter(0.2);
-        
+
         // Start audio context
         Tone.start().then(() => {
             console.log("Audio context started successfully");
@@ -2134,7 +2139,7 @@ function playDrumSound(type) {
         console.error(`Drum sound '${type}' not initialized!`, Object.keys(drumSounds).filter(k => k !== 'bus' && k !== 'compressor'));
         return;
     }
-    
+
     // Get volume with validation and fallback
     let volume;
     try {
@@ -2144,30 +2149,66 @@ function playDrumSound(type) {
         console.warn(`Couldn't get volume for ${type}, using default`, e);
         volume = 0.7; // Fallback volume
     }
-    
+
     // Volume safety check (prevent extreme values)
     volume = Math.max(0, Math.min(1, volume));
-    
+
     // Use optimized drum triggering based on drum type
     try {
         // Get drum-specific settings from a central configuration
         const drumConfig = {
-            'kick': { note: 'C1', duration: '8n', volumeScale: 1.0 },
-            'snare': { note: null, duration: '8n', volumeScale: 1.0 },
-            'hihat': { note: null, duration: '32n', volumeScale: 0.6 },
-            'clap': { note: null, duration: '16n', volumeScale: 1.0 },
-            'tom': { note: 'E2', duration: '8n', volumeScale: 1.0 },
-            'rimshot': { note: null, duration: '32n', volumeScale: 1.0 },
-            'cowbell': { note: null, duration: '8n', volumeScale: 1.0 },
-            'cymbal': { note: null, duration: '16n', volumeScale: 1.0 }
+            'kick': {
+                note: 'C1',
+                duration: '8n',
+                volumeScale: 1.0
+            },
+            'snare': {
+                note: null,
+                duration: '8n',
+                volumeScale: 1.0
+            },
+            'hihat': {
+                note: null,
+                duration: '32n',
+                volumeScale: 0.6
+            },
+            'clap': {
+                note: null,
+                duration: '16n',
+                volumeScale: 1.0
+            },
+            'tom': {
+                note: 'E2',
+                duration: '8n',
+                volumeScale: 1.0
+            },
+            'rimshot': {
+                note: null,
+                duration: '32n',
+                volumeScale: 1.0
+            },
+            'cowbell': {
+                note: null,
+                duration: '8n',
+                volumeScale: 1.0
+            },
+            'cymbal': {
+                note: null,
+                duration: '16n',
+                volumeScale: 1.0
+            }
         };
-        
-        const config = drumConfig[type] || { note: null, duration: '8n', volumeScale: 1.0 };
-        
+
+        const config = drumConfig[type] || {
+            note: null,
+            duration: '8n',
+            volumeScale: 1.0
+        };
+
         // Set the volume first to ensure it's applied when the sound triggers
         const adjustedVolume = volume * config.volumeScale;
         drumSounds[type].volume.value = Tone.gainToDb(adjustedVolume);
-        
+
         // Trigger the sound with appropriate parameters
         if (config.note) {
             // For pitched instruments (kick, tom)
@@ -2176,7 +2217,7 @@ function playDrumSound(type) {
             // For unpitched instruments (snare, hihat, etc.)
             drumSounds[type].triggerAttackRelease(config.duration);
         }
-        
+
         // Update drum bus processing for dynamic compression
         // Only adjust if the compressor exists and has the expected properties
         if (drumSounds.compressor && typeof drumSounds.compressor.threshold !== 'undefined') {
@@ -2210,7 +2251,7 @@ function playDrumSound(type) {
                 console.debug('Error adjusting drum compression:', err);
             }
         }
-        
+
         // Log success at debug level only
         if (window.DEBUG_AUDIO) {
             console.log(`Playing ${type} with volume ${adjustedVolume.toFixed(2)}`);
@@ -2222,13 +2263,13 @@ function playDrumSound(type) {
     // Provide visual feedback using VU meter with scaled response
     // VU feedback is important for user interaction
     updateVUMeter(volume * 0.7);
-    
+
     // Show visual feedback on the drum pad itself
     const drumPad = document.querySelector(`.drum-pad[data-sound="${type}"]`);
     if (drumPad) {
         // Add active class temporarily
         drumPad.classList.add('active');
-        
+
         // Remove after animation completes
         setTimeout(() => {
             drumPad.classList.remove('active');
@@ -2248,22 +2289,21 @@ window.addEventListener('resize', () => {
 });
 
 let isPlaying = false;
-// currentStep is already declared at the top of the file
 
 // Connect UI controls to synth parameters
 document.getElementById('waveform').addEventListener('change', e => {
     const waveformType = e.target.value;
-    
+
     // Show/hide pulse width control based on selected waveform
     const pulseWidthContainer = document.getElementById('pulseWidthContainer');
     const harmonicityContainer = document.getElementById('harmonicityContainer');
     const modulationIndexContainer = document.getElementById('modulationIndexContainer');
-    
+
     // Hide all special controls first
     pulseWidthContainer.style.display = 'none';
     harmonicityContainer.style.display = 'none';
     modulationIndexContainer.style.display = 'none';
-    
+
     // Show relevant controls based on waveform type
     if (waveformType === 'pulse') {
         pulseWidthContainer.style.display = 'block';
@@ -2273,7 +2313,7 @@ document.getElementById('waveform').addEventListener('change', e => {
         // Make sure mobile labels are applied when FM Sine is selected
         adjustFMSineLabelsForMobile();
     }
-    
+
     // Configure oscillator with selected waveform
     if (waveformType === 'pulse') {
         // For pulse wave, include the width parameter
@@ -2303,7 +2343,7 @@ document.getElementById('waveform').addEventListener('change', e => {
             }
         });
     }
-    
+
     // Update LFO destination visibility based on waveform
     updateLfoDestinationOptions(waveformType);
 });
@@ -2621,37 +2661,37 @@ document.getElementById('startSequencer').addEventListener('click', async functi
         try {
             // Start audio context
             await Tone.start();
-            
+
             // Reset step counter to start from beginning
             currentStep = 15; // So it becomes 0 on first beat
-            
+
             // IMPORTANT: Ensure the audio analyzers are connected
             ensureVisualizersConnected();
-            
+
             // Ensure synth exists and is ready
             if (!synth || synth.disposed) {
                 console.log("Recreating synth for sequencer");
                 synth = createSynth();
             }
-            
+
             // Reset and restart transport completely
             Tone.Transport.cancel(); // Cancel all scheduled events
             Tone.Transport.stop();
             setupSequencer(); // Recreate the sequencer events
             Tone.Transport.start();
-            
+
             isPlaying = true;
             this.innerHTML = '<i class="fas fa-stop"></i><span>Stop</span>';
             this.classList.add('playing');
-            
+
             // Force an update of the oscilloscope to ensure it's running
             if (animations && animations.oscilloscope && animations.oscilloscope.element) {
                 updateOscilloscope(performance.now());
             }
-            
+
             // Play a silent note to trigger audio processing
             synth.triggerAttackRelease("C4", 0.01, "+0.1", 0.01);
-            
+
             // Kick-start the VU meter with a tiny pulse
             updateVUMeter(0.2);
         } catch (err) {
@@ -2661,10 +2701,10 @@ document.getElementById('startSequencer').addEventListener('click', async functi
         isPlaying = false;
         this.innerHTML = '<i class="fas fa-play"></i><span>Start</span>';
         this.classList.remove('playing');
-        
+
         // Stop transport rather than just setting isPlaying flag
         Tone.Transport.pause();
-        
+
         // Clear any active key highlights when stopping
         clearSequencerKeyHighlights();
     }
@@ -2726,10 +2766,10 @@ document.getElementById('masterPan').addEventListener('input', async (e) => {
     if (Tone.context.state !== 'running') {
         await Tone.start();
     }
-    
+
     const value = parseFloat(e.target.value);
     masterPanner.pan.value = value;
-        
+
     // Create a more descriptive pan display
     let displayText = "C"; // Center by default 
 
@@ -2874,30 +2914,34 @@ document.getElementById('initPatchButton').addEventListener('click', function() 
 let activePresetName = null;
 
 // Import optimized preset functions
-import { getPresetByName, getPresetsByCategory, clearPresetCache } from './presets.js';
+import {
+    getPresetByName,
+    getPresetsByCategory,
+    clearPresetCache
+} from './presets.js';
 
 // Optimized preset initialization with lazy loading
 function initializePresets() {
     // Use an initialization timestamp instead of console.time to avoid timer warnings
     const initStartTime = performance.now();
-    
+
     // Apply the default preset 
     // Use the first preset or a specific default one if first is too complex
     const defaultPresetName = "Default";
     const defaultPreset = getPresetByName(defaultPresetName) || builtInPresets[0];
-    
+
     applyPreset(defaultPreset.settings);
     activePresetName = defaultPreset.name;
 
     // Render the presets list with deferred loading for better startup performance
     setTimeout(() => {
         renderPresetList();
-        
+
         // Log the time taken without using console.time/timeEnd
         const timeElapsed = performance.now() - initStartTime;
         console.log(`Preset initialization completed in ${timeElapsed.toFixed(2)}ms`);
     }, 100); // Short delay to improve initial page load performance
-    
+
     // Pre-cache the most common preset categories for faster access later
     setTimeout(() => {
         // Do this in the background after initial load
@@ -2911,37 +2955,37 @@ function initializePresets() {
 function renderPresetList() {
     const presetList = document.getElementById('presetList');
     if (!presetList) return;
-    
+
     // Clear the list to avoid memory leaks from removed event listeners
     presetList.innerHTML = '';
-    
+
     // Track presets by category for better organization
     const presetsByCategory = {};
-    
+
     // Create preset item generator function for reuse
     const createPresetItem = (preset, isCustom = false) => {
         const presetItem = document.createElement('div');
         presetItem.className = 'preset-item' + (activePresetName === preset.name ? ' active' : '');
-        
+
         // Add data attributes for filtering and sorting
         presetItem.dataset.name = preset.name;
         presetItem.dataset.category = preset.category;
         presetItem.dataset.custom = isCustom.toString();
-        
+
         // Use efficient innerHTML for template (better than creating multiple elements)
         presetItem.innerHTML = `
             <i class="fas fa-music"></i>
             <span class="preset-name">${preset.name}</span>
             <span class="preset-tag ${preset.category}">${preset.category}</span>
         `;
-        
+
         // Use event delegation pattern for better performance
         // The click handler is added to the container element instead of each preset item
         presetItem.addEventListener('click', () => {
             // Set as active (efficiently select only what we need)
             const activeItems = presetList.querySelectorAll('.preset-item.active');
             activeItems.forEach(item => item.classList.remove('active'));
-            
+
             presetItem.classList.add('active');
             activePresetName = preset.name;
 
@@ -2961,16 +3005,16 @@ function renderPresetList() {
                 if (isDroneActive) {
                     toggleDrone();
                 }
-                
+
                 // Remove loading indicator
                 presetItem.removeChild(loadingIndicator);
             }, 1000);
-            
+
         });
-        
+
         return presetItem;
     };
-    
+
     // Group built-in presets by category for better organization
     builtInPresets.forEach(preset => {
         if (!presetsByCategory[preset.category]) {
@@ -2978,7 +3022,7 @@ function renderPresetList() {
         }
         presetsByCategory[preset.category].push(preset);
     });
-    
+
     // Create category headers and add presets in custom order
     // Define the desired category order: pads, leads, keys, plucks, bass, fx, custom
     const categoryOrder = ['pad', 'lead', 'keys', 'pluck', 'bass', 'fx', 'drum', 'seq', 'ambient', 'arp'];
@@ -3001,14 +3045,14 @@ function renderPresetList() {
         // If neither is in the list, use alphabetical order
         return a.localeCompare(b);
     });
-    
+
     categories.forEach(category => {
         // Create category header
         const categoryHeader = document.createElement('div');
         categoryHeader.className = 'preset-category-header';
         categoryHeader.textContent = category.charAt(0).toUpperCase() + category.slice(1);
         presetList.appendChild(categoryHeader);
-        
+
         // Add presets for this category
         presetsByCategory[category].forEach(preset => {
             presetList.appendChild(createPresetItem(preset));
@@ -3020,7 +3064,7 @@ function renderPresetList() {
         const customPresetsRaw = localStorage.getItem('customPresets');
         if (customPresetsRaw) {
             const customPresets = JSON.parse(customPresetsRaw);
-            
+
             // Only render if there are custom presets
             if (customPresets && customPresets.length > 0) {
                 // Add custom presets header
@@ -3028,7 +3072,7 @@ function renderPresetList() {
                 customHeader.className = 'preset-category-header custom-header';
                 customHeader.textContent = 'Custom Presets';
                 presetList.appendChild(customHeader);
-                
+
                 // Add each custom preset
                 customPresets.forEach(preset => {
                     presetList.appendChild(createPresetItem(preset, true));
@@ -3050,43 +3094,43 @@ function performCleanReset() {
     if (isPlaying) {
         // Pause the transport
         Tone.Transport.pause();
-        
+
         // Clear any active key highlights
         clearSequencerKeyHighlights();
-        
+
         // Also update UI to show sequencer as stopped
         const playButton = document.getElementById('startSequencer');
         if (playButton) {
             playButton.innerHTML = '<i class="fas fa-play"></i><span>Start</span>';
             playButton.classList.remove('playing');
         }
-        
+
         // Reset isPlaying flag
         isPlaying = false;
     }
-   
- // Stop any playing notes
+
+    // Stop any playing notes
     if (synth) {
         synth.releaseAll();
     }
-    
+
     // Reset LFO state
     if (window.lfoAnimationFrame) {
         cancelAnimationFrame(window.lfoAnimationFrame);
         window.lfoAnimationFrame = null;
     }
-    
+
     // Reset step counter and sequencer state
     currentStep = 0;
-    
+
     // Clear any held notes
     activeNotes.clear();
     activeComputerKeys.clear();
     sequencerActiveKeys.clear();
-    
+
     // Clear any transports or scheduled events
     Tone.Transport.cancel();
-    
+
     // Clear any pending timeouts for sequencer
     if (typeof sequencerActiveTimeouts !== 'undefined' && sequencerActiveTimeouts instanceof Map) {
         sequencerActiveTimeouts.forEach((timeoutIds) => {
@@ -3094,32 +3138,32 @@ function performCleanReset() {
         });
         sequencerActiveTimeouts.clear();
     }
-    
+
     // Stop all LFO activity
     stopLfo();
-    
+
     // Stop and restart audio context if needed
     if (Tone.context.state !== "running") {
         Tone.context.resume();
     }
-    
+
     // Disconnect and reconnect audio nodes
     try {
         // Clean up existing connections
         masterVolume.disconnect();
         stereoWidener.disconnect();
-        
+
         // Rebuild the audio chain
         stereoWidener.connect(masterVolume);
         masterVolume.toDestination();
-        
+
         // Reconnect analysis nodes
         masterVolume.connect(window.waveform);
         stereoWidener.connect(window.fft);
     } catch (e) {
         console.warn("Error resetting audio connections:", e);
     }
-    
+
     console.log("Clean reset completed");
 }
 
@@ -3127,7 +3171,7 @@ function performCleanReset() {
 function applyPreset(settings) {
     // Perform a clean reset before applying the new preset
     performCleanReset();
-    
+
     // Update all parameters and trigger input events to update visuals
     Object.entries(settings).forEach(([key, value]) => {
         if (key !== 'sequencer' && key !== 'drumMachine') {
@@ -3143,9 +3187,9 @@ function applyPreset(settings) {
                     input.dispatchEvent(new Event('input'));
                     input.dispatchEvent(new Event('change')); // Dispatch change event explicitly
                 }
-            // Special handling for FM Sine parameters if they're in the preset
-            } else if ((key === 'harmonicity' || key === 'modulationIndex') && 
-                      settings.waveform === 'fmsine') {
+                // Special handling for FM Sine parameters if they're in the preset
+            } else if ((key === 'harmonicity' || key === 'modulationIndex') &&
+                settings.waveform === 'fmsine') {
                 const input = document.getElementById(key);
                 if (input) {
                     input.value = value;
@@ -3206,7 +3250,7 @@ function applyPreset(settings) {
 
     // Update EQ Response Curve
     updateEqResponse();
-    
+
     // Ensure visualizers are connected after preset load
     ensureVisualizersConnected();
 
@@ -3244,7 +3288,7 @@ function loadLfoPresetSettings(settings) {
     } else {
         lfoDestinationSelect.value = 'off';
     }
-    
+
     lfoRateInput.value = lfoRate;
     lfoAmountInput.value = lfoAmount;
     lfoWaveformSelect.value = lfoWaveform;
@@ -3299,7 +3343,7 @@ function getCurrentSetup() {
             active: step.querySelector('.step-toggle').classList.contains('active')
         })),
     };
-    
+
     // Add waveform-specific parameters
     if (setup.waveform === 'pulse') {
         setup.pulseWidth = document.getElementById('pulseWidth').value;
@@ -3307,16 +3351,16 @@ function getCurrentSetup() {
         setup.harmonicity = document.getElementById('harmonicity').value;
         setup.modulationIndex = document.getElementById('modulationIndex').value;
     }
-    
+
     // Validate LFO destination based on current waveform
     // If destination is one of the waveform-specific controls but the waveform doesn't match, reset to 'off'
     if (setup.lfoDestination === 'pulseWidth' && setup.waveform !== 'pulse') {
         setup.lfoDestination = 'off';
-    } else if ((setup.lfoDestination === 'harmonicity' || setup.lfoDestination === 'modulationIndex') && 
-               setup.waveform !== 'fmsine') {
+    } else if ((setup.lfoDestination === 'harmonicity' || setup.lfoDestination === 'modulationIndex') &&
+        setup.waveform !== 'fmsine') {
         setup.lfoDestination = 'off';
     }
-    
+
     return setup;
 }
 
@@ -3516,14 +3560,13 @@ const nudgeCache = {
     parameters: null,
     stepSelects: null,
     initialized: false,
-    
+
     // Initialize the cache
     init: function() {
         if (this.initialized) return;
-        
+
         // Define parameter groups
-        this.parameters = [
-            {
+        this.parameters = [{
                 type: 'filter',
                 elements: ['filterCutoff', 'filterRes'],
                 inputs: {}, // Will store DOM elements
@@ -3590,14 +3633,14 @@ const nudgeCache = {
                 knobs: {}
             }
         ];
-        
+
         // Cache DOM elements for each parameter group
         this.parameters.forEach(param => {
             // Cache input elements
             if (param.elements) {
                 param.elements.forEach(id => {
                     param.inputs[id] = document.getElementById(id);
-                    
+
                     // Also cache knob elements when they exist
                     const knobId = `${id}Knob`;
                     const knob = document.getElementById(knobId);
@@ -3606,7 +3649,7 @@ const nudgeCache = {
                     }
                 });
             }
-            
+
             // Cache dropdown elements
             if (param.dropdowns) {
                 param.dropdowns.forEach(id => {
@@ -3614,20 +3657,20 @@ const nudgeCache = {
                 });
             }
         });
-        
+
         // Special handling for step selectors - these are handled dynamically
         this.stepSelects = null;
-        
+
         this.initialized = true;
     },
-    
+
     // Reset the cache (call when DOM structure changes)
     reset: function() {
         this.initialized = false;
         this.stepSelects = null;
         this.parameters = null;
     },
-    
+
     // Get step selects with lazy loading
     getStepSelects: function() {
         if (!this.stepSelects) {
@@ -3643,7 +3686,7 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
     if (!nudgeCache.initialized) {
         nudgeCache.init();
     }
-    
+
     // Get all available notes just once
     const notes = generateNotes();
 
@@ -3658,7 +3701,7 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
             // Get cached or fresh step selectors
             const stepSelects = nudgeCache.getStepSelects();
             if (!stepSelects || stepSelects.length === 0) return;
-            
+
             // Modify 1-2 random step notes
             const numNoteChanges = Math.floor(Math.random() * 2) + 1;
             // Create a copy of the array to avoid modifying the cached one
@@ -3686,7 +3729,7 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
             const element = param.elements[Math.floor(Math.random() * param.elements.length)];
             const input = param.inputs[element]; // Use cached element
             if (!input) return;
-            
+
             input.checked = Math.random() > 0.5;
             input.dispatchEvent(new Event('change'));
 
@@ -3709,7 +3752,7 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
                 const element = param.elements[Math.floor(Math.random() * param.elements.length)];
                 const input = param.inputs[element]; // Use cached element
                 if (!input) return;
-                
+
                 // Get current value and constraints
                 const currentValue = parseFloat(input.value);
                 const range = parseFloat(input.max) - parseFloat(input.min);
@@ -3718,7 +3761,7 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
                     parseFloat(input.min),
                     Math.min(parseFloat(input.max), currentValue + variation)
                 );
-                
+
                 // Apply the change
                 input.value = newValue;
                 input.dispatchEvent(new Event('input'));
@@ -3738,7 +3781,7 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
                 const dropdown = param.dropdowns[Math.floor(Math.random() * param.dropdowns.length)];
                 const select = param.selects[dropdown]; // Use cached element
                 if (!select || !select.options || select.options.length === 0) return;
-                
+
                 const currentIndex = select.selectedIndex;
 
                 // For most dropdowns, we'll shift by -1, 0, or 1 position
@@ -3770,7 +3813,7 @@ document.getElementById('nudgeButton').addEventListener('click', () => {
             const element = param.elements[Math.floor(Math.random() * param.elements.length)];
             const input = param.inputs[element]; // Use cached element
             if (!input) return;
-            
+
             const currentValue = parseFloat(input.value);
             const range = parseFloat(input.max) - parseFloat(input.min);
             const variation = (Math.random() * 0.2 - 0.1) * range; // ±10% variation
@@ -3825,28 +3868,28 @@ function setupSequencer() {
             console.warn("Error clearing previous sequencer event:", e);
         }
     }
-    
+
     // Set the tempo from the UI
     const tempo = parseInt(document.getElementById('tempo').value || 120);
     Tone.Transport.bpm.value = tempo;
-    
+
     // Create a counter variable within this closure to avoid any global state issues
     let localStepCounter = -1; // Start at -1 so first increment makes it 0
-    
+
     // Reset the global currentStep to ensure consistent starting point
     currentStep = 0;
-    
+
     // Use 8n like in the original version, not 16n
     sequencerEventId = Tone.Transport.scheduleRepeat(time => {
         // Use the local counter to keep track of steps
         localStepCounter = (localStepCounter + 1) % 16;
-        
+
         // Update the global currentStep for visual feedback
         currentStep = localStepCounter;
-        
+
         // Make sure visualizers are connected EVERY time we process a step
         ensureVisualizersConnected();
-        
+
         if (isPlaying) {
             // Get the UI elements for this step
             const steps = document.querySelectorAll('.step');
@@ -3854,30 +3897,30 @@ function setupSequencer() {
                 const step = steps[currentStep];
                 const select = step.querySelector('select');
                 const toggle = step.querySelector('.step-toggle');
-                
+
                 // Only play if this step is toggled on
                 if (toggle && toggle.classList.contains('active')) {
                     const note = select.value;
-                    
+
                     // Check if synth exists and recreate if needed
                     if (!synth || synth.disposed) {
                         console.log("Recreating synth during sequencer playback");
                         synth = createSynth();
                     }
-                    
+
                     // Play the note with the synth - use 8n like original
                     try {
                         // Schedule the audio at the specified time
                         synth.triggerAttackRelease(note, '8n', time);
-                        
+
                         // Schedule visual updates to sync with audio using Tone.Draw
                         Tone.Draw.schedule(() => {
                             // Update VU meter at the exact time the note plays
                             updateVUMeter(0.8);
-                            
+
                             // Highlight the corresponding key
                             highlightKeyFromSequencer(note, 0.25);
-                            
+
                             // Visual feedback - also synchronized with audio
                             gsap.to(step, {
                                 scale: 1.03,
@@ -3892,10 +3935,10 @@ function setupSequencer() {
                         ensureVisualizersConnected();
                     }
                 }
-                
+
                 // Always update the visual display
                 updateSequencer(currentStep);
-                
+
                 // Force oscilloscope update on each beat to keep visualizations running
                 if (animations && animations.oscilloscope && animations.oscilloscope.element) {
                     updateOscilloscope(performance.now());
@@ -3912,7 +3955,7 @@ setupSequencer();
 document.getElementById('tempo').addEventListener('input', (e) => {
     const tempo = parseInt(e.target.value);
     document.getElementById('tempoValue').textContent = `${tempo} BPM`;
-    
+
     // Update Tone.js Transport BPM directly
     Tone.Transport.bpm.value = tempo;
 });
@@ -3942,7 +3985,7 @@ const keyboardNoteMap = {
     'u': 'A#',
     'j': 'B',
     'k': 'C+1', // +1 octave
-    'l': 'D+1'  // +1 octave
+    'l': 'D+1' // +1 octave
 };
 
 // Efficient DOM caching to reduce expensive lookups
@@ -3953,11 +3996,11 @@ function getKeyElement(note) {
     if (keyElementCache.has(note)) {
         return keyElementCache.get(note);
     }
-    
+
     // Only do the DOM query if we don't have it cached
-    const element = document.querySelector(`.key[data-note="${note}"]`) || 
-                   document.querySelector(`.black-key[data-note="${note}"]`);
-    
+    const element = document.querySelector(`.key[data-note="${note}"]`) ||
+        document.querySelector(`.black-key[data-note="${note}"]`);
+
     if (element) {
         keyElementCache.set(note, element);
     }
@@ -3972,20 +4015,20 @@ function resetKeyboardCache() {
 function updateOctaveIndicator(octave) {
     // Store old octave for comparison
     const oldOctave = currentOctave;
-    
+
     // Cache the indicator element reference
     if (!updateOctaveIndicator.element) {
         updateOctaveIndicator.element = document.querySelector('.octave-indicator');
     }
-    
+
     if (updateOctaveIndicator.element) {
         updateOctaveIndicator.element.textContent = octave;
     }
-    
+
     // Update currentOctave and window.currentOctave
     currentOctave = octave;
     window.currentOctave = octave;
-    
+
     // Update Quick Chord octave display as well
     const quickChordOctaveDisplay = document.getElementById('currentOctave');
     if (quickChordOctaveDisplay) {
@@ -3997,7 +4040,7 @@ function updateOctaveIndicator(octave) {
         window.keyboardAPI.scrollToOctave(octave);
         window.keyboardAPI.highlightCurrentOctave(octave);
     }
-        
+
     // This is the function that actually transposes the arpeggiator notes
     if (typeof updateArpeggiatorOctave === 'function') {
         updateArpeggiatorOctave(oldOctave, octave);
@@ -4020,12 +4063,12 @@ document.addEventListener('keydown', e => {
         const oldOctave = currentOctave;
         currentOctave--;
         updateOctaveIndicator(currentOctave);
-        
+
         // Update arpeggiator notes to match new octave
         if (typeof updateArpeggiatorOctave === 'function') {
             updateArpeggiatorOctave(oldOctave, currentOctave);
         }
-        
+
         // Simplified throttling optimization
         if (typeof animations !== 'undefined' && animations.settings) {
             try {
@@ -4033,21 +4076,22 @@ document.addEventListener('keydown', e => {
                 setTimeout(() => {
                     animations.settings.throttleAmount -= 1;
                 }, 100);
-            } catch (e) { /* Silent fail */ }
+            } catch (e) {
+                /* Silent fail */ }
         }
         return;
     }
-    
+
     if (e.key === 'x' && currentOctave < 7) {
         const oldOctave = currentOctave;
         currentOctave++;
         updateOctaveIndicator(currentOctave);
-        
+
         // Update arpeggiator notes to match new octave
         if (typeof updateArpeggiatorOctave === 'function') {
             updateArpeggiatorOctave(oldOctave, currentOctave);
         }
-        
+
         // Simplified throttling optimization
         if (typeof animations !== 'undefined' && animations.settings) {
             try {
@@ -4055,7 +4099,8 @@ document.addEventListener('keydown', e => {
                 setTimeout(() => {
                     animations.settings.throttleAmount -= 1;
                 }, 100);
-            } catch (e) { /* Silent fail */ }
+            } catch (e) {
+                /* Silent fail */ }
         }
         return;
     }
@@ -4063,17 +4108,17 @@ document.addEventListener('keydown', e => {
     // Look up the note in our cached keyboard map
     const baseNote = keyboardNoteMap[e.key];
     if (!baseNote) return;
-    
+
     // Generate the actual note with octave
-    const note = baseNote.includes('+1') 
-        ? `${baseNote.replace('+1', '')}${currentOctave + 1}` 
-        : `${baseNote}${currentOctave}`;
+    const note = baseNote.includes('+1') ?
+        `${baseNote.replace('+1', '')}${currentOctave + 1}` :
+        `${baseNote}${currentOctave}`;
 
     // Polyphonic mode - add new note if not already active
     if (!activeComputerKeys.has(e.key)) {
         activeComputerKeys.add(e.key);
         activeNotes.add(note);
-        
+
         // Ensure synth exists before triggering
         if (synth && !synth.disposed) {
             if (isArpeggiatorEnabled) {
@@ -4083,7 +4128,7 @@ document.addEventListener('keydown', e => {
                 synth.triggerAttack(note);
                 updateVUMeter(0.8);
             }
-            
+
             // Update visual keyboard using cached element
             const keyElement = getKeyElement(note);
             if (keyElement) {
@@ -4097,16 +4142,16 @@ document.addEventListener('keyup', e => {
     // Look up the note in our cached keyboard map
     const baseNote = keyboardNoteMap[e.key];
     if (!baseNote) return;
-    
+
     // Generate the actual note with octave
-    const note = baseNote.includes('+1') 
-        ? `${baseNote.replace('+1', '')}${currentOctave + 1}` 
-        : `${baseNote}${currentOctave}`;
+    const note = baseNote.includes('+1') ?
+        `${baseNote.replace('+1', '')}${currentOctave + 1}` :
+        `${baseNote}${currentOctave}`;
 
     if (activeComputerKeys.has(e.key)) {
         activeComputerKeys.delete(e.key);
         activeNotes.delete(note);
-        
+
         // Safe version of triggerRelease with error handling
         try {
             // Only trigger release if synth exists and isn't disposed
@@ -4131,7 +4176,8 @@ document.addEventListener('keyup', e => {
             console.debug("Recovering from synth error");
             try {
                 synth = createSynth("poly");
-            } catch (e) { /* Silent fail */ }
+            } catch (e) {
+                /* Silent fail */ }
         }
     }
 });
@@ -4153,7 +4199,7 @@ document.getElementById('lfoRate').addEventListener('input', function(e) {
 document.getElementById('lfoAmount').addEventListener('input', function(e) {
     const amount = parseInt(e.target.value);
     document.getElementById('lfoAmountValue').textContent = `${amount}%`;
-    
+
     // Enhanced LFO visualizer has been removed
 
     // Only restart if LFO is active
@@ -4164,9 +4210,9 @@ document.getElementById('lfoAmount').addEventListener('input', function(e) {
 
 document.getElementById('lfoWaveform').addEventListener('change', function(e) {
     const waveform = e.target.value;
-    
+
     // Enhanced LFO visualizer has been removed
-    
+
     // Only restart if LFO is active
     if (lfoDestination !== 'off') {
         restartLfo();
@@ -4176,15 +4222,15 @@ document.getElementById('lfoWaveform').addEventListener('change', function(e) {
 // Function to stop LFO
 function stopLfo() {
     lfoActive = false;
-    
+
     // Cancel any pending animation frame
     if (window.lfoAnimationFrame) {
         cancelAnimationFrame(window.lfoAnimationFrame);
         window.lfoAnimationFrame = null;
     }
-    
+
     // Enhanced LFO visualizer has been removed
-    
+
     console.log('LFO stopped');
 }
 
@@ -4378,7 +4424,7 @@ function updateAudioParameter(paramId, value) {
         case 'arpSwing':
             arpeggiatorSettings.swing = value;
             document.getElementById('arpSwingValue').textContent = `${Math.round(value)}%`;
-            break;            
+            break;
         case 'stereoWidth':
             const widthValue = value;
 
@@ -4430,7 +4476,7 @@ document.getElementById('lfoDestination').addEventListener('change', function(e)
     // If turning off, we're done
     if (newDestination === 'off') {
         lfoDestination = 'off';
-        
+
         // Update enhanced visualizer if available
         if (window.lfoOscilloscope) {
             window.lfoOscilloscope.updateParameters(undefined, undefined, undefined, 'off');
@@ -4446,7 +4492,7 @@ document.getElementById('lfoDestination').addEventListener('change', function(e)
     if (input) {
         lfoBaseValues[newDestination] = parseFloat(input.value);
     }
-    
+
     // Enhanced LFO visualizer has been removed
 
     // Start the LFO
@@ -4465,11 +4511,11 @@ function initLfoScope() {
     animations.lfoScope.element = lfoScopeCanvas;
     animations.lfoScope.context = lfoScopeCanvas.getContext('2d');
     animations.lfoScope.active = true;
-    
+
     // Set canvas dimensions explicitly
     lfoScopeCanvas.width = lfoScopeCanvas.parentElement.clientWidth;
     lfoScopeCanvas.height = 80; // Fixed height
-    
+
     console.log('LFO scope initialized in unified animation system');
 }
 
@@ -4715,12 +4761,12 @@ function setupChordOctaveSwitcher() {
 function setupChordPads() {
     // Chord type definitions (intervals from root)
     const chordTypes = {
-        'maj': [0, 4, 7],      // Major (root, major 3rd, perfect 5th)
-        'min': [0, 3, 7],      // Minor (root, minor 3rd, perfect 5th)
-        'dim': [0, 3, 6],      // Diminished (root, minor 3rd, diminished 5th)
-        'aug': [0, 4, 8],      // Augmented (root, major 3rd, augmented 5th)
-        'sus2': [0, 2, 7],     // Suspended 2nd (root, major 2nd, perfect 5th)
-        'sus4': [0, 5, 7],     // Suspended 4th (root, perfect 4th, perfect 5th)
+        'maj': [0, 4, 7], // Major (root, major 3rd, perfect 5th)
+        'min': [0, 3, 7], // Minor (root, minor 3rd, perfect 5th)
+        'dim': [0, 3, 6], // Diminished (root, minor 3rd, diminished 5th)
+        'aug': [0, 4, 8], // Augmented (root, major 3rd, augmented 5th)
+        'sus2': [0, 2, 7], // Suspended 2nd (root, major 2nd, perfect 5th)
+        'sus4': [0, 5, 7], // Suspended 4th (root, perfect 4th, perfect 5th)
         'maj7': [0, 4, 7, 11], // Major 7th (root, major 3rd, perfect 5th, major 7th)
         'min7': [0, 3, 7, 10], // Minor 7th (root, minor 3rd, perfect 5th, minor 7th)
         'dom7': [0, 4, 7, 10], // Dominant 7th (root, major 3rd, perfect 5th, minor 7th)
@@ -4730,7 +4776,7 @@ function setupChordPads() {
     // Skip setup if the chord buttons are not in the DOM
     const chordButtons = document.querySelectorAll('.chord-button');
     const noteButtons = document.querySelectorAll('.note-button');
-    
+
     if (chordButtons.length === 0 || noteButtons.length === 0) {
         console.log('Chord pads not found in the DOM');
         return;
@@ -4742,11 +4788,11 @@ function setupChordPads() {
     let holdModeActive = false;
     let lastPlayedChord = null;
     let bassNoteActive = false; // State for bass note toggle
-    let bassSynth = null;       // Synth instance for bass note
+    let bassSynth = null; // Synth instance for bass note
 
     // Create HOLD and BASS NOTE buttons container
     const chordPadContainer = document.querySelector('.chord-buttons') || noteButtons[0].parentElement.parentElement;
-    
+
     if (chordPadContainer) {
         const controlsContainer = document.createElement('div');
         controlsContainer.className = 'chord-controls-container';
@@ -4756,26 +4802,26 @@ function setupChordPads() {
         // HOLD button
         const holdBtnContainer = document.createElement('div');
         holdBtnContainer.className = 'hold-button-container';
-        
+
         const holdBtn = document.createElement('button');
         holdBtn.id = 'chordHoldButton';
         holdBtn.className = 'chord-hold-button';
         holdBtn.innerHTML = '<i class="fas fa-hand-paper"></i> HOLD';
         holdBtn.title = 'Toggle chord hold mode';
-        
+
         holdBtnContainer.appendChild(holdBtn);
         controlsContainer.appendChild(holdBtnContainer);
 
         // BASS NOTE button
         const bassBtnContainer = document.createElement('div');
         bassBtnContainer.className = 'bass-button-container';
-        
+
         const bassBtn = document.createElement('button');
         bassBtn.id = 'bassNoteButton';
         bassBtn.className = 'bass-note-button';
         bassBtn.innerHTML = '<i class="fas fa-volume-down"></i> BASS';
         bassBtn.title = 'Toggle bass note';
-        
+
         bassBtnContainer.appendChild(bassBtn);
         controlsContainer.appendChild(bassBtnContainer);
 
@@ -4786,7 +4832,7 @@ function setupChordPads() {
         holdBtn.addEventListener('click', function() {
             holdModeActive = !holdModeActive;
             this.classList.toggle('active', holdModeActive);
-            
+
             if (!holdModeActive && lastPlayedChord) {
                 if (synth && !synth.disposed) {
                     synth.releaseAll();
@@ -5024,48 +5070,48 @@ function setupChordPads() {
 // Add module collapsible functionality
 function setupCollapsibleModules() {
     const allModules = document.querySelectorAll('.module');
-    
+
     allModules.forEach(moduleEl => {
         const moduleName = moduleEl.className.split(' ').find(cls => cls.endsWith('-module') || cls.endsWith('-container'));
         const headerEl = moduleEl.querySelector('.module-header');
-        
+
         if (!headerEl) {
             console.log(`Header not found in module: ${moduleSelector}`);
             return;
         }
-        
+
         // First, remove any existing collapse buttons and their event listeners
         const existingBtn = headerEl.querySelector('.module-collapse-btn');
         if (existingBtn) {
             existingBtn.remove();
         }
-        
+
         // Create a new collapse button
         const collapseBtn = document.createElement('button');
         collapseBtn.className = 'module-collapse-btn';
         collapseBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
         collapseBtn.setAttribute('title', 'Collapse module');
         headerEl.appendChild(collapseBtn);
-        
+
         // Add click handler using a separate function to ensure clean event binding
         const toggleCollapse = (event) => {
             event.stopPropagation();
             const wasCollapsed = moduleEl.classList.contains('collapsed');
             moduleEl.classList.toggle('collapsed');
-            
+
             // Update the icon
             const icon = collapseBtn.querySelector('i');
             if (moduleEl.classList.contains('collapsed')) {
                 icon.classList.remove('fa-chevron-up');
                 icon.classList.add('fa-chevron-down');
                 collapseBtn.setAttribute('title', 'Expand module');
-                
+
                 // Special handling for sequencer module
                 if (moduleEl.classList.contains('sequencer-container')) {
                     // Also hide keyboard and sequencer elements
                     const keyboard = document.getElementById('keyboard');
                     const sequencer = document.getElementById('sequencer');
-                    
+
                     if (keyboard) keyboard.style.display = 'none';
                     if (sequencer) sequencer.style.display = 'none';
                 }
@@ -5073,26 +5119,26 @@ function setupCollapsibleModules() {
                 icon.classList.remove('fa-chevron-down');
                 icon.classList.add('fa-chevron-up');
                 collapseBtn.setAttribute('title', 'Collapse module');
-                
+
                 // Special handling for sequencer module
                 if (moduleEl.classList.contains('sequencer-container')) {
                     // Show keyboard and sequencer elements
                     const keyboard = document.getElementById('keyboard');
                     const sequencer = document.getElementById('sequencer');
-                    
+
                     if (keyboard) keyboard.style.display = '';
                     if (sequencer) sequencer.style.display = '';
                 }
             }
-            
+
             // Add this to update animation visibility based on module state
             // For modules with canvas animations
             if (moduleName === 'oscilloscope' || moduleName === 'lfo') {
                 // Get the animation key name
                 const animKey = moduleName === 'oscilloscope' ? 'oscilloscope' :
-                                moduleName === 'lfo' ? 'lfoScope' : 
-                                moduleName === 'spectrum' ? 'spectrum' : 'particles';
-                
+                    moduleName === 'lfo' ? 'lfoScope' :
+                    moduleName === 'spectrum' ? 'spectrum' : 'particles';
+
                 // Update active state in the animation system
                 if (animations[animKey]) {
                     animations[animKey].active = !moduleEl.classList.contains('collapsed');
@@ -5103,12 +5149,12 @@ function setupCollapsibleModules() {
 
         // Remove any existing event listeners (as best as we can)
         collapseBtn.replaceWith(collapseBtn.cloneNode(true));
-        
+
         // Re-select the button after replacing it
         const newBtn = headerEl.querySelector('.module-collapse-btn');
         newBtn.addEventListener('click', toggleCollapse);
     });
-    
+
     // Add a global keyboard shortcut for toggling all modules
     setupCollapseKeyboardShortcut();
 }
@@ -5117,16 +5163,16 @@ function setupCollapsibleModules() {
 function toggleAllModules(collapse) {
     // Get all modules
     const allModules = document.querySelectorAll('.module');
-    
+
     allModules.forEach(moduleEl => {
         // Get the current state
         const isCollapsed = moduleEl.classList.contains('collapsed');
-        
+
         // Only change if needed
         if (collapse && !isCollapsed) {
             // Collapse this module
             moduleEl.classList.add('collapsed');
-            
+
             // Update the icon
             const icon = moduleEl.querySelector('.module-collapse-btn i');
             if (icon) {
@@ -5134,21 +5180,20 @@ function toggleAllModules(collapse) {
                 icon.classList.add('fa-chevron-down');
                 icon.parentElement.setAttribute('title', 'Expand module');
             }
-            
+
             // Handle sequencer specially
             if (moduleEl.classList.contains('sequencer-container')) {
                 // Also hide keyboard and sequencer elements
                 const keyboard = document.getElementById('keyboard');
                 const sequencer = document.getElementById('sequencer');
-                
+
                 if (keyboard) keyboard.style.display = 'none';
                 if (sequencer) sequencer.style.display = 'none';
             }
-        } 
-        else if (!collapse && isCollapsed) {
+        } else if (!collapse && isCollapsed) {
             // Expand this module
             moduleEl.classList.remove('collapsed');
-            
+
             // Update the icon
             const icon = moduleEl.querySelector('.module-collapse-btn i');
             if (icon) {
@@ -5156,13 +5201,13 @@ function toggleAllModules(collapse) {
                 icon.classList.add('fa-chevron-up');
                 icon.parentElement.setAttribute('title', 'Collapse module');
             }
-            
+
             // Handle sequencer specially
             if (moduleEl.classList.contains('sequencer-container')) {
                 // Show keyboard and sequencer elements
                 const keyboard = document.getElementById('keyboard');
                 const sequencer = document.getElementById('sequencer');
-                
+
                 if (keyboard) keyboard.style.display = '';
                 if (sequencer) sequencer.style.display = '';
             }
@@ -5174,10 +5219,10 @@ function toggleAllModules(collapse) {
 function setupCollapseKeyboardShortcut() {
     // Remove any existing event listener
     document.removeEventListener('keydown', handleCollapseKeypress);
-    
+
     // Add a new event listener
     document.addEventListener('keydown', handleCollapseKeypress);
-    
+
     console.log('Collapse keyboard shortcut (c) setup complete');
 }
 
@@ -5186,17 +5231,17 @@ function handleCollapseKeypress(event) {
     // Check if it's the 'c' key and not in an input field
     if (event.key.toLowerCase() === 'c' && !['input', 'textarea', 'select'].includes(document.activeElement.tagName.toLowerCase())) {
         event.preventDefault();
-        
+
         // Determine the target state
         // If any module is expanded, collapse everything
         // If all modules are collapsed, expand everything
         const anyExpanded = Array.from(document.querySelectorAll('.module')).some(
             module => !module.classList.contains('collapsed')
         );
-        
+
         // Toggle all modules based on the determined state
         toggleAllModules(anyExpanded);
-        
+
         console.log(anyExpanded ? 'All modules collapsed' : 'All modules expanded');
     }
 }
@@ -5206,31 +5251,31 @@ function handleCollapseKeypress(event) {
 window.addEventListener('resize', function() {
     // Debounce resize operations
     if (this.resizeTimeout) clearTimeout(this.resizeTimeout);
-    
+
     this.resizeTimeout = setTimeout(function() {
         // Update canvas dimensions
         const canvases = [
             animations.oscilloscope.element,
             animations.lfoScope.element
         ];
-        
+
         canvases.forEach(canvas => {
             if (canvas && canvas.parentElement) {
                 canvas.width = canvas.parentElement.clientWidth;
                 // Height can be fixed or dynamic depending on the canvas
             }
         });
-        
+
         // Enhanced LFO visualizer has been removed
-        
+
         if (animations.isRunning) {
             if (animations.oscilloscope.element) updateOscilloscope(performance.now());
             if (animations.lfoScope.element) updateLfoScope(performance.now());
         }
-        
+
         // Update FM Sine labels when window size changes
         adjustFMSineLabelsForMobile();
-        
+
         console.log('Canvas dimensions and labels updated after resize');
     }, 250); // 250ms debounce
 });
@@ -5240,7 +5285,7 @@ function setupDrumPads() {
     // Get all drum pads
     const drumPads = document.querySelectorAll('.drum-pad');
     console.log(`Found ${drumPads.length} drum pads`);
-    
+
     // Add click event listeners to each drum pad
     drumPads.forEach(pad => {
         const sound = pad.getAttribute('data-sound');
@@ -5254,45 +5299,45 @@ function setupDrumPads() {
 // Create a unified DOMContentLoaded handler that consolidates all initialization
 document.addEventListener('DOMContentLoaded', () => {
     console.log('SynthXR: Initializing application...');
-    
+
     initAudioNodes();
 
     // Step 1: Initialize core systems
     initAnimationSettings();
     startAnimations();
-    
+
     // Step 2: Create UI components
     createKeyboard();
-    
+
     // Step 3: Initialize audio systems
     initializeDrumSounds();
     setupDrumPads();
-    
+
     // Step 4: Initialize presets
     initializePresets();
-    
+
     // Step 5: Initialize visualizations 
     updateADSRVisualizer();
     updateFilterResponse();
     updateEqResponse();
     initLfoScope();
-    
+
     // Using basic LFO visualizer only
-    
+
     // Step 6: Set up the sequencer
     if (typeof setupSequencer === 'function') {
         setupSequencer();
     }
-    
+
     // Step 7: Initialize UI modules
     setupCollapsibleModules();
     setupChordOctaveSwitcher();
     setupChordPads();
-    
+
     // Step 7.5: Initialize the arpeggiator
     initArpeggiator(knobUpdaters, synth, activeNotes);
 
-    
+
     // Step 8: Update LFO destination options to include EQ parameters
     const lfoDestinationSelect = document.getElementById('lfoDestination');
     if (lfoDestinationSelect) {
@@ -5300,41 +5345,55 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!lfoDestinationSelect.querySelector('option[value="eqLow"]')) {
             const eqGroup = document.createElement('optgroup');
             eqGroup.label = 'EQ';
-            
+
             // Add all EQ-related parameters
-            const eqOptions = [
-                { value: 'eqLow', text: 'EQ Low' },
-                { value: 'eqMid', text: 'EQ Mid' },
-                { value: 'eqHigh', text: 'EQ High' },
-                { value: 'eqMidFreq', text: 'EQ Mid Freq' },
-                { value: 'eqQ', text: 'EQ Q' }
+            const eqOptions = [{
+                    value: 'eqLow',
+                    text: 'EQ Low'
+                },
+                {
+                    value: 'eqMid',
+                    text: 'EQ Mid'
+                },
+                {
+                    value: 'eqHigh',
+                    text: 'EQ High'
+                },
+                {
+                    value: 'eqMidFreq',
+                    text: 'EQ Mid Freq'
+                },
+                {
+                    value: 'eqQ',
+                    text: 'EQ Q'
+                }
             ];
-            
+
             eqOptions.forEach(opt => {
                 const option = document.createElement('option');
                 option.value = opt.value;
                 option.textContent = opt.text;
                 eqGroup.appendChild(option);
             });
-            
+
             lfoDestinationSelect.appendChild(eqGroup);
             console.log('Added EQ options to LFO destinations');
         }
     }
-    
+
     // Step 9: Final adjustments
     adjustFMSineLabelsForMobile();
-    
+
     // Initialize LFO destination options based on current waveform
     const currentWaveform = document.getElementById('waveform').value;
     updateLfoDestinationOptions(currentWaveform);
-    
+
     // Step 10: Trigger initial setup events
     document.getElementById('lfoDestination').dispatchEvent(new Event('change'));
-    
+
     // Add MIDI button for desktop (not mobile)
     addMidiButtonIfDesktop();
-    
+
     // Add Help button
     addHelpButtonIfDesktop();
 
@@ -5345,7 +5404,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function addMidiButtonIfDesktop() {
     // Check if we're on mobile
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
-    
+
     if (!isMobile) {
         // Create MIDI button - position at top right corner
         const midiButton = document.createElement('button');
@@ -5353,10 +5412,10 @@ function addMidiButtonIfDesktop() {
         midiButton.className = 'midi-button';
         midiButton.innerHTML = '<i class="fas fa-keyboard"></i> MIDI';
         midiButton.title = 'Load MIDI Controller Support';
-        
+
         // Add click handler to load MIDI module
         midiButton.addEventListener('click', loadMidiModule);
-        
+
         // Append to body for fixed positioning
         document.body.appendChild(midiButton);
         console.log('MIDI button added for desktop');
@@ -5372,14 +5431,14 @@ let midiLoaded = false;
 function loadMidiModule() {
     // Get the MIDI module element
     const midiModule = document.querySelector('.midi-module');
-    
+
     // Skip if already loaded
     if (midiLoaded) {
         // Toggle visibility if already loaded
         if (midiModule) {
             midiModule.classList.toggle('active');
             const isActive = midiModule.classList.contains('active');
-            
+
             // Update button text based on module visibility
             const midiButton = document.getElementById('loadMidiButton');
             if (midiButton) {
@@ -5392,50 +5451,50 @@ function loadMidiModule() {
         }
         return;
     }
-    
+
     console.log('Loading MIDI module...');
     const loadingIndicator = document.createElement('span');
     loadingIndicator.textContent = ' Loading...';
     loadingIndicator.className = 'midi-loading';
-    
+
     const midiButton = document.getElementById('loadMidiButton');
     if (midiButton) {
         midiButton.disabled = true;
         midiButton.appendChild(loadingIndicator);
     }
-    
+
     // Dynamically import MIDI module
     import('./midi.js')
         .then(midiModule => {
             // Store module exports in global scope for later use
             window.midiModule = midiModule;
-            
+
             // Initialize MIDI
             return midiModule.initMIDI();
         })
         .then(() => {
             // Setup UI for MIDI controls
             setupMIDIControls();
-            
+
             // Show the MIDI module
             const midiModuleElement = document.querySelector('.midi-module');
             if (midiModuleElement) {
                 midiModuleElement.classList.add('active');
             }
-            
+
             // Update button to show "Hide MIDI"
             if (midiButton) {
                 midiButton.innerHTML = '<i class="fas fa-keyboard"></i> Hide MIDI';
                 midiButton.classList.add('midi-loaded');
                 midiButton.disabled = false;
             }
-            
+
             midiLoaded = true;
             console.log('MIDI module loaded successfully');
         })
         .catch(error => {
             console.warn('Failed to load MIDI module:', error);
-            
+
             // Update button to show error
             if (midiButton) {
                 midiButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> MIDI Failed';
@@ -5453,9 +5512,14 @@ function setupMIDIControls() {
         console.warn('Cannot setup MIDI controls - module not loaded');
         return;
     }
-    
-    const { toggleLearnMode, setActiveDevice, clearAllMappings, exportMappings } = window.midiModule;
-    
+
+    const {
+        toggleLearnMode,
+        setActiveDevice,
+        clearAllMappings,
+        exportMappings
+    } = window.midiModule;
+
     // MIDI Learn toggle
     const midiLearnToggle = document.getElementById('midiLearnToggle');
     if (midiLearnToggle) {
@@ -5465,7 +5529,7 @@ function setupMIDIControls() {
             e.stopPropagation();
         });
     }
-    
+
     // Clear all mappings button
     const clearMappingsBtn = document.getElementById('clearMappingsBtn');
     if (clearMappingsBtn) {
@@ -5475,7 +5539,7 @@ function setupMIDIControls() {
             e.stopPropagation();
         });
     }
-    
+
     // Device selector
     const deviceSelector = document.getElementById('midiDeviceSelector');
     if (deviceSelector) {
@@ -5483,7 +5547,7 @@ function setupMIDIControls() {
             setActiveDevice(deviceSelector.value);
         });
     }
-    
+
     // Export and import buttons
     const exportMappingsBtn = document.getElementById('exportMappingsBtn');
     if (exportMappingsBtn) {
@@ -5491,10 +5555,10 @@ function setupMIDIControls() {
             exportMappings();
         });
     }
-    
+
     // Show MIDI controls container if it exists
-    const midiControlsContainer = document.getElementById('midiControlsContainer') || 
-                                 document.querySelector('.midi-controls-container');
+    const midiControlsContainer = document.getElementById('midiControlsContainer') ||
+        document.querySelector('.midi-controls-container');
     if (midiControlsContainer) {
         midiControlsContainer.style.display = 'block';
     }
@@ -5504,17 +5568,17 @@ function setupMIDIControls() {
 function adjustFMSineLabelsForMobile() {
     // Check if the device is mobile
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
-    
+
     if (isMobile) {
         // Get the label elements
         const harmonicityLabel = document.querySelector('label[for="harmonicity"], #harmonicityContainer .knob-label');
         const modulationIndexLabel = document.querySelector('label[for="modulationIndex"], #modulationIndexContainer .knob-label');
-        
+
         // Change the labels if they exist
         if (harmonicityLabel) {
             harmonicityLabel.textContent = 'HARM';
         }
-        
+
         if (modulationIndexLabel) {
             modulationIndexLabel.textContent = 'MOD';
         }
@@ -5526,17 +5590,17 @@ function updateLfoDestinationOptions(currentWaveform) {
     // Get the LFO destination select element
     const lfoDestination = document.getElementById('lfoDestination');
     if (!lfoDestination) return;
-    
+
     // Get all waveform-specific options
     const pulseWidthOption = Array.from(lfoDestination.options).find(opt => opt.value === 'pulseWidth');
     const harmonicityOption = Array.from(lfoDestination.options).find(opt => opt.value === 'harmonicity');
     const modulationIndexOption = Array.from(lfoDestination.options).find(opt => opt.value === 'modulationIndex');
-    
+
     // First, disable all waveform-specific options
     if (pulseWidthOption) pulseWidthOption.disabled = true;
     if (harmonicityOption) harmonicityOption.disabled = true;
     if (modulationIndexOption) modulationIndexOption.disabled = true;
-    
+
     // Then enable options based on current waveform
     if (currentWaveform === 'pulse' && pulseWidthOption) {
         pulseWidthOption.disabled = false;
@@ -5544,7 +5608,7 @@ function updateLfoDestinationOptions(currentWaveform) {
         if (harmonicityOption) harmonicityOption.disabled = false;
         if (modulationIndexOption) modulationIndexOption.disabled = false;
     }
-    
+
     // If the currently selected option is now disabled, reset to 'off'
     if (lfoDestination.options[lfoDestination.selectedIndex].disabled) {
         lfoDestination.value = 'off';
@@ -5561,13 +5625,13 @@ function addHelpButtonIfDesktop() {
     helpButton.className = 'help-button';
     helpButton.innerHTML = '<i class="fas fa-question-circle"></i> Help';
     helpButton.title = 'View Help and Instructions';
-    
+
     // Add click handler to open help modal
     helpButton.addEventListener('click', openHelpModal);
-    
+
     // Append to body for fixed positioning
     document.body.appendChild(helpButton);
-    
+
     // Set up event listener for closing help modal
     document.getElementById('closeHelpBtn').addEventListener('click', () => {
         document.getElementById('helpModal').classList.remove('active');

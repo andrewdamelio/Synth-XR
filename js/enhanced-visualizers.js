@@ -861,7 +861,7 @@ class UIManager {
             borderRadius: '4px',
             padding: '5px 10px',
             fontSize: '14px',
-            marginLeft: '10px',
+            marginLeft: '-10px',
             outline: 'none',
             cursor: 'pointer'
         });
