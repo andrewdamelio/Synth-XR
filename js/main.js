@@ -4894,9 +4894,11 @@ function setupChordPads() {
             bassSynth.dispose();
         }
 
+        const waveform = document.getElementById('waveform').value;
+        const level = parseFloat(document.getElementById('oscillatorLevel').value || 0.8);
         bassSynth = new Tone.MonoSynth({
             oscillator: {
-                type: 'sawtooth'
+                type: waveform
             },
             envelope: {
                 attack: 0.1,
@@ -4908,7 +4910,7 @@ function setupChordPads() {
                 frequency: 200,
                 Q: 1
             },
-            volume: 6
+            volume: Tone.gainToDb(level)
         }).connect(filter);
 
         const octave = parseInt(document.getElementById('currentOctave').textContent.replace(/\D/g, ''));
