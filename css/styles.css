@@ -262,6 +262,10 @@ body {
     grid-column: 1 / 13;
 }
 
+.keyboard-container {
+    grid-column: 1 / 13;
+}
+
 .control-group {
     display: flex;
     flex-wrap: wrap;
@@ -1135,6 +1139,10 @@ input[type="range"] {
     .sequencer-container {
         grid-column: 1 / 7;
     }
+
+    .keyboard-container { 
+        grid-column: 1 / 7;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1918,7 +1926,7 @@ input[type="range"] {
     
     /* Move master controls to the bottom */
     .master-controls {
-        grid-row: 7; /* Place at the end */
+        grid-row: 8; /* Place at the end */
         margin-top: 20px;
         margin-bottom: 0;
         padding-top: 15px;
@@ -2009,6 +2017,7 @@ input[type="range"] {
 .module.collapsed .sequencer-controls,
 .module.collapsed .sequencer-grid,
 .module.collapsed .sequencer-container,
+.module.collapsed .keyboard-container,
 .module.collapsed .drum-grid,
 .module.collapsed .drum-steps,
 .module.collapsed .drum-row,

@@ -5108,28 +5108,26 @@ function setupCollapsibleModules() {
                 icon.classList.add('fa-chevron-down');
                 collapseBtn.setAttribute('title', 'Expand module');
 
-                // Special handling for sequencer module
+                // Special handling for sequencer/keyboard module
                 if (moduleEl.classList.contains('sequencer-container')) {
-                    // Also hide keyboard and sequencer elements
-                    const keyboard = document.getElementById('keyboard');
                     const sequencer = document.getElementById('sequencer');
-
-                    if (keyboard) keyboard.style.display = 'none';
                     if (sequencer) sequencer.style.display = 'none';
-                }
+                } else if (moduleEl.classList.contains('keyboard-container')) {
+                    const keyboard = document.getElementById('keyboard');
+                    if (keyboard) keyboard.style.display = 'none';
+                } 
             } else {
                 icon.classList.remove('fa-chevron-down');
                 icon.classList.add('fa-chevron-up');
                 collapseBtn.setAttribute('title', 'Collapse module');
 
-                // Special handling for sequencer module
+                // Special handling for sequencer/keyboard module
                 if (moduleEl.classList.contains('sequencer-container')) {
-                    // Show keyboard and sequencer elements
-                    const keyboard = document.getElementById('keyboard');
                     const sequencer = document.getElementById('sequencer');
-
-                    if (keyboard) keyboard.style.display = '';
                     if (sequencer) sequencer.style.display = '';
+                } else if (moduleEl.classList.contains('keyboard-container')) {
+                    const keyboard = document.getElementById('keyboard');
+                    if (keyboard) keyboard.style.display = '';
                 }
             }
 
