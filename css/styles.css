@@ -2952,3 +2952,146 @@ input[type="range"] {
     align-items: center;
     gap: 10px;
 }
+
+/* Generative Module Styles */
+.generative-music-module {
+    margin-top: 20px;
+}
+
+.generative-layers-container {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.generative-visualizer {
+    height: 120px;
+    margin-top: 16px;
+    background: var(--background);
+    border-radius: 6px;
+    position: relative;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.generative-wave {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.generative-wave span {
+    position: absolute;
+    width: 100%;
+    height: 3px;
+    background: var(--secondary);
+    box-shadow: 0 0 10px var(--secondary);
+    border-radius: 100%;
+}
+
+.generative-wave.active span {
+    animation: generative-wave 3s linear infinite;
+}
+
+@keyframes generative-wave {
+    0% {
+        transform: scale(0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(3) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+.generative-wave.active span:nth-child(2) {
+    animation-delay: 0.4s;
+}
+
+.generative-wave.active span:nth-child(3) {
+    animation-delay: 0.8s;
+}
+
+.generative-wave.active span:nth-child(4) {
+    animation-delay: 1.2s;
+}
+
+.generative-wave.active span:nth-child(5) {
+    animation-delay: 1.6s;
+}
+
+.generative-button {
+    padding: 10px 20px;
+    width: 100%;
+    font-size: 1rem;
+    background: var(--surface-light);
+    color: var(--text);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all var(--transition-normal);
+    box-shadow: var(--shadow-small);
+    margin: 10px auto;
+}
+
+.generative-button:hover {
+    background: var(--primary);
+    box-shadow: var(--glow-primary);
+    transform: translateY(-2px);
+}
+
+.generative-button.active {
+    background: var(--primary);
+    box-shadow: var(--glow-primary);
+}
+
+/* Notes visualization for generative mode */
+.generative-notes {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.generative-note {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--secondary);
+    box-shadow: 0 0 8px var(--secondary);
+    opacity: 0;
+    transition: opacity 0.1s ease-out;
+}
+
+/* Media queries for responsive layout */
+@media (max-width: 768px) {
+    .generative-layers-container {
+        flex-wrap: wrap;
+    }
+    
+    .toggle-container {
+        margin-bottom: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .generative-visualizer {
+        height: 100px;
+    }
+}

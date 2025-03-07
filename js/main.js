@@ -36,6 +36,11 @@ import {
     updateReverb
 } from './audioNodes.js';
 
+import { GenerativeEngine } from './generative.js';
+
+// Global generative engine instance
+let generativeEngine = null;
+let isGenerativePlaying = false;
 
 // Initialize LFO tracking system
 let lfoActive = false;
@@ -5337,7 +5342,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Step 7.5: Initialize the arpeggiator
     initArpeggiator(knobUpdaters, synth, activeNotes);
 
-
+    // Initialize Generative Music module
+    initGenerativeMusic();
+    registerGenerativeKnobUpdaters();
+    
     // Step 8: Update LFO destination options to include EQ parameters
     const lfoDestinationSelect = document.getElementById('lfoDestination');
     if (lfoDestinationSelect) {
@@ -5643,3 +5651,313 @@ function openHelpModal() {
     const helpModal = document.getElementById('helpModal');
     helpModal.classList.add('active');
 }
+
+// Initialize Generative Music module
+function initGenerativeMusic() {
+    console.log('Initializing Generative Music Mode...');
+    
+    // Create the generative engine with default settings
+    generativeEngine = new GenerativeEngine({
+        scale: 'major',
+        root: 'C',
+        mood: 'calm',
+        density: 50,
+        variation: 40,
+        evolution: 30,
+        melodyEnabled: true,
+        droneEnabled: true,
+        rhythmEnabled: false
+    });
+    
+    // Set up UI control event listeners
+    setupGenerativeControls();
+    
+    // Initial knob rotation setup for visual feedback
+    updateGenerativeKnobs();
+    
+    console.log('Generative Music Mode initialized');
+}
+
+// Setup all event listeners for generative controls
+function setupGenerativeControls() {
+    // Start/Stop button
+    const generativeButton = document.getElementById('generativeButton');
+    if (generativeButton) {
+        generativeButton.addEventListener('click', toggleGenerativeMode);
+    }
+    
+    // Scale selection
+    const scaleSelect = document.getElementById('generativeScale');
+    if (scaleSelect) {
+        scaleSelect.addEventListener('change', updateGenerativeSettings);
+    }
+    
+    // Root note selection
+    const rootSelect = document.getElementById('generativeRoot');
+    if (rootSelect) {
+        rootSelect.addEventListener('change', updateGenerativeSettings);
+    }
+    
+    // Mood selection
+    const moodSelect = document.getElementById('generativeMood');
+    if (moodSelect) {
+        moodSelect.addEventListener('change', updateGenerativeSettings);
+    }
+    
+    // Density slider
+    const densitySlider = document.getElementById('generativeDensity');
+    if (densitySlider) {
+        densitySlider.addEventListener('input', e => {
+            const value = parseInt(e.target.value);
+            document.getElementById('generativeDensityValue').textContent = `${value}%`;
+            updateGenerativeKnobs();
+            updateGenerativeSettings();
+        });
+    }
+    
+    // Variation slider
+    const variationSlider = document.getElementById('generativeVariation');
+    if (variationSlider) {
+        variationSlider.addEventListener('input', e => {
+            const value = parseInt(e.target.value);
+            document.getElementById('generativeVariationValue').textContent = `${value}%`;
+            updateGenerativeKnobs();
+            updateGenerativeSettings();
+        });
+    }
+    
+    // Evolution slider
+    const evolutionSlider = document.getElementById('generativeEvolution');
+    if (evolutionSlider) {
+        evolutionSlider.addEventListener('input', e => {
+            const value = parseInt(e.target.value);
+            document.getElementById('generativeEvolutionValue').textContent = `${value}%`;
+            updateGenerativeKnobs();
+            updateGenerativeSettings();
+        });
+    }
+    
+    // Layer toggle switches
+    setupLayerToggles();
+}
+
+// Setup layer toggles (melody, drone, rhythm)
+function setupLayerToggles() {
+    // Melody toggle
+    const melodyToggle = document.getElementById('generativeMelodyToggle');
+    if (melodyToggle) {
+        melodyToggle.addEventListener('change', e => {
+            document.getElementById('generativeMelodyState').textContent = e.target.checked ? 'ON' : 'OFF';
+            updateGenerativeSettings();
+        });
+    }
+    
+    // Drone toggle
+    const droneToggle = document.getElementById('generativeDroneToggle');
+    if (droneToggle) {
+        droneToggle.addEventListener('change', e => {
+            document.getElementById('generativeDroneState').textContent = e.target.checked ? 'ON' : 'OFF';
+            updateGenerativeSettings();
+        });
+    }
+    
+    // Rhythm toggle
+    const rhythmToggle = document.getElementById('generativeRhythmToggle');
+    if (rhythmToggle) {
+        rhythmToggle.addEventListener('change', e => {
+            document.getElementById('generativeRhythmState').textContent = e.target.checked ? 'ON' : 'OFF';
+            updateGenerativeSettings();
+        });
+    }
+}
+
+// Start or stop generative mode
+function toggleGenerativeMode() {
+    // Make sure audio context is started
+    if (Tone.context.state !== 'running') {
+        Tone.start().then(startGenerativeMode);
+    } else {
+        if (isGenerativePlaying) {
+            stopGenerativeMode();
+        } else {
+            startGenerativeMode();
+        }
+    }
+}
+
+// Start generative mode
+function startGenerativeMode() {
+    if (isGenerativePlaying) return;
+    
+    console.log('Starting Generative Music Mode...');
+    
+    try {
+        // Get button element
+        const generativeButton = document.getElementById('generativeButton');
+        
+        // If synth is not created or disposed, recreate it
+        if (!synth || synth.disposed) {
+            console.log('Creating new synth for generative mode');
+            synth = createSynth();
+        }
+        
+        // Ensure Audio Context is running
+        if (Tone.context.state !== 'running') {
+            console.log('Starting Tone.js audio context');
+            Tone.start();
+        }
+        
+        // Start the generative engine
+        if (generativeEngine) {
+            // Explicitly check what features are enabled
+            const melodyEnabled = document.getElementById('generativeMelodyToggle').checked;
+            const droneEnabled = document.getElementById('generativeDroneToggle').checked;
+            const rhythmEnabled = document.getElementById('generativeRhythmToggle').checked;
+            
+            console.log("Starting generative engine with:", {
+                melodyEnabled, droneEnabled, rhythmEnabled
+            });
+            
+            // Update settings before starting
+            generativeEngine.updateConfig({
+                melodyEnabled, droneEnabled, rhythmEnabled
+            });
+            
+            // Start the engine
+            generativeEngine.start(synth, filter);
+            
+            // Update UI
+            if (generativeButton) {
+                generativeButton.innerHTML = '<i class="fas fa-stop"></i><span>Stop Generative Mode</span>';
+                generativeButton.classList.add('active');
+            }
+            
+            // Activate visualization
+            const generativeWave = document.getElementById('generativeWave');
+            if (generativeWave) {
+                generativeWave.classList.add('active');
+            }
+            
+            isGenerativePlaying = true;
+            
+            // Ensure visualizations are running
+            ensureVisualizersConnected();
+            if (animations && !animations.isRunning) {
+                startAnimations();
+            }
+            
+            // Provide feedback that we've started
+            updateVUMeter(0.8);
+        }
+    } catch (error) {
+        console.error('Error starting generative mode:', error);
+    }
+}
+
+// Stop generative mode
+function stopGenerativeMode() {
+    if (!isGenerativePlaying) return;
+    
+    console.log('Stopping Generative Music Mode...');
+    
+    try {
+        // Stop the generative engine
+        if (generativeEngine) {
+            generativeEngine.stop();
+        }
+        
+        // Update UI
+        const generativeButton = document.getElementById('generativeButton');
+        if (generativeButton) {
+            generativeButton.innerHTML = '<i class="fas fa-play"></i><span>Start Generative Mode</span>';
+            generativeButton.classList.remove('active');
+        }
+        
+        // Deactivate visualization
+        const generativeWave = document.getElementById('generativeWave');
+        if (generativeWave) {
+            generativeWave.classList.remove('active');
+        }
+        
+        isGenerativePlaying = false;
+    } catch (error) {
+        console.error('Error stopping generative mode:', error);
+    }
+}
+
+// Update generative engine with current UI settings
+function updateGenerativeSettings() {
+    if (!generativeEngine) return;
+    
+    try {
+        // Get values from UI controls
+        const scale = document.getElementById('generativeScale').value;
+        const root = document.getElementById('generativeRoot').value;
+        const mood = document.getElementById('generativeMood').value;
+        const density = parseInt(document.getElementById('generativeDensity').value);
+        const variation = parseInt(document.getElementById('generativeVariation').value);
+        const evolution = parseInt(document.getElementById('generativeEvolution').value);
+        
+        // Get toggle states
+        const melodyEnabled = document.getElementById('generativeMelodyToggle').checked;
+        const droneEnabled = document.getElementById('generativeDroneToggle').checked;
+        const rhythmEnabled = document.getElementById('generativeRhythmToggle').checked;
+        
+        // Update generative engine configuration
+        generativeEngine.updateConfig({
+            scale,
+            root,
+            mood,
+            density,
+            variation,
+            evolution,
+            melodyEnabled,
+            droneEnabled,
+            rhythmEnabled
+        });
+    } catch (error) {
+        console.warn('Error updating generative settings:', error);
+    }
+}
+
+// Update generative knob rotations
+function updateGenerativeKnobs() {
+    try {
+        // Get current values
+        const densityValue = parseInt(document.getElementById('generativeDensity').value);
+        const variationValue = parseInt(document.getElementById('generativeVariation').value);
+        const evolutionValue = parseInt(document.getElementById('generativeEvolution').value);
+        
+        // Update knob rotations
+        if (knobUpdaters.generativeDensity) {
+            knobUpdaters.generativeDensity(densityValue);
+        }
+        
+        if (knobUpdaters.generativeVariation) {
+            knobUpdaters.generativeVariation(variationValue);
+        }
+        
+        if (knobUpdaters.generativeEvolution) {
+            knobUpdaters.generativeEvolution(evolutionValue);
+        }
+    } catch (error) {
+        console.warn('Error updating generative knobs:', error);
+    }
+}
+
+// Register knob updaters for the generative knobs
+function registerGenerativeKnobUpdaters() {
+    // Add the generative knobs to the main knobs array
+    if (typeof knobs !== 'undefined') {
+        // Add our generative knobs to the main knobs array
+        knobs.push(['generativeDensityKnob', 'generativeDensity']);
+        knobs.push(['generativeVariationKnob', 'generativeVariation']);
+        knobs.push(['generativeEvolutionKnob', 'generativeEvolution']);
+        
+        // Apply setupKnob to each of our knobs
+        knobUpdaters.generativeDensity = setupKnob('generativeDensityKnob', 'generativeDensity');
+        knobUpdaters.generativeVariation = setupKnob('generativeVariationKnob', 'generativeVariation');
+        knobUpdaters.generativeEvolution = setupKnob('generativeEvolutionKnob', 'generativeEvolution');
+    }
+}
+

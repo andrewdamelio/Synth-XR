@@ -844,6 +844,151 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Generative Music Module -->
+                <div class="module generative-music-module">
+                    <div class="module-header">
+                        <h3 class="module-title">
+                            <i class="fas fa-magic"></i>
+                            Generative Music
+                        </h3>
+                        <button class="module-collapse-btn" title="Collapse module">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </div>
+                    <div class="control-group">
+                        <!-- Scale Selection -->
+                        <div class="select-container">
+                            <label class="select-label">Scale</label>
+                            <select id="generativeScale">
+                                <option value="major">Major</option>
+                                <option value="minor">Minor</option>
+                                <option value="pentatonic">Pentatonic</option>
+                                <option value="blues">Blues</option>
+                                <option value="chromatic">Chromatic</option>
+                                <option value="dorian">Dorian</option>
+                                <option value="phrygian">Phrygian</option>
+                                <option value="lydian">Lydian</option>
+                                <option value="mixolydian">Mixolydian</option>
+                                <option value="locrian">Locrian</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Root Note Selection -->
+                        <div class="select-container">
+                            <label class="select-label">Root</label>
+                            <select id="generativeRoot">
+                                <option value="C">C</option>
+                                <option value="C#">C#</option>
+                                <option value="D">D</option>
+                                <option value="D#">D#</option>
+                                <option value="E">E</option>
+                                <option value="F">F</option>
+                                <option value="F#">F#</option>
+                                <option value="G">G</option>
+                                <option value="G#">G#</option>
+                                <option value="A">A</option>
+                                <option value="A#">A#</option>
+                                <option value="B">B</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <!-- Mood Selection -->
+                        <div class="select-container">
+                            <label class="select-label">Mood</label>
+                            <select id="generativeMood">
+                                <option value="calm">Calm</option>
+                                <option value="melancholic">Melancholic</option>
+                                <option value="intense">Intense</option>
+                                <option value="playful">Playful</option>
+                                <option value="mysterious">Mysterious</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Density Knob -->
+                        <div class="knob-container">
+                            <label class="knob-label">Density</label>
+                            <div class="knob" id="generativeDensityKnob">
+                                <div class="knob-inner"></div>
+                                <div class="tooltip">Adjust note density</div>
+                            </div>
+                            <input type="range" id="generativeDensity" min="0" max="100" step="1" value="50">
+                            <span class="knob-value" id="generativeDensityValue">50%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <!-- Variation Knob -->
+                        <div class="knob-container">
+                            <label class="knob-label">Variation</label>
+                            <div class="knob" id="generativeVariationKnob">
+                                <div class="knob-inner"></div>
+                                <div class="tooltip">Adjust melody variation rate</div>
+                            </div>
+                            <input type="range" id="generativeVariation" min="0" max="100" step="1" value="40">
+                            <span class="knob-value" id="generativeVariationValue">40%</span>
+                        </div>
+                        
+                        <!-- Evolution Speed Knob -->
+                        <div class="knob-container">
+                            <label class="knob-label">Evolution</label>
+                            <div class="knob" id="generativeEvolutionKnob">
+                                <div class="knob-inner"></div>
+                                <div class="tooltip">Adjust parameter evolution speed</div>
+                            </div>
+                            <input type="range" id="generativeEvolution" min="0" max="100" step="1" value="30">
+                            <span class="knob-value" id="generativeEvolutionValue">30%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group generative-layers-container">
+                        <div class="toggle-container">
+                            <label class="toggle-label">Melody</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="generativeMelodyToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <div class="toggle-state" id="generativeMelodyState">ON</div>
+                        </div>
+                        
+                        <div class="toggle-container">
+                            <label class="toggle-label">Drone</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="generativeDroneToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <div class="toggle-state" id="generativeDroneState">ON</div>
+                        </div>
+                        
+                        <div class="toggle-container">
+                            <label class="toggle-label">Rhythm</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="generativeRhythmToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <div class="toggle-state" id="generativeRhythmState">OFF</div>
+                        </div>
+                    </div>
+                    
+                    <div class="generative-visualizer">
+                        <div class="generative-wave" id="generativeWave">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <button class="generative-button" id="generativeButton">
+                            <i class="fas fa-play"></i>
+                            <span>Start Generative Mode</span>
+                        </button>
+                    </div>
+                </div>                
             </div>
             
             <div class="module sequencer-container">
@@ -929,8 +1074,9 @@
                     <span>Show Advanced Visualizations</span>
                 </div>
             </div>
-        </div>
+         </div>
     
+
         <!-- Modal for new preset -->
         <div class="modal-overlay" id="presetModal">
             <div class="modal">
