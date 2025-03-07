@@ -177,7 +177,10 @@ class GenerativeEngine {
         this.currentNoteDegree = 0;
         this.synthRef = null;  // Will hold reference to synth
         this.droneSynth = null;
+        this.droneSynthLayer = null;
         this.rhythmSynth = null;
+        this.phraseCounter = 0;
+        this.droneEvents = [];
         
         // Audio nodes/effects references
         this.moodSettings = {...moodPresets[this.config.mood]};
@@ -335,12 +338,10 @@ class GenerativeEngine {
             this.rhythmPart = null;
         }
         
-        // Stop and dispose of additional synths
-        if (this.droneSynth) {
-            this.droneSynth.dispose();
-            this.droneSynth = null;
-        }
+        // Clean up drone resources
+        this.cleanupDrone();
         
+        // Stop and dispose of rhythm synth
         if (this.rhythmSynth) {
             this.rhythmSynth.dispose();
             this.rhythmSynth = null;
@@ -355,43 +356,243 @@ class GenerativeEngine {
         this.isPlaying = false;
     }
     
-    // Start melody generation
+    // Start melody generation with more coherent phrases using Markov chains
     startMelodyGenerator() {
         console.log("Starting melody generator with scale:", this.currentScale.length, "notes");
         
-        // Create a simpler sequence that plays every quarter note
-        const sequence = [];
+        // Define phrase structure parameters
+        const phraseLength = 8; // 8 beats per phrase
+        this.phraseCounter = 0;
+        let currentPhrase = [];
         
-        // Create 8 quarter notes
-        for (let i = 0; i < 8; i++) {
-            sequence.push(i * 0.5); // 0, 0.5, 1.0, 1.5, etc. (in seconds)
-        }
-        
-        // Create a simple part that plays notes from our scale
+        // Create a melody loop that plays with better phrase structure
         this.melodyPart = new Tone.Loop((time) => {
             // Only proceed if melody is enabled
-            if (!this.config.melodyEnabled) return;
+            if (!this.config.melodyEnabled || !this.synthRef || this.synthRef.disposed) return;
             
-            // Pick a random note from our scale
-            const noteIndex = Math.floor(Math.random() * this.currentScale.length);
-            const midiNote = this.currentScale[noteIndex];
-            const noteName = this.midiToNoteName(midiNote);
+            // Use markov chain for better note sequencing
+            const shouldPlay = Math.random() < (this.noteProbability - this.moodSettings.restProbability);
             
-            console.log("Playing note:", noteName, "at time:", time);
-            
-            // Play the note
-            if (this.synthRef && !this.synthRef.disposed) {
-                this.synthRef.triggerAttackRelease(noteName, "8n", time, 0.7);
+            if (shouldPlay) {
+                // Decide whether to play a chord based on chordProbability
+                const playChord = Math.random() < this.moodSettings.chordProbability;
                 
-                // Optional: highlight key
-                this.highlightKey(noteName, 0.5);
+                if (playChord) {
+                    // Generate and play a chord
+                    const rootIndex = this.getNextNote();
+                    const chordNotes = this.generateChord(rootIndex);
+                    
+                    // Convert MIDI note indices to actual notes
+                    const chordNoteNames = chordNotes.map(index => {
+                        const midiNote = this.currentScale[Math.min(index, this.currentScale.length - 1)];
+                        return this.midiToNoteName(midiNote);
+                    });
+                    
+                    // Get random velocity within mood's range
+                    const velocity = this.getRandomInRange(
+                        this.moodSettings.velocityRange.min,
+                        this.moodSettings.velocityRange.max
+                    );
+                    
+                    // Random note length for varied rhythm
+                    const noteLength = this.getRandomInRange(
+                        this.moodSettings.noteLength.min,
+                        this.moodSettings.noteLength.max
+                    );
+                    
+                    // Play the chord
+                    this.synthRef.triggerAttackRelease(chordNoteNames, `${noteLength}n`, time, velocity);
+                    
+                    // Visualize the chord
+                    chordNoteNames.forEach(note => this.highlightKey(note, noteLength));
+                    
+                    // Add to current phrase
+                    currentPhrase = [...currentPhrase, ...chordNoteNames];
+                } 
+                else {
+                    // Play a single note using Markov chain
+                    const noteIndex = this.getNextNote();
+                    if (noteIndex >= 0 && noteIndex < this.currentScale.length) {
+                        const midiNote = this.currentScale[noteIndex];
+                        const noteName = this.midiToNoteName(midiNote);
+                        
+                        // Get random velocity and note length
+                        const velocity = this.getRandomInRange(
+                            this.moodSettings.velocityRange.min,
+                            this.moodSettings.velocityRange.max
+                        );
+                        
+                        // Random note length for varied rhythm
+                        const noteLength = this.getRandomInRange(
+                            this.moodSettings.noteLength.min,
+                            this.moodSettings.noteLength.max
+                        );
+                        
+                        // Play the note
+                        this.synthRef.triggerAttackRelease(noteName, `${noteLength}n`, time, velocity);
+                        
+                        // Highlight key
+                        this.highlightKey(noteName, noteLength);
+                        
+                        // Add to current phrase
+                        currentPhrase.push(noteName);
+                    }
+                }
             }
-        }, "4n").start(0); // Play every quarter note
+            
+            // Increment phrase counter
+            this.phraseCounter = (this.phraseCounter + 1) % phraseLength;
+            
+            // When phrase completes, decide if we want a variation
+            if (this.phraseCounter === 0) {
+                if (Math.random() < (this.config.variation / 100)) {
+                    // Create a variation in the music
+                    this.createVariation();
+                }
+                
+                // Reset phrase
+                currentPhrase = [];
+            }
+        }, "8n").start(0); // Play every eighth note
         
-        console.log("Melody generator started");
+        console.log("Melody generator started with improved phrasing");
     }
     
-    // Start drone generator
+    // Create advanced drone synth with better sound
+    createDroneSynth() {
+        console.log("Creating advanced drone synth...");
+        
+        // First dispose of any existing drone synth to prevent audio leaks
+        if (this.droneSynth) {
+            this.droneSynth.releaseAll();
+            this.droneSynth.dispose();
+            this.droneSynth = null;
+        }
+        
+        if (this.droneEffects) {
+            Object.values(this.droneEffects).forEach(effect => {
+                if (effect && typeof effect.dispose === 'function') {
+                    effect.dispose();
+                }
+            });
+        }
+        
+        // Create effects chain specifically for the drone
+        this.droneEffects = {
+            // Add a filter that will shape the drone sound
+            filter: new Tone.Filter({
+                type: "lowpass",
+                frequency: 800,
+                Q: 1.5
+            }),
+            // Add chorus for width and movement
+            chorus: new Tone.Chorus({
+                frequency: 0.5,
+                delayTime: 3.5,
+                depth: 0.7,
+                wet: 0.5,
+                type: "sine"
+            }).start(),
+            // Add reverb for space
+            reverb: new Tone.Reverb({
+                decay: 4,
+                wet: 0.3
+            }),
+            // Add compression to control dynamics
+            compressor: new Tone.Compressor({
+                threshold: -20,
+                ratio: 4,
+                attack: 0.005,
+                release: 0.1
+            }),
+            // Ensure consistent volume
+            limiter: new Tone.Limiter(-3)
+        };
+        
+        // Connect the effects chain
+        this.droneEffects.filter
+            .connect(this.droneEffects.chorus)
+            .connect(this.droneEffects.reverb)
+            .connect(this.droneEffects.compressor)
+            .connect(this.droneEffects.limiter);
+        
+        // Connect to the main output chain
+        if (this.filterRef) {
+            this.droneEffects.limiter.connect(this.filterRef);
+        } else {
+            // Connect directly to destination if filterRef isn't available
+            this.droneEffects.limiter.connect(Tone.getDestination());
+        }
+        
+        // Create the multi-oscillator drone synth for a richer sound
+        this.droneSynth = new Tone.PolySynth({
+            maxPolyphony: 6,  // Allow for multiple notes and layers
+            voice: Tone.FMSynth, // Use FM synthesis for richer tones
+            options: {
+                harmonicity: 1.5,  // Harmonic relationship between carrier and modulator
+                modulationIndex: 3.5, // Amount of modulation (higher = more complex sound)
+                oscillator: {
+                    type: "sine4",  // Sine with harmonics for richness 
+                    phase: 0
+                },
+                modulation: {
+                    type: "triangle"  // Triangle modulator for smoother sound
+                },
+                modulationEnvelope: {
+                    attack: 0.9,
+                    decay: 0.2,
+                    sustain: 0.3,
+                    release: 1.2
+                },
+                envelope: {
+                    attack: 1.2,  // Slow attack for gentle fade in
+                    decay: 0.3,
+                    sustain: 0.9,  // High sustain for continuous sound
+                    release: 3.0   // Long release for smooth transitions
+                },
+                volume: 0  // Start at unity gain - we'll control volume in the effects chain
+            }
+        });
+        
+        // Create a secondary layer for a richer drone
+        this.droneSynthLayer = new Tone.PolySynth({
+            maxPolyphony: 3,
+            voice: Tone.AMSynth, // Use AM synthesis for the second layer
+            options: {
+                harmonicity: 2,
+                oscillator: {
+                    type: "sine", 
+                },
+                modulation: {
+                    type: "square"  // Square modulator for a different character
+                },
+                envelope: {
+                    attack: 2,    // Even slower attack for this layer
+                    decay: 0.2,
+                    sustain: 0.8,
+                    release: 4.0   // Very long release
+                },
+                volume: -9  // Quieter than the main layer
+            }
+        });
+        
+        // Connect synths to effects chain
+        this.droneSynth.connect(this.droneEffects.filter);
+        this.droneSynthLayer.connect(this.droneEffects.filter);
+        
+        // Set up modulation for the filter to add movement to the drone
+        this.droneModulation = new Tone.LFO({
+            frequency: 0.05,  // Very slow modulation
+            min: 600,         // Filter frequency range
+            max: 1200,
+            type: "sine"
+        }).connect(this.droneEffects.filter.frequency).start();
+        
+        console.log("Advanced drone synth created successfully");
+        return this.droneSynth;
+    }
+    
+    // Start drone generator with improved sound and scheduling
     startDroneGenerator() {
         console.log("Starting drone generator, enabled:", this.config.droneEnabled);
         
@@ -458,7 +659,7 @@ class GenerativeEngine {
         const thirdNote = this.midiToNoteName(thirdMidiNote);
         
         console.log("Drone notes:", rootNote, deepRootNote, thirdNote, fifthNote);
-    
+
         // Clear any existing scheduled events
         if (this.droneEvents) {
             this.droneEvents.forEach(eventId => Tone.Transport.clear(eventId));
@@ -473,97 +674,86 @@ class GenerativeEngine {
         
         console.log("Drone generator started successfully");
     }
-
-
-    // New method to handle proper drone note scheduling
+    
+    // Schedule drone notes using Tone.js timing for stability
     scheduleDroneNotes(rootNote, deepRootNote, thirdNote, fifthNote) {
+        // Define different patterns to create interest over time
         const patterns = [
             // Pattern 1: Root + Fifth (stable)
-            () => {
-                this.playDroneChord([rootNote, fifthNote]);
+            (time) => {
+                this.playDroneChord([rootNote, fifthNote], time);
                 // Add the deep root with the secondary layer for richness
                 if (this.droneSynthLayer) {
-                    this.droneSynthLayer.triggerAttack(deepRootNote, '+0.5', 0.4);
+                    this.droneSynthLayer.triggerAttack(deepRootNote, Tone.now() + 0.5, 0.4);
                 }
             },
             // Pattern 2: Root + Third + Fifth (fuller harmony)
-            () => {
-                this.playDroneChord([rootNote, thirdNote, fifthNote]);
+            (time) => {
+                this.playDroneChord([rootNote, thirdNote, fifthNote], time);
             },
             // Pattern 3: Root octaves (powerful)
-            () => {
-                this.playDroneChord([deepRootNote, rootNote]);
+            (time) => {
+                this.playDroneChord([deepRootNote, rootNote], time);
                 // Add fifth on the secondary layer
                 if (this.droneSynthLayer) {
-                    this.droneSynthLayer.triggerAttack(fifthNote, '+0.7', 0.3);
+                    this.droneSynthLayer.triggerAttack(fifthNote, Tone.now() + 0.7, 0.3);
                 }
             },
             // Pattern 4: Subtle shift (movement)
-            () => {
+            (time) => {
                 // Release previous notes gently
                 if (this.droneSynth) {
-                    this.droneSynth.triggerRelease([rootNote, fifthNote], '+0.5');
+                    this.droneSynth.triggerRelease([rootNote, fifthNote], Tone.now() + 0.5);
                 }
                 
-                // Introduce third with a delay
-                setTimeout(() => {
+                // Schedule note changes using Tone.Transport for accurate timing
+                const eventId1 = Tone.Transport.scheduleOnce((t) => {
                     if (this.droneSynth && this.config.droneEnabled) {
-                        this.playDroneChord([rootNote, thirdNote]);
+                        this.playDroneChord([rootNote, thirdNote], t);
                     }
-                }, 1500);
+                }, "+1.5");
                 
-                // Bring back fifth later
-                setTimeout(() => {
+                const eventId2 = Tone.Transport.scheduleOnce((t) => {
                     if (this.droneSynth && this.config.droneEnabled) {
-                        this.droneSynth.triggerAttack(fifthNote, undefined, 0.4);
+                        this.droneSynth.triggerAttack(fifthNote, t, 0.4);
                     }
-                }, 3000);
+                }, "+3");
+                
+                // Store event IDs for cleanup
+                this.droneEvents.push(eventId1, eventId2);
             }
         ];
         
-        // Schedule the patterns to repeat
+        // Create a part that cycles through patterns
         let patternIndex = 0;
         
-        // Create a recurring pattern that changes every 16-20 seconds
-        const scheduleNextPattern = () => {
-            // Only proceed if drone is still enabled
+        // Use Tone.Loop for precise timing
+        this.dronePart = new Tone.Loop((time) => {
+            // Skip if drone is disabled
             if (!this.config.droneEnabled || !this.droneSynth) return;
             
             // Get current pattern and increment for next time
             const currentPattern = patterns[patternIndex];
             patternIndex = (patternIndex + 1) % patterns.length;
             
-            // Execute the pattern
-            currentPattern();
+            // Execute the pattern with the current time
+            currentPattern(time);
             
-            // Calculate next pattern time (16-20 seconds)
-            const nextTime = 16 + (Math.random() * 4);
-            
-            // Schedule next pattern
-            const eventId = Tone.Transport.scheduleOnce(() => {
-                scheduleNextPattern();
-            }, `+${nextTime}`);
-            
-            // Store event ID for cleanup
-            this.droneEvents.push(eventId);
-        };
-        
-        // Start the pattern sequence
-        scheduleNextPattern();
+        }, "16m").start(0); // Change every 16 measures for long, evolving drones
     }
-
+    
     // Helper method to play a chord on the drone synth
-    playDroneChord(notes) {
+    playDroneChord(notes, time) {
         if (!this.droneSynth || !this.config.droneEnabled) return;
         
-        console.log("Playing drone chord:", notes.join(', '));
+        console.log("Playing drone chord:", notes.join(', '), time ? `at ${time}` : 'now');
         
         try {
-            // Release any existing notes first
-            this.droneSynth.releaseAll();
+            // Use provided time or current time
+            const playTime = time || Tone.now();
             
             // Trigger the chord with a quieter velocity for a more subtle drone
-            this.droneSynth.triggerAttack(notes, undefined, 0.6);
+            this.droneSynth.triggerAttack(notes, playTime, 0.6);
             
             // Visualize notes on keyboard
             notes.forEach(note => this.highlightKey(note, 2.0));
@@ -572,142 +762,8 @@ class GenerativeEngine {
             console.error("Error playing drone chord:", err);
         }
     }
-
-    // Add a method to update drone volume
-    setDroneVolume(db) {
-        console.log(`Setting drone volume to ${db}dB`);
-        
-        if (!this.droneEffects || !this.droneEffects.limiter) {
-            console.warn("Drone effects not initialized");
-            return false;
-        }
-        
-        // Limit to reasonable range (-60 to +6 dB)
-        const volume = Math.max(-60, Math.min(6, db));
-        
-        try {
-            // Set the output level of the limiter
-            this.droneEffects.limiter.threshold.value = volume;
-            
-            // Adjust the main synth volume for better balance
-            if (this.droneSynth) {
-                // Keep main synth slightly louder than the secondary layer
-                this.droneSynth.volume.value = volume + 3;
-            }
-            
-            // Adjust the secondary layer volume
-            if (this.droneSynthLayer) {
-                this.droneSynthLayer.volume.value = volume;
-            }
-            
-            return true;
-        } catch (err) {
-            console.error("Error setting drone volume:", err);
-            return false;
-        }
-    }
-
-    // Test drone with better feedback
-    testDrone() {
-        console.log("Testing drone...");
-        
-        // Make sure we have a drone synth
-        if (!this.droneSynth) {
-            console.log("Creating drone synth for test");
-            this.createDroneSynth();
-        }
-        
-        // Root and fifth
-        const rootMidiNote = this.droneNotes && this.droneNotes.length > 0 
-            ? this.droneNotes[0] 
-            : 36; // C2 as fallback
-        
-        const fifthMidiNote = this.droneNotes && this.droneNotes.length > 2
-            ? this.droneNotes[2]
-            : rootMidiNote + 7; // Perfect fifth
-        
-        const rootNote = this.midiToNoteName(rootMidiNote);
-        const fifthNote = this.midiToNoteName(fifthMidiNote);
-        
-        console.log("Testing drone with notes:", rootNote, fifthNote);
-        
-        // Play chord with both synths for a full sound
-        this.playDroneChord([rootNote, fifthNote]);
-        
-        // Layer with secondary synth for richness
-        if (this.droneSynthLayer) {
-            setTimeout(() => {
-                this.droneSynthLayer.triggerAttack(this.midiToNoteName(rootMidiNote - 12), undefined, 0.4);
-            }, 800);
-        }
-        
-        return "Drone test initiated with notes: " + rootNote + ", " + fifthNote;
-    }
-
-    // Add cleanup function to properly dispose of all drone resources
-    cleanupDrone() {
-        console.log("Cleaning up drone resources");
-        
-        // Clear any scheduled events
-        if (this.droneEvents) {
-            this.droneEvents.forEach(eventId => {
-                try {
-                    Tone.Transport.clear(eventId);
-                } catch (e) {
-                    // Ignore errors during cleanup
-                }
-            });
-            this.droneEvents = [];
-        }
-        
-        // Release and dispose synths
-        if (this.droneSynth) {
-            try {
-                this.droneSynth.releaseAll();
-                this.droneSynth.dispose();
-                this.droneSynth = null;
-            } catch (e) {
-                console.warn("Error disposing drone synth:", e);
-            }
-        }
-        
-        if (this.droneSynthLayer) {
-            try {
-                this.droneSynthLayer.releaseAll();
-                this.droneSynthLayer.dispose();
-                this.droneSynthLayer = null;
-            } catch (e) {
-                console.warn("Error disposing drone synth layer:", e);
-            }
-        }
-        
-        // Dispose modulation
-        if (this.droneModulation) {
-            try {
-                this.droneModulation.stop();
-                this.droneModulation.dispose();
-                this.droneModulation = null;
-            } catch (e) {
-                console.warn("Error disposing drone modulation:", e);
-            }
-        }
-        
-        // Dispose effects chain
-        if (this.droneEffects) {
-            Object.values(this.droneEffects).forEach(effect => {
-                try {
-                    if (effect && typeof effect.dispose === 'function') {
-                        effect.dispose();
-                    }
-                } catch (e) {
-                    console.warn("Error disposing drone effect:", e);
-                }
-            });
-            this.droneEffects = null;
-        }
-    }
-
-    // Start rhythm generator
+    
+    // Enhanced rhythm generation with polyrhythm support
     startRhythmGenerator() {
         if (!this.config.rhythmEnabled || !this.rhythmSynth) return;
         
@@ -716,35 +772,65 @@ class GenerativeEngine {
         const patternIndex = this.getWeightedRandomIndex(this.patternWeights);
         const pattern = patterns[patternIndex];
         
-        // Create events based on the rhythm pattern
+        // Choose between regular or polyrhythm timing
+        const usePolyrhythm = Math.random() > 0.5;
+        const loopLength = usePolyrhythm ? "0:3:0" : "1:0:0"; // 3/4 or 4/4 time
+        
+        // Create events array based on the pattern
         const events = [];
         
         pattern.forEach((hit, i) => {
             if (hit === 1) {
+                // Calculate time position based on pattern index
+                const bar = Math.floor(i / 4);
+                const beat = i % 4;
+                const subdivision = 0; // No subdivision within beat
+                
                 events.push({
-                    time: `0:${Math.floor(i/4)}:${i%4}`,
-                    note: 'C2' // For kick, could vary based on position
+                    time: `0:${beat}:${subdivision}`,
+                    note: 'C2',
+                    velocity: 0.7 + (Math.random() * 0.2) // Add slight velocity variation
                 });
             }
         });
         
-        // Create the rhythm part
+        // Create the rhythm part with enhanced capabilities
         this.rhythmPart = new Tone.Part((time, event) => {
             if (!this.config.rhythmEnabled || !this.rhythmSynth) return;
+            
+            // Add slight timing variation for human feel
+            const humanizedTime = time + (Math.random() * 0.02 - 0.01);
             
             // Play rhythm sound
             this.rhythmSynth.triggerAttackRelease(
                 event.note,
                 '16n',
-                time,
-                0.7
+                humanizedTime,
+                event.velocity
             );
+            
+            // Occasionally add accent notes for interest
+            if (Math.random() < 0.1) {
+                // Add a ghost note or accent
+                const accentNote = Math.random() > 0.5 ? 'G2' : 'E2';
+                const accentTime = time + (Math.random() * 0.1);
+                const accentVelocity = 0.3 + (Math.random() * 0.2);
+                
+                this.rhythmSynth.triggerAttackRelease(
+                    accentNote,
+                    '32n',
+                    accentTime,
+                    accentVelocity
+                );
+            }
             
         }, events).start(0);
         
-        // Loop the rhythm
+        // Set loop parameters
         this.rhythmPart.loop = true;
-        this.rhythmPart.loopEnd = '1:0:0';
+        this.rhythmPart.loopEnd = loopLength;
+        
+        console.log(`Rhythm generator started in ${usePolyrhythm ? '3/4' : '4/4'} time`);
     }
     
     // Start parameter evolution
@@ -1087,140 +1173,6 @@ class GenerativeEngine {
                                                      Math.min(1, this.moodSettings.velocityRange.max));
     }
     
-    // Create a special drone synth
-    createDroneSynth() {
-        console.log("Creating advanced drone synth...");
-        
-        // First dispose of any existing drone synth to prevent audio leaks
-        if (this.droneSynth) {
-            this.droneSynth.releaseAll();
-            this.droneSynth.dispose();
-            this.droneSynth = null;
-        }
-        
-        if (this.droneEffects) {
-            Object.values(this.droneEffects).forEach(effect => {
-                if (effect && typeof effect.dispose === 'function') {
-                    effect.dispose();
-                }
-            });
-        }
-        
-        // Create effects chain specifically for the drone
-        this.droneEffects = {
-            // Add a filter that will shape the drone sound
-            filter: new Tone.Filter({
-                type: "lowpass",
-                frequency: 800,
-                Q: 1.5
-            }),
-            // Add chorus for width and movement
-            chorus: new Tone.Chorus({
-                frequency: 0.5,
-                delayTime: 3.5,
-                depth: 0.7,
-                wet: 0.5,
-                type: "sine"
-            }).start(),
-            // Add reverb for space
-            reverb: new Tone.Reverb({
-                decay: 4,
-                wet: 0.3
-            }),
-            // Add compression to control dynamics
-            compressor: new Tone.Compressor({
-                threshold: -20,
-                ratio: 4,
-                attack: 0.005,
-                release: 0.1
-            }),
-            // Ensure consistent volume
-            limiter: new Tone.Limiter(-3)
-        };
-        
-        // Connect the effects chain
-        this.droneEffects.filter
-            .connect(this.droneEffects.chorus)
-            .connect(this.droneEffects.reverb)
-            .connect(this.droneEffects.compressor)
-            .connect(this.droneEffects.limiter);
-        
-        // Connect to the main output chain
-        if (this.filterRef) {
-            this.droneEffects.limiter.connect(this.filterRef);
-        } else {
-            // Connect directly to destination if filterRef isn't available
-            this.droneEffects.limiter.connect(Tone.getDestination());
-        }
-        
-        // Create the multi-oscillator drone synth for a richer sound
-        this.droneSynth = new Tone.PolySynth({
-            maxPolyphony: 6,  // Allow for multiple notes and layers
-            voice: Tone.FMSynth, // Use FM synthesis for richer tones
-            options: {
-                harmonicity: 1.5,  // Harmonic relationship between carrier and modulator
-                modulationIndex: 3.5, // Amount of modulation (higher = more complex sound)
-                oscillator: {
-                    type: "sine4",  // Sine with harmonics for richness 
-                    phase: 0
-                },
-                modulation: {
-                    type: "triangle"  // Triangle modulator for smoother sound
-                },
-                modulationEnvelope: {
-                    attack: 0.9,
-                    decay: 0.2,
-                    sustain: 0.3,
-                    release: 1.2
-                },
-                envelope: {
-                    attack: 1.2,  // Slow attack for gentle fade in
-                    decay: 0.3,
-                    sustain: 0.9,  // High sustain for continuous sound
-                    release: 3.0   // Long release for smooth transitions
-                },
-                volume: 0  // Start at unity gain - we'll control volume in the effects chain
-            }
-        });
-        
-        // Create a secondary layer for a richer drone
-        this.droneSynthLayer = new Tone.PolySynth({
-            maxPolyphony: 3,
-            voice: Tone.AMSynth, // Use AM synthesis for the second layer
-            options: {
-                harmonicity: 2,
-                oscillator: {
-                    type: "sine", 
-                },
-                modulation: {
-                    type: "square"  // Square modulator for a different character
-                },
-                envelope: {
-                    attack: 2,    // Even slower attack for this layer
-                    decay: 0.2,
-                    sustain: 0.8,
-                    release: 4.0   // Very long release
-                },
-                volume: -9  // Quieter than the main layer
-            }
-        });
-        
-        // Connect synths to effects chain
-        this.droneSynth.connect(this.droneEffects.filter);
-        this.droneSynthLayer.connect(this.droneEffects.filter);
-        
-        // Set up modulation for the filter to add movement to the drone
-        this.droneModulation = new Tone.LFO({
-            frequency: 0.05,  // Very slow modulation
-            min: 600,         // Filter frequency range
-            max: 1200,
-            type: "sine"
-        }).connect(this.droneEffects.filter.frequency).start();
-        
-        console.log("Advanced drone synth created successfully");
-        return this.droneSynth;
-    }
-    
     // Create rhythm synth
     createRhythmSynth() {
         this.rhythmSynth = new Tone.MembraneSynth({
@@ -1253,65 +1205,6 @@ class GenerativeEngine {
         return min + (Math.random() * (max - min));
     }
     
-    // Visualize notes in the UI
-    visualizeNotes(notes, time) {
-        // Get the visualizer container
-        const container = document.querySelector('.generative-visualizer');
-        if (!container) return;
-        
-        // Create a visualization element for each note
-        notes.forEach(note => {
-            // Create dot element
-            const noteVisual = document.createElement('div');
-            noteVisual.className = 'generative-note';
-            
-            // Position based on note pitch and timing
-            const noteParts = note.match(/([A-G]#?)(\d+)/);
-            if (!noteParts) return;
-            
-            const noteName = noteParts[1];
-            const octave = parseInt(noteParts[2]);
-            
-            // Calculate vertical position based on note pitch
-            // Higher notes near the top
-            const noteIndex = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-                .indexOf(noteName);
-            
-            // Normalize height: octave (0-8) + noteIndex (0-11)/12
-            const normalizedHeight = 1 - ((octave + noteIndex/12) / 9); // 0 to 1, higher notes at top
-            
-            // Set position: random horizontal, pitch-based vertical
-            const horizontalPos = 10 + Math.random() * 80; // 10-90% horizontal
-            const verticalPos = 10 + (normalizedHeight * 80); // 10-90% vertical
-            
-            noteVisual.style.top = `${verticalPos}%`;
-            noteVisual.style.left = `${horizontalPos}%`;
-            
-            // Random size based on velocity (we don't have actual velocity here)
-            const randomSize = 6 + Math.floor(Math.random() * 6); // 6-12px
-            noteVisual.style.width = `${randomSize}px`;
-            noteVisual.style.height = `${randomSize}px`;
-            
-            // Add to container
-            container.appendChild(noteVisual);
-            
-            // Animate note appearance
-            setTimeout(() => {
-                noteVisual.style.opacity = '0.8';
-                
-                // Fade out and remove after a delay
-                setTimeout(() => {
-                    noteVisual.style.opacity = '0';
-                    setTimeout(() => {
-                        if (noteVisual.parentNode === container) {
-                            container.removeChild(noteVisual);
-                        }
-                    }, 300);
-                }, 800);
-            }, 10);
-        });
-    }
-    
     // Highlight keyboard key for note visualization
     highlightKey(note, duration) {
         try {
@@ -1330,6 +1223,140 @@ class GenerativeEngine {
         } catch (e) {
             // Ignore errors in visualization
             console.debug('Error highlighting key:', e);
+        }
+    }
+    
+    // Set drone volume
+    setDroneVolume(db) {
+        console.log(`Setting drone volume to ${db}dB`);
+        
+        if (!this.droneEffects || !this.droneEffects.limiter) {
+            console.warn("Drone effects not initialized");
+            return false;
+        }
+        
+        // Limit to reasonable range (-60 to +6 dB)
+        const volume = Math.max(-60, Math.min(6, db));
+        
+        try {
+            // Set the output level of the limiter
+            this.droneEffects.limiter.threshold.value = volume;
+            
+            // Adjust the main synth volume for better balance
+            if (this.droneSynth) {
+                // Keep main synth slightly louder than the secondary layer
+                this.droneSynth.volume.value = volume + 3;
+            }
+            
+            // Adjust the secondary layer volume
+            if (this.droneSynthLayer) {
+                this.droneSynthLayer.volume.value = volume;
+            }
+            
+            return true;
+        } catch (err) {
+            console.error("Error setting drone volume:", err);
+            return false;
+        }
+    }
+    
+    // Test drone with better feedback
+    testDrone() {
+        console.log("Testing drone...");
+        
+        // Make sure we have a drone synth
+        if (!this.droneSynth) {
+            console.log("Creating drone synth for test");
+            this.createDroneSynth();
+        }
+        
+        // Root and fifth
+        const rootMidiNote = this.droneNotes && this.droneNotes.length > 0 
+            ? this.droneNotes[0] 
+            : 36; // C2 as fallback
+        
+        const fifthMidiNote = this.droneNotes && this.droneNotes.length > 2
+            ? this.droneNotes[2]
+            : rootMidiNote + 7; // Perfect fifth
+        
+        const rootNote = this.midiToNoteName(rootMidiNote);
+        const fifthNote = this.midiToNoteName(fifthMidiNote);
+        
+        console.log("Testing drone with notes:", rootNote, fifthNote);
+        
+        // Play chord with both synths for a full sound
+        this.playDroneChord([rootNote, fifthNote]);
+        
+        // Layer with secondary synth for richness
+        if (this.droneSynthLayer) {
+            setTimeout(() => {
+                this.droneSynthLayer.triggerAttack(this.midiToNoteName(rootMidiNote - 12), undefined, 0.4);
+            }, 800);
+        }
+        
+        return "Drone test initiated with notes: " + rootNote + ", " + fifthNote;
+    }
+    
+    // Add cleanup function to properly dispose of all drone resources
+    cleanupDrone() {
+        console.log("Cleaning up drone resources");
+        
+        // Clear any scheduled events
+        if (this.droneEvents) {
+            this.droneEvents.forEach(eventId => {
+                try {
+                    Tone.Transport.clear(eventId);
+                } catch (e) {
+                    // Ignore errors during cleanup
+                }
+            });
+            this.droneEvents = [];
+        }
+        
+        // Release and dispose synths
+        if (this.droneSynth) {
+            try {
+                this.droneSynth.releaseAll();
+                this.droneSynth.dispose();
+                this.droneSynth = null;
+            } catch (e) {
+                console.warn("Error disposing drone synth:", e);
+            }
+        }
+        
+        if (this.droneSynthLayer) {
+            try {
+                this.droneSynthLayer.releaseAll();
+                this.droneSynthLayer.dispose();
+                this.droneSynthLayer = null;
+            } catch (e) {
+                console.warn("Error disposing drone synth layer:", e);
+            }
+        }
+        
+        // Dispose modulation
+        if (this.droneModulation) {
+            try {
+                this.droneModulation.stop();
+                this.droneModulation.dispose();
+                this.droneModulation = null;
+            } catch (e) {
+                console.warn("Error disposing drone modulation:", e);
+            }
+        }
+        
+        // Dispose effects chain
+        if (this.droneEffects) {
+            Object.values(this.droneEffects).forEach(effect => {
+                try {
+                    if (effect && typeof effect.dispose === 'function') {
+                        effect.dispose();
+                    }
+                } catch (e) {
+                    console.warn("Error disposing drone effect:", e);
+                }
+            });
+            this.droneEffects = null;
         }
     }
     
