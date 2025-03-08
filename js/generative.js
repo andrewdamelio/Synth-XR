@@ -33,7 +33,8 @@ const moodPresets = {
         restProbability: 0.35,
         filterSweepRate: 0.03,
         reverbWet: 0.4,
-        dissonanceFactor: 0.1
+        dissonanceFactor: 0.1,
+        hue: 200  // Blue-ish
     },
     melancholic: {
         tempo: { min: 70, max: 90 },
@@ -44,7 +45,8 @@ const moodPresets = {
         restProbability: 0.25,
         filterSweepRate: 0.08,
         reverbWet: 0.6,
-        dissonanceFactor: 0.3
+        dissonanceFactor: 0.3,
+        hue: 260  // Purple-ish
     },
     intense: {
         tempo: { min: 110, max: 150 },
@@ -55,7 +57,8 @@ const moodPresets = {
         restProbability: 0.05,
         filterSweepRate: 0.25,
         reverbWet: 0.2,
-        dissonanceFactor: 0.5
+        dissonanceFactor: 0.5,
+        hue: 0    // Red
     },
     playful: {
         tempo: { min: 90, max: 130 },
@@ -66,7 +69,8 @@ const moodPresets = {
         restProbability: 0.15,
         filterSweepRate: 0.15,
         reverbWet: 0.3,
-        dissonanceFactor: 0.2
+        dissonanceFactor: 0.2,
+        hue: 120  // Green
     },
     mysterious: {
         tempo: { min: 60, max: 100 },
@@ -77,7 +81,8 @@ const moodPresets = {
         restProbability: 0.4,
         filterSweepRate: 0.05,
         reverbWet: 0.7,
-        dissonanceFactor: 0.4
+        dissonanceFactor: 0.4,
+        hue: 300  // Pink/Magenta
     }
 };
 
@@ -194,6 +199,8 @@ class GenerativeEngine {
         this.moodSettings = { ...moodPresets[this.config.mood] };
         this.transitionMatrix = [...transitionMatrices[this.config.mood]];
         this.tempo = this.getRandomInRange(this.moodSettings.tempo.min, this.moodSettings.tempo.max);
+        this.lastMoodChange = 0;
+        this.moodChangeInProgress = false;
 
         this.generateScaleNotes();
         this.updateInternalSettings();
@@ -233,37 +240,101 @@ class GenerativeEngine {
         this.synthRef = synthRef;
         this.filterRef = filterRef;
 
-        Tone.Transport.bpm.value = this.tempo;
-        Tone.Transport.start();
+        try {
+            Tone.Transport.bpm.value = this.tempo;
+            Tone.Transport.start();
+            
+            // Create components with timeout gap between them to avoid overload
+            const startSequence = async () => {
+                if (this.config.droneEnabled) {
+                    this.createDroneSynth();
+                    await new Promise(r => setTimeout(r, 50));
+                }
+                
+                if (this.config.rhythmEnabled) {
+                    this.createRhythmSynth();
+                    await new Promise(r => setTimeout(r, 50));
+                }
+                
+                if (this.config.ambienceEnabled) {
+                    this.createAmbienceSynth();
+                    await new Promise(r => setTimeout(r, 50));
+                }
 
-        if (this.config.droneEnabled) this.createDroneSynth();
-        if (this.config.rhythmEnabled) this.createRhythmSynth();
-        if (this.config.ambienceEnabled) this.createAmbienceSynth();
+                // Start generators with timeouts between them
+                if (this.config.droneEnabled) {
+                    this.startDroneGenerator();
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                
+                if (this.config.rhythmEnabled) {
+                    this.startRhythmGenerator();
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                
+                if (this.config.melodyEnabled) {
+                    this.startMelodyGenerator();
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                
+                if (this.config.ambienceEnabled) {
+                    this.startAmbienceGenerator();
+                    await new Promise(r => setTimeout(r, 100));
+                }
 
-        if (this.config.melodyEnabled) this.startMelodyGenerator();
-        if (this.config.droneEnabled) this.startDroneGenerator();
-        if (this.config.rhythmEnabled) this.startRhythmGenerator();
-        if (this.config.ambienceEnabled) this.startAmbienceGenerator();
-
-        this.startParameterEvolution();
-        this.isPlaying = true;
+                this.startParameterEvolution();
+            };
+            
+            startSequence();
+            this.isPlaying = true;
+        } catch (error) {
+            console.error("Error starting GenerativeEngine:", error);
+            this.stop(); // Clean up partial start
+        }
     }
 
     stop() {
         if (!this.isPlaying) return;
         console.log("Stopping GenerativeEngine...");
-
-        [this.melodyPart, this.dronePart, this.rhythmPart, this.ambiencePart].forEach(part => {
-            if (part) part.dispose();
-        });
-        this.cleanupDrone();
-        this.cleanupAmbience(); 
-        if (this.rhythmSynth) this.rhythmSynth.dispose();
-        if (this.evolutionInterval) clearInterval(this.evolutionInterval);
-
-        this.melodyPart = this.dronePart = this.rhythmPart = this.ambiencePart = null;
-        this.rhythmSynth = this.ambienceSynth = null;
+        
+        // Set playing state to false immediately to prevent new events
         this.isPlaying = false;
+
+        // Stop and clean up all parts 
+        try {
+            [this.melodyPart, this.rhythmPart].forEach(part => {
+                if (part) {
+                    part.stop();
+                    part.dispose();
+                }
+            });
+        } catch (e) {
+            console.error("Error disposing parts:", e);
+        }
+        
+        // Clean up components with dedicated cleanup methods
+        this.cleanupDrone();
+        this.cleanupAmbience();
+        
+        // Dispose of synths
+        try {
+            if (this.rhythmSynth) {
+                this.rhythmSynth.releaseAll();
+                this.rhythmSynth.dispose();
+                this.rhythmSynth = null;
+            }
+        } catch (e) {
+            console.error("Error disposing rhythm synth:", e);
+        }
+        
+        // Clear any ongoing evolution
+        if (this.evolutionInterval) {
+            clearInterval(this.evolutionInterval);
+            this.evolutionInterval = null;
+        }
+
+        // Reset parts
+        this.melodyPart = this.dronePart = this.rhythmPart = this.ambiencePart = null;
     }
 
     // Enhanced Melody Generator with adaptive harmony
@@ -690,7 +761,13 @@ class GenerativeEngine {
     }
 
     getHarmonicChord() {
-        return this.harmonyState.currentChord || this.generateChord(0);
+        try {
+            return this.harmonyState.currentChord || this.generateChord(0);
+        } catch (error) {
+            console.error("Error generating harmonic chord:", error);
+            // Return a safe fallback chord
+            return ["C4", "E4", "G4"];
+        }
     }
 
     // Evolution and Variation
@@ -824,6 +901,12 @@ class GenerativeEngine {
     }
 
     midiToNoteName(midiNote) {
+        // Add validation to prevent NaN issues
+        if (midiNote === undefined || midiNote === null || isNaN(midiNote)) {
+            console.warn("Invalid MIDI note value:", midiNote);
+            return "C4"; // Return a safe default instead of an error
+        }
+        
         const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
         const octave = Math.floor(midiNote / 12) - 1;
         return `${noteNames[midiNote % 12]}${octave}`;
@@ -835,30 +918,48 @@ class GenerativeEngine {
 
     visualizeNotes(notes, time) {
         const container = document.querySelector('.generative-visualizer');
-        if (!container) return;
+        if (!container || !notes || !Array.isArray(notes)) return;
 
         notes.forEach(note => {
-            const noteVisual = document.createElement('div');
-            noteVisual.className = 'generative-note';
-            const [noteName, octave] = note.match(/([A-G]#?)(\d+)/).slice(1);
-            const noteIndex = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].indexOf(noteName);
-            const height = 1 - ((parseInt(octave) + noteIndex / 12) / 9);
+            if (!note) return; // Skip null/undefined notes
+            
+            try {
+                const noteVisual = document.createElement('div');
+                noteVisual.className = 'generative-note';
+                
+                // Safe regex matching with fallback values
+                const matches = String(note).match(/([A-G]#?)(\d+)/);
+                if (!matches || matches.length < 3) return;
+                
+                const [_, noteName, octave] = matches;
+                const noteIndex = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].indexOf(noteName);
+                if (noteIndex === -1) return;
+                
+                const height = 1 - ((parseInt(octave) + noteIndex / 12) / 9);
+                
+                noteVisual.style.top = `${10 + height * 80}%`;
+                noteVisual.style.left = `${10 + Math.random() * 80}%`;
+                noteVisual.style.width = noteVisual.style.height = `${8 + Math.random() * 8}px`;
+                noteVisual.style.backgroundColor = `hsl(${this.moodSettings.hue}, 70%, 50%)`;
 
-            noteVisual.style.top = `${10 + height * 80}%`;
-            noteVisual.style.left = `${10 + Math.random() * 80}%`;
-            noteVisual.style.width = noteVisual.style.height = `${8 + Math.random() * 8}px`;
-            noteVisual.style.backgroundColor = `hsl(${Math.random() * 360}, 70%, 50%)`;
 
-            container.appendChild(noteVisual);
-            setTimeout(() => {
-                noteVisual.style.opacity = '0.9';
-                noteVisual.style.transform = 'scale(1.2)';
+                container.appendChild(noteVisual);
                 setTimeout(() => {
-                    noteVisual.style.opacity = '0';
-                    noteVisual.style.transform = 'scale(0.8)';
-                    setTimeout(() => container.removeChild(noteVisual), 500);
-                }, 1000);
-            }, 20);
+                    noteVisual.style.opacity = '0.9';
+                    noteVisual.style.transform = 'scale(1.2)';
+                    setTimeout(() => {
+                        noteVisual.style.opacity = '0';
+                        noteVisual.style.transform = 'scale(0.8)';
+                        setTimeout(() => {
+                            if (container.contains(noteVisual)) {
+                                container.removeChild(noteVisual);
+                            }
+                        }, 500);
+                    }, 1000);
+                }, 20);
+            } catch (error) {
+                console.error("Error visualizing note:", error);
+            }
         });
     }
 
@@ -927,15 +1028,66 @@ class GenerativeEngine {
         const oldConfig = { ...this.config };
         Object.assign(this.config, newConfig);
 
-        if (this.config.scale !== oldConfig.scale || this.config.root !== oldConfig.root) {
-            this.generateScaleNotes();
+        if (this.config.mood !== oldConfig.mood) {
+            // Debounce mood changes - prevent changes more frequently than every 1 second
+            const now = Date.now();
+            if (now - this.lastMoodChange < 1000) {
+                console.log("Mood change too frequent, ignoring");
+                this.config.mood = oldConfig.mood; // Revert the mood change
+                return;
+            }
+            
+            // Prevent overlapping mood changes
+            if (this.moodChangeInProgress) {
+                console.log("Mood change already in progress, ignoring");
+                this.config.mood = oldConfig.mood; // Revert the mood change
+                return;
+            }
+            
+            this.moodChangeInProgress = true;
+            this.lastMoodChange = now;
+            
+            console.log(`Changing mood from ${oldConfig.mood} to ${this.config.mood}`);
+            
+            // Perform a complete teardown and rebuild for mood changes
+            const wasPlaying = this.isPlaying;
+            
+            if (wasPlaying) {
+                // Stop everything safely
+                this.stop();
+                
+                // Update settings
+                this.moodSettings = { ...moodPresets[this.config.mood] };
+                this.transitionMatrix = [...transitionMatrices[this.config.mood]];
+                this.tempo = this.getRandomInRange(this.moodSettings.tempo.min, this.moodSettings.tempo.max);
+                
+                // Generate new scale notes
+                this.generateScaleNotes();
+                this.updateInternalSettings();
+                
+                // Restart after a short pause to ensure clean state
+                setTimeout(() => {
+                    if (this.synthRef) {
+                        this.start(this.synthRef, this.filterRef);
+                        console.log("Restarted engine with new mood:", this.config.mood);
+                    }
+                    this.moodChangeInProgress = false;
+                }, 300);
+            } else {
+                // Just update settings if not currently playing
+                this.moodSettings = { ...moodPresets[this.config.mood] };
+                this.transitionMatrix = [...transitionMatrices[this.config.mood]];
+                this.tempo = this.getRandomInRange(this.moodSettings.tempo.min, this.moodSettings.tempo.max);
+                this.generateScaleNotes();
+                this.updateInternalSettings();
+                this.moodChangeInProgress = false;
+            }
+            
+            return; // Skip the rest of the config updates as we're handling everything here
         }
 
-        if (this.config.mood !== oldConfig.mood) {
-            this.moodSettings = { ...moodPresets[this.config.mood] };
-            this.transitionMatrix = [...transitionMatrices[this.config.mood]];
-            this.tempo = this.getRandomInRange(this.moodSettings.tempo.min, this.moodSettings.tempo.max);
-            if (this.isPlaying) Tone.Transport.bpm.value = this.tempo;
+        if (this.config.scale !== oldConfig.scale || this.config.root !== oldConfig.root) {
+            this.generateScaleNotes();
         }
 
         this.updateInternalSettings();
