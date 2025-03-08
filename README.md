@@ -2,7 +2,7 @@
 
 Synth XR is an advanced web-based synthesizer built with modern web technologies. It provides a feature-rich environment for music creation and sound design directly in your browser.
 
-## [Try Synth XR Live Demo](https://andrewdamelio.github.io/Synth-XR/synthXR.html)
+## [Try Synth XR Live Demo](https://andrewdamelio.github.io/Synth-XR)
 
 ![Synth XR Screenshot](https://github.com/user-attachments/assets/5ece25e9-0405-45fb-adf9-cba4a7a213ee)
 
