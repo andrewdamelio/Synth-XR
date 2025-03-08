@@ -5666,7 +5666,8 @@ function initGenerativeMusic() {
         evolution: 30,
         melodyEnabled: true,
         droneEnabled: true,
-        rhythmEnabled: false
+        rhythmEnabled: false,
+        ambienceEnabled: false,
     });
     
     // Set up UI control event listeners
@@ -5769,6 +5770,15 @@ function setupLayerToggles() {
             updateGenerativeSettings();
         });
     }
+
+    // Ambience toggle
+    const ambienceToggle = document.getElementById('generativeAmbienceToggle');
+    if (ambienceToggle) {
+        ambienceToggle.addEventListener('change', e => {
+            document.getElementById('generativeAmbienceState').textContent = e.target.checked ? 'ON' : 'OFF';
+            updateGenerativeSettings();
+        });
+    }
 }
 
 // Start or stop generative mode
@@ -5813,14 +5823,15 @@ function startGenerativeMode() {
             const melodyEnabled = document.getElementById('generativeMelodyToggle').checked;
             const droneEnabled = document.getElementById('generativeDroneToggle').checked;
             const rhythmEnabled = document.getElementById('generativeRhythmToggle').checked;
+            const ambienceEnabled = document.getElementById('generativeAmbienceToggle').checked;
             
             console.log("Starting generative engine with:", {
-                melodyEnabled, droneEnabled, rhythmEnabled
+                melodyEnabled, droneEnabled, rhythmEnabled, ambienceEnabled
             });
             
             // Update settings before starting
             generativeEngine.updateConfig({
-                melodyEnabled, droneEnabled, rhythmEnabled
+                melodyEnabled, droneEnabled, rhythmEnabled, ambienceEnabled
             });
             
             // Start the engine
@@ -5902,6 +5913,7 @@ function updateGenerativeSettings() {
         const melodyEnabled = document.getElementById('generativeMelodyToggle').checked;
         const droneEnabled = document.getElementById('generativeDroneToggle').checked;
         const rhythmEnabled = document.getElementById('generativeRhythmToggle').checked;
+        const ambienceEnabled = document.getElementById('generativeAmbienceToggle').checked;
         
         // Update generative engine configuration
         generativeEngine.updateConfig({
@@ -5913,7 +5925,8 @@ function updateGenerativeSettings() {
             evolution,
             melodyEnabled,
             droneEnabled,
-            rhythmEnabled
+            rhythmEnabled,
+            ambienceEnabled
         });
     } catch (error) {
         console.warn('Error updating generative settings:', error);

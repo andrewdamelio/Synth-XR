@@ -257,8 +257,8 @@ class GenerativeEngine {
             if (part) part.dispose();
         });
         this.cleanupDrone();
+        this.cleanupAmbience(); 
         if (this.rhythmSynth) this.rhythmSynth.dispose();
-        if (this.ambienceSynth) this.ambienceSynth.dispose();
         if (this.evolutionInterval) clearInterval(this.evolutionInterval);
 
         this.melodyPart = this.dronePart = this.rhythmPart = this.ambiencePart = null;
@@ -272,10 +272,13 @@ class GenerativeEngine {
         const phraseLength = 16;
         this.currentNoteDegree = 0;
         let currentPhrase = [];
+        let lastNoteTime = Tone.now(); // Add this variable declaration!
 
         this.melodyPart = new Tone.Loop((time) => {
             if (!this.config.melodyEnabled || !this.synthRef) return;
-            const safeTime = time + 0.01;
+            const nowTime = Tone.now();
+            const safeTime = Math.max(nowTime + 0.05, lastNoteTime + 0.01);
+            lastNoteTime = safeTime; // Update the last note time
 
             const shouldPlay = Math.random() < this.noteProbability;
             const shouldRest = Math.random() < this.moodSettings.restProbability;
@@ -310,62 +313,151 @@ class GenerativeEngine {
 
     // Rich Drone Generator with layered textures
     createDroneSynth() {
+        console.log("Creating drone synth");
+        
+        // Clean up any existing drone first
         this.cleanupDrone();
-        this.droneEffects = {
-            filter: new Tone.Filter({ type: "lowpass", frequency: 1000, Q: 2 }),
-            chorus: new Tone.Chorus({ frequency: 0.3, delayTime: 4, depth: 0.8, wet: 0.6 }).start(),
-            reverb: new Tone.Reverb({ decay: 5, wet: this.moodSettings.reverbWet }),
-            pingPong: new Tone.PingPongDelay({ delayTime: "8n", feedback: 0.3, wet: 0.2 }),
-            limiter: new Tone.Limiter(-2)
-        };
-
-        this.droneEffects.filter
-            .connect(this.droneEffects.chorus)
-            .connect(this.droneEffects.reverb)
-            .connect(this.droneEffects.pingPong)
-            .connect(this.droneEffects.limiter)
-            .connect(this.filterRef || Tone.getDestination());
-
-        this.droneSynth = new Tone.PolySynth(Tone.FMSynth, {
-            maxPolyphony: 6,
-            options: {
-                harmonicity: 1.2,
-                modulationIndex: 4,
-                oscillator: { type: "sine6" },
-                modulation: { type: "triangle" },
-                envelope: { attack: 2, decay: 0.5, sustain: 1, release: 3 },
-                volume: -6
-            }
-        }).connect(this.droneEffects.filter);
+        
+        try {
+            this.droneEffects = {
+                filter: new Tone.Filter({ type: "lowpass", frequency: 1000, Q: 2 }),
+                chorus: new Tone.Chorus({ frequency: 0.3, delayTime: 4, depth: 0.8, wet: 0.6 }).start(),
+                reverb: new Tone.Reverb({ decay: 5, wet: this.moodSettings.reverbWet }),
+                pingPong: new Tone.PingPongDelay({ delayTime: "8n", feedback: 0.3, wet: 0.2 }),
+                limiter: new Tone.Limiter(-2)
+            };
+    
+            this.droneEffects.filter
+                .connect(this.droneEffects.chorus)
+                .connect(this.droneEffects.reverb)
+                .connect(this.droneEffects.pingPong)
+                .connect(this.droneEffects.limiter)
+                .connect(this.filterRef || Tone.getDestination());
+    
+            this.droneSynth = new Tone.PolySynth(Tone.FMSynth, {
+                maxPolyphony: 6,
+                options: {
+                    harmonicity: 1.2,
+                    modulationIndex: 4,
+                    oscillator: { type: "sine6" },
+                    modulation: { type: "triangle" },
+                    envelope: { attack: 2, decay: 0.5, sustain: 1, release: 3 },
+                    volume: -6
+                }
+            }).connect(this.droneEffects.filter);
+            
+            console.log("Drone synth created successfully");
+            return true;
+        } catch (error) {
+            console.error("Failed to create drone synth:", error);
+            this.droneSynth = null;
+            this.droneEffects = null;
+            return false;
+        }
     }
 
     startDroneGenerator() {
-        if (!this.config.droneEnabled) return;
-        this.createDroneSynth();
-
+        console.log("Starting drone generator, enabled:", this.config.droneEnabled);
+        
+        if (!this.config.droneEnabled) return false;
+        
+        // Make sure we have a drone synth
+        if (!this.droneSynth) {
+            const created = this.createDroneSynth();
+            if (!created) {
+                console.error("Could not start drone generator - synth creation failed");
+                return false;
+            }
+        }
+    
         const rootNote = this.midiToNoteName(this.droneNotes[0]);
         const deepNote = this.midiToNoteName(this.droneNotes[1]);
         const fifthNote = this.midiToNoteName(this.droneNotes[2]);
-
-        this.dronePart = new Tone.Loop((time) => {
-            const safeTime = time + 0.02;
-            const pattern = Math.floor(Math.random() * 4);
-            switch (pattern) {
-                case 0: this.playDroneChord([rootNote, fifthNote], safeTime); break;
-                case 1: this.playDroneChord([deepNote, rootNote], safeTime); break;
-                case 2: this.playDroneChord([rootNote, fifthNote, this.midiToNoteName(this.droneNotes[0] + 4)], safeTime); break;
-                case 3: this.droneSynth.triggerRelease([rootNote, fifthNote], safeTime); break;
+        let lastDroneTime = Tone.now();
+    
+        // Clean up any existing drone part
+        if (this.dronePart) {
+            try {
+                this.dronePart.dispose();
+            } catch (e) {
+                console.error("Error disposing previous drone part:", e);
             }
-            if (Math.random() < 0.15) this.droneSynth.detune.rampTo((Math.random() - 0.5) * 100, 6);
-        }, "8m").start("+0.1");
+            this.dronePart = null;
+        }
+    
+        try {
+            // Play an initial drone to ensure sound is working
+            this.playDroneChord([rootNote, fifthNote], Tone.now() + 0.2);
+            
+            // Set up the recurring drone loop
+            this.dronePart = new Tone.Loop((time) => {
+                if (!this.droneSynth || !this.config.droneEnabled) {
+                    console.log("Drone synth missing or disabled during loop, skipping");
+                    return;
+                }
+    
+                const nowTime = Tone.now();
+                const safeTime = Math.max(nowTime + 0.1, lastDroneTime + 0.02);
+                lastDroneTime = safeTime;
+    
+                const pattern = Math.floor(Math.random() * 4);
+                try {
+                    switch (pattern) {
+                        case 0: this.playDroneChord([rootNote, fifthNote], safeTime); break;
+                        case 1: this.playDroneChord([deepNote, rootNote], safeTime); break;
+                        case 2: this.playDroneChord([rootNote, fifthNote, this.midiToNoteName(this.droneNotes[0] + 4)], safeTime); break;
+                        case 3: 
+                            if (this.droneSynth) {
+                                console.log("Drone release at", safeTime);
+                                this.droneSynth.triggerRelease([rootNote, fifthNote], safeTime); 
+                            }
+                            break;
+                    }
+                    
+                    // Add a safety check before accessing detune
+                    if (this.droneSynth && this.droneSynth.detune && 
+                        typeof this.droneSynth.detune.rampTo === 'function' && 
+                        Math.random() < 0.15) {
+                        this.droneSynth.detune.rampTo((Math.random() - 0.5) * 100, 6);
+                    }
+                } catch (error) {
+                    console.error("Error in drone loop:", error);
+                }
+            }, "8m").start("+0.1");
+            
+            console.log("Drone part started successfully");
+            return true;
+        } catch (error) {
+            console.error("Failed to start drone generator:", error);
+            this.cleanupDrone();
+            return false;
+        }
     }
 
+
     playDroneChord(notes, time) {
-        if (!this.droneSynth) return;
-        const playTime = time || Tone.now() + 0.05;
-        this.droneSynth.releaseAll(playTime - 0.01);
-        this.droneSynth.triggerAttack(notes.slice(0, 3), playTime, 0.5);
-        notes.forEach(note => this.highlightKey(note, 4));
+        if (!this.droneSynth) {
+            console.error("No drone synth available to play chord");
+            return false;
+        }
+        
+        try {
+            const nowTime = Tone.now();
+            const playTime = time || (nowTime + 0.05);
+            
+            console.log("Playing drone chord", notes, "at time", playTime);
+            
+            // Release previous notes slightly before playing new ones
+            this.droneSynth.releaseAll(playTime - 0.01);
+            
+            // Trigger the new notes
+            this.droneSynth.triggerAttack(notes.slice(0, 3), playTime, 0.5);
+            notes.forEach(note => this.highlightKey(note, 4));
+            return true;
+        } catch (error) {
+            console.error("Error playing drone chord:", error);
+            return false;
+        }
     }
 
     getWeightedRandomIndex(weights) {
@@ -382,28 +474,62 @@ class GenerativeEngine {
         return 0; // Fallback
     }
     
+    getScheduleTime(baseTime, minOffset = 0.05) {
+        // Get current time
+        const now = Tone.now();
+        // Return the greater of:
+        // 1. Current time plus minimum offset
+        // 2. Provided base time
+        return Math.max(now + minOffset, baseTime);
+    }
+
     // Dynamic Rhythm Generator
     startRhythmGenerator() {
         if (!this.config.rhythmEnabled || !this.rhythmSynth) return;
         const patterns = rhythmPatterns[this.config.mood];
         let currentPattern = patterns[this.getWeightedRandomIndex(this.patternWeights)];
-
+    
+        // Generate rhythm events with stable timing
+        const events = this.generateRhythmEvents(currentPattern);
+        
+        // Helper function to sort events chronologically
+        const sortEvents = (events) => {
+            return events.sort((a, b) => {
+                // Extract time components (bar:beat:sixteenth)
+                const aComponents = a.time.split(':').map(Number);
+                const bComponents = b.time.split(':').map(Number);
+                
+                // Compare components in order
+                for (let i = 0; i < aComponents.length; i++) {
+                    if (aComponents[i] !== bComponents[i]) {
+                        return aComponents[i] - bComponents[i];
+                    }
+                }
+                return 0;
+            });
+        };
+    
+        // Sort the initial events
+        const sortedEvents = sortEvents(events);
+    
         this.rhythmPart = new Tone.Part((time, event) => {
-            const humanizedTime = time + (Math.random() * 0.03 - 0.015);
+            const humanizedTime = time + (Math.random() * 0.02);
             this.rhythmSynth.triggerAttackRelease(event.note, "16n", humanizedTime, event.velocity);
             if (Math.random() < 0.2) {
                 const accentNote = Math.random() > 0.5 ? "G2" : "D2";
                 this.rhythmSynth.triggerAttackRelease(accentNote, "32n", humanizedTime + 0.05, 0.4);
             }
-        }, this.generateRhythmEvents(currentPattern)).start(0);
-
+        }, sortedEvents).start(0);
+    
         this.rhythmPart.loop = true;
         this.rhythmPart.loopEnd = "4m";
-
+    
         Tone.Transport.scheduleRepeat(() => {
             if (Math.random() < 0.2) {
                 currentPattern = this.evolveRhythmPattern(currentPattern);
-                this.rhythmPart.events = this.generateRhythmEvents(currentPattern);
+                // Make sure to sort the new events too
+                const newEvents = this.generateRhythmEvents(currentPattern);
+                this.rhythmPart.events = sortEvents(newEvents);
             }
         }, "16m");
     }
@@ -428,24 +554,133 @@ class GenerativeEngine {
 
     // Ambient Layer for Immersion
     createAmbienceSynth() {
-        this.ambienceSynth = new Tone.PolySynth(Tone.Synth, {
-            oscillator: { type: "sawtooth" },
-            envelope: { attack: 3, decay: 1, sustain: 0.7, release: 5 },
-            volume: -12
-        }).connect(this.droneEffects?.filter || Tone.getDestination());
+        // Dispose of any existing ambience synth first
+        if (this.ambienceSynth) {
+            try {
+                this.ambienceSynth.dispose();
+            } catch (e) {
+                console.error("Error disposing previous ambience synth:", e);
+            }
+            this.ambienceSynth = null;
+        }
+    
+        // Create a more audible and distinctive ambience synth
+        this.ambienceSynth = new Tone.PolySynth(Tone.FMSynth, {
+            maxPolyphony: 4,
+            options: {
+                harmonicity: 2.5,
+                modulationIndex: 3.5,
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.5, decay: 0.5, sustain: 0.8, release: 3 },
+                modulation: { type: "sine" },
+                modulationEnvelope: { attack: 1, decay: 0.5, sustain: 0.5, release: 3 },
+                volume: -8 // Slightly louder than before
+            }
+        });
+    
+        // Create ambience-specific effects for more audible presence
+        this.ambienceEffects = {
+            delay: new Tone.FeedbackDelay({
+                delayTime: "8n", 
+                feedback: 0.3,
+                wet: 0.4
+            }),
+            reverb: new Tone.Reverb({
+                decay: 4,
+                wet: 0.6
+            }),
+            filter: new Tone.Filter({
+                type: "lowpass",
+                frequency: 5000,
+                Q: 1
+            })
+        };
+    
+        // Connect the effects chain
+        this.ambienceSynth.chain(
+            this.ambienceEffects.filter,
+            this.ambienceEffects.delay,
+            this.ambienceEffects.reverb,
+            this.filterRef || Tone.getDestination()
+        );
+    
+        console.log("Ambience synth created");
     }
 
     startAmbienceGenerator() {
-        if (!this.config.ambienceEnabled || !this.ambienceSynth) return;
+        if (!this.config.ambienceEnabled || !this.ambienceSynth) {
+            console.log("Ambience not enabled or synth not created");
+            return;
+        }
+        
+        // Dispose of any existing ambience part
+        if (this.ambiencePart) {
+            try {
+                this.ambiencePart.dispose();
+            } catch (e) {
+                console.error("Error disposing previous ambience part:", e);
+            }
+            this.ambiencePart = null;
+        }
+        
+        let lastAmbienceTime = Tone.now();
+        console.log("Starting ambience generator");
+        
+        // Create a more active ambience with higher probability of notes
         this.ambiencePart = new Tone.Loop((time) => {
-            if (Math.random() < 0.1) {
-                const note = this.midiToNoteName(this.currentScale[Math.floor(Math.random() * this.currentScale.length)]);
-                this.ambienceSynth.triggerAttackRelease(note, "4n", time + 0.05, 0.3);
-                this.visualizeNotes([note], time);
+            // Increase probability to make ambience more noticeable (was 0.1)
+            if (Math.random() < 0.25) {
+                const nowTime = Tone.now();
+                const safeTime = Math.max(nowTime + 0.1, lastAmbienceTime + 0.05);
+                lastAmbienceTime = safeTime;
+                
+                // Pick 1-3 notes for ambient chord
+                const numNotes = Math.floor(Math.random() * 3) + 1;
+                const notes = [];
+                
+                for (let i = 0; i < numNotes; i++) {
+                    const noteIndex = Math.floor(Math.random() * this.currentScale.length);
+                    notes.push(this.midiToNoteName(this.currentScale[noteIndex]));
+                }
+                
+                // Play longer notes for ambience (was "4n")
+                const noteDuration = ["2n", "1n"][Math.floor(Math.random() * 2)];
+                const velocity = 0.3 + (Math.random() * 0.2); // Slightly louder
+                
+                console.log("Playing ambience notes:", notes, "at time", safeTime);
+                this.ambienceSynth.triggerAttackRelease(notes, noteDuration, safeTime, velocity);
+                this.visualizeNotes(notes, safeTime);
             }
         }, "2m").start("+0.2");
     }
 
+    cleanupAmbience() {
+        console.log("Cleaning up ambience");
+        try {
+            if (this.ambiencePart) {
+                this.ambiencePart.dispose();
+                this.ambiencePart = null;
+            }
+            
+            if (this.ambienceSynth) {
+                this.ambienceSynth.releaseAll();
+                this.ambienceSynth.dispose();
+                this.ambienceSynth = null;
+            }
+            
+            if (this.ambienceEffects) {
+                Object.values(this.ambienceEffects).forEach(effect => {
+                    if (effect && typeof effect.dispose === 'function') {
+                        effect.dispose();
+                    }
+                });
+                this.ambienceEffects = null;
+            }
+        } catch (e) {
+            console.error("Error in cleanupAmbience:", e);
+        }
+    }
+    
     // Adaptive Harmony System
     updateHarmony() {
         if (Tone.now() > this.harmonyState.nextChordTime) {
@@ -636,15 +871,56 @@ class GenerativeEngine {
     }
 
     cleanupDrone() {
-        if (this.dronePart) this.dronePart.dispose();
-        if (this.droneSynth) {
-            this.droneSynth.releaseAll();
-            this.droneSynth.dispose();
+        console.log("Cleaning up drone");
+        
+        try {
+            if (this.dronePart) {
+                console.log("Disposing drone part");
+                this.dronePart.stop();
+                this.dronePart.dispose();
+                this.dronePart = null;
+            }
+            
+            if (this.droneSynth) {
+                console.log("Disposing drone synth");
+                try {
+                    this.droneSynth.releaseAll(Tone.now());
+                } catch (e) {
+                    console.log("Error releasing drone synth:", e);
+                }
+                
+                // Add a small delay before disposing to let release finish
+                setTimeout(() => {
+                    try {
+                        if (this.droneSynth) {
+                            this.droneSynth.dispose();
+                            this.droneSynth = null;
+                        }
+                    } catch (e) {
+                        console.log("Error disposing drone synth:", e);
+                    }
+                }, 100);
+            }
+            
+            if (this.droneEffects) {
+                console.log("Disposing drone effects");
+                Object.entries(this.droneEffects).forEach(([name, effect]) => {
+                    try {
+                        if (effect && typeof effect.dispose === 'function') {
+                            effect.dispose();
+                        }
+                    } catch (e) {
+                        console.log(`Error disposing ${name} effect:`, e);
+                    }
+                });
+                this.droneEffects = null;
+            }
+            
+            return true;
+        } catch (error) {
+            console.error("Error in cleanupDrone:", error);
+            return false;
         }
-        if (this.droneEffects) {
-            Object.values(this.droneEffects).forEach(effect => effect.dispose());
-        }
-        this.dronePart = this.droneSynth = this.droneEffects = null;
     }
 
     updateConfig(newConfig) {
@@ -670,8 +946,21 @@ class GenerativeEngine {
                 else if (this.melodyPart) this.melodyPart.dispose();
             }
             if (this.config.droneEnabled !== oldConfig.droneEnabled) {
-                if (this.config.droneEnabled) this.startDroneGenerator();
-                else this.cleanupDrone();
+                console.log("Drone toggled:", this.config.droneEnabled);
+                
+                if (this.config.droneEnabled) {
+                    // Ensure any old drone is fully cleaned up first
+                    this.cleanupDrone();
+                    
+                    // Wait a moment for cleanup to complete
+                    setTimeout(() => {
+                        // Start the drone with a fresh state
+                        this.startDroneGenerator();
+                    }, 200);
+                } else {
+                    // Turn off drone
+                    this.cleanupDrone();
+                }
             }
             if (this.config.rhythmEnabled !== oldConfig.rhythmEnabled) {
                 if (this.config.rhythmEnabled) {
@@ -683,12 +972,14 @@ class GenerativeEngine {
                 }
             }
             if (this.config.ambienceEnabled !== oldConfig.ambienceEnabled) {
+                console.log("Ambience toggled:", this.config.ambienceEnabled);
                 if (this.config.ambienceEnabled) {
+                    // Turn on ambience
                     this.createAmbienceSynth();
                     this.startAmbienceGenerator();
-                } else if (this.ambiencePart) {
-                    this.ambiencePart.dispose();
-                    this.ambienceSynth.dispose();
+                } else {
+                    // Turn off ambience
+                    this.cleanupAmbience();
                 }
             }
         }
