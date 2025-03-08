@@ -201,6 +201,8 @@ class GenerativeEngine {
         this.tempo = this.getRandomInRange(this.moodSettings.tempo.min, this.moodSettings.tempo.max);
         this.lastMoodChange = 0;
         this.moodChangeInProgress = false;
+        this.rhythmEvolutionEvent = null;
+
 
         this.generateScaleNotes();
         this.updateInternalSettings();
@@ -299,42 +301,65 @@ class GenerativeEngine {
         
         // Set playing state to false immediately to prevent new events
         this.isPlaying = false;
-
-        // Stop and clean up all parts 
-        try {
-            [this.melodyPart, this.rhythmPart].forEach(part => {
-                if (part) {
-                    part.stop();
-                    part.dispose();
-                }
-            });
-        } catch (e) {
-            console.error("Error disposing parts:", e);
+    
+        // Cancel all scheduled events first
+        if (this.rhythmEvolutionEvent) {
+            Tone.Transport.clear(this.rhythmEvolutionEvent);
+            this.rhythmEvolutionEvent = null;
         }
-        
-        // Clean up components with dedicated cleanup methods
-        this.cleanupDrone();
-        this.cleanupAmbience();
-        
-        // Dispose of synths
+    
+        // Then clean up all parts
         try {
-            if (this.rhythmSynth) {
-                this.rhythmSynth.releaseAll();
-                this.rhythmSynth.dispose();
-                this.rhythmSynth = null;
+            if (this.melodyPart) {
+                this.melodyPart.stop();
+                this.melodyPart.dispose();
+                this.melodyPart = null;
             }
         } catch (e) {
-            console.error("Error disposing rhythm synth:", e);
+            console.error("Error disposing melody part:", e);
         }
+        
+        // Use dedicated cleanup methods
+        this.cleanupDrone();
+        this.cleanupRhythm();
+        this.cleanupAmbience();
         
         // Clear any ongoing evolution
         if (this.evolutionInterval) {
             clearInterval(this.evolutionInterval);
             this.evolutionInterval = null;
         }
+    }
 
-        // Reset parts
-        this.melodyPart = this.dronePart = this.rhythmPart = this.ambiencePart = null;
+    cleanupRhythm() {
+        console.log("Cleaning up rhythm");
+        
+        try {
+            // Cancel the rhythm evolution event first
+            if (this.rhythmEvolutionEvent) {
+                console.log("Cancelling rhythm evolution schedule:", this.rhythmEvolutionEvent);
+                Tone.Transport.clear(this.rhythmEvolutionEvent);
+                this.rhythmEvolutionEvent = null;
+            }
+            
+            if (this.rhythmPart) {
+                this.rhythmPart.stop();
+                this.rhythmPart.dispose();
+                this.rhythmPart = null;
+            }
+            
+            if (this.rhythmSynth) {
+                // MembraneSynth is monophonic, so just use triggerRelease()
+                if (typeof this.rhythmSynth.triggerRelease === 'function') {
+                    this.rhythmSynth.triggerRelease();
+                }
+                
+                this.rhythmSynth.dispose();
+                this.rhythmSynth = null;
+            }
+        } catch (error) {
+            console.error("Error in cleanupRhythm:", error);
+        }
     }
 
     // Enhanced Melody Generator with adaptive harmony
@@ -557,6 +582,13 @@ class GenerativeEngine {
     // Dynamic Rhythm Generator
     startRhythmGenerator() {
         if (!this.config.rhythmEnabled || !this.rhythmSynth) return;
+        
+        // First clear any existing evolution schedule
+        if (this.rhythmEvolutionEvent) {
+            Tone.Transport.clear(this.rhythmEvolutionEvent);
+            this.rhythmEvolutionEvent = null;
+        }
+        
         const patterns = rhythmPatterns[this.config.mood];
         let currentPattern = patterns[this.getWeightedRandomIndex(this.patternWeights)];
     
@@ -582,28 +614,65 @@ class GenerativeEngine {
     
         // Sort the initial events
         const sortedEvents = sortEvents(events);
+        
+        // Dispose of any existing rhythm part first
+        if (this.rhythmPart) {
+            this.rhythmPart.dispose();
+            this.rhythmPart = null;
+        }
     
-        this.rhythmPart = new Tone.Part((time, event) => {
-            const humanizedTime = time + (Math.random() * 0.02);
-            this.rhythmSynth.triggerAttackRelease(event.note, "16n", humanizedTime, event.velocity);
-            if (Math.random() < 0.2) {
-                const accentNote = Math.random() > 0.5 ? "G2" : "D2";
-                this.rhythmSynth.triggerAttackRelease(accentNote, "32n", humanizedTime + 0.05, 0.4);
-            }
-        }, sortedEvents).start(0);
+        try {
+            this.rhythmPart = new Tone.Part((time, event) => {
+                // Verify the synth is still available
+                if (!this.rhythmSynth || !this.config.rhythmEnabled) return;
+                
+                const humanizedTime = time + (Math.random() * 0.02);
+                this.rhythmSynth.triggerAttackRelease(event.note, "16n", humanizedTime, event.velocity);
+                
+                if (Math.random() < 0.2) {
+                    const accentNote = Math.random() > 0.5 ? "G2" : "D2";
+                    this.rhythmSynth.triggerAttackRelease(accentNote, "32n", humanizedTime + 0.05, 0.4);
+                }
+            }, sortedEvents).start(0);
     
-        this.rhythmPart.loop = true;
-        this.rhythmPart.loopEnd = "4m";
-    
-        Tone.Transport.scheduleRepeat(() => {
-            if (Math.random() < 0.2) {
-                currentPattern = this.evolveRhythmPattern(currentPattern);
-                // Make sure to sort the new events too
-                const newEvents = this.generateRhythmEvents(currentPattern);
-                this.rhythmPart.events = sortEvents(newEvents);
-            }
-        }, "16m");
+            this.rhythmPart.loop = true;
+            this.rhythmPart.loopEnd = "4m";
+            
+            // Store the event ID for cancelling later
+            this.rhythmEvolutionEvent = Tone.Transport.scheduleRepeat((time) => {
+                // This is the critical part - check if rhythmPart still exists
+                if (!this.rhythmPart || !this.config.rhythmEnabled) {
+                    // If the part is gone, cancel this repeating event
+                    if (this.rhythmEvolutionEvent) {
+                        Tone.Transport.clear(this.rhythmEvolutionEvent);
+                        this.rhythmEvolutionEvent = null;
+                    }
+                    return;
+                }
+                
+                if (Math.random() < 0.2) {
+                    try {
+                        currentPattern = this.evolveRhythmPattern(currentPattern);
+                        // Make sure to sort the new events too
+                        const newEvents = this.generateRhythmEvents(currentPattern);
+                        const sortedNewEvents = sortEvents(newEvents);
+                        
+                        // Safety check before updating events
+                        if (this.rhythmPart) {
+                            this.rhythmPart.events = sortedNewEvents;
+                        }
+                    } catch (error) {
+                        console.error("Error evolving rhythm pattern:", error);
+                    }
+                }
+            }, "16m");
+            
+            console.log("Rhythm generator started with evolution event ID:", this.rhythmEvolutionEvent);
+        } catch (error) {
+            console.error("Error starting rhythm generator:", error);
+        }
     }
+    
 
     generateRhythmEvents(pattern) {
         const events = [];
@@ -1108,7 +1177,7 @@ class GenerativeEngine {
                     setTimeout(() => {
                         // Start the drone with a fresh state
                         this.startDroneGenerator();
-                    }, 200);
+                    }, 500);
                 } else {
                     // Turn off drone
                     this.cleanupDrone();
@@ -1118,9 +1187,8 @@ class GenerativeEngine {
                 if (this.config.rhythmEnabled) {
                     this.createRhythmSynth();
                     this.startRhythmGenerator();
-                } else if (this.rhythmPart) {
-                    this.rhythmPart.dispose();
-                    this.rhythmSynth.dispose();
+                } else {
+                    this.cleanupRhythm(); // Use the dedicated cleanup method
                 }
             }
             if (this.config.ambienceEnabled !== oldConfig.ambienceEnabled) {
