@@ -5647,10 +5647,20 @@ function addHelpButtonIfDesktop() {
     });
 }
 
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth' // Add smooth scrolling for better UX
+    });
+}
+
 // Function to open help modal
 function openHelpModal() {
+    scrollToTop();
     const helpModal = document.getElementById('helpModal');
     helpModal.classList.add('active');
+    const helpModalContent = document.querySelector('.help-modal');
+    helpModalContent.scrollTo({ top: 0 });
 }
 
 // Initialize Generative Music module
