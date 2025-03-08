@@ -36,7 +36,9 @@ import {
     updateReverb
 } from './audioNodes.js';
 
-import { GenerativeEngine } from './generative.js';
+import {
+    GenerativeEngine
+} from './generative.js';
 
 // Global generative engine instance
 let generativeEngine = null;
@@ -2100,10 +2102,6 @@ function initializeDrumSounds() {
     drumSounds.bus = drumBus;
     drumSounds.compressor = drumCompressor;
 
-    // Buffer optimization
-    // Removed the shared resonance optimization as it might cause issues
-    // We'll keep each sound independent for better stability
-
     console.log("Optimized drum sounds initialized:", Object.keys(drumSounds).filter(k => k !== 'bus' && k !== 'compressor'));
 }
 
@@ -4082,7 +4080,8 @@ document.addEventListener('keydown', e => {
                     animations.settings.throttleAmount -= 1;
                 }, 100);
             } catch (e) {
-                /* Silent fail */ }
+                /* Silent fail */
+            }
         }
         return;
     }
@@ -4105,7 +4104,8 @@ document.addEventListener('keydown', e => {
                     animations.settings.throttleAmount -= 1;
                 }, 100);
             } catch (e) {
-                /* Silent fail */ }
+                /* Silent fail */
+            }
         }
         return;
     }
@@ -4182,7 +4182,8 @@ document.addEventListener('keyup', e => {
             try {
                 synth = createSynth("poly");
             } catch (e) {
-                /* Silent fail */ }
+                /* Silent fail */
+            }
         }
     }
 });
@@ -5120,7 +5121,7 @@ function setupCollapsibleModules() {
                 } else if (moduleEl.classList.contains('keyboard-container')) {
                     const keyboard = document.getElementById('keyboard');
                     if (keyboard) keyboard.style.display = 'none';
-                } 
+                }
             } else {
                 icon.classList.remove('fa-chevron-down');
                 icon.classList.add('fa-chevron-up');
@@ -5345,7 +5346,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Generative Music module
     initGenerativeMusic();
     registerGenerativeKnobUpdaters();
-    
+
     // Step 8: Update LFO destination options to include EQ parameters
     const lfoDestinationSelect = document.getElementById('lfoDestination');
     if (lfoDestinationSelect) {
@@ -5655,7 +5656,7 @@ function openHelpModal() {
 // Initialize Generative Music module
 function initGenerativeMusic() {
     console.log('Initializing Generative Music Mode...');
-    
+
     // Create the generative engine with default settings
     generativeEngine = new GenerativeEngine({
         scale: 'major',
@@ -5669,13 +5670,13 @@ function initGenerativeMusic() {
         rhythmEnabled: false,
         ambienceEnabled: false,
     });
-    
+
     // Set up UI control event listeners
     setupGenerativeControls();
-    
+
     // Initial knob rotation setup for visual feedback
     updateGenerativeKnobs();
-    
+
     console.log('Generative Music Mode initialized');
 }
 
@@ -5686,25 +5687,25 @@ function setupGenerativeControls() {
     if (generativeButton) {
         generativeButton.addEventListener('click', toggleGenerativeMode);
     }
-    
+
     // Scale selection
     const scaleSelect = document.getElementById('generativeScale');
     if (scaleSelect) {
         scaleSelect.addEventListener('change', updateGenerativeSettings);
     }
-    
+
     // Root note selection
     const rootSelect = document.getElementById('generativeRoot');
     if (rootSelect) {
         rootSelect.addEventListener('change', updateGenerativeSettings);
     }
-    
+
     // Mood selection
     const moodSelect = document.getElementById('generativeMood');
     if (moodSelect) {
         moodSelect.addEventListener('change', updateGenerativeSettings);
     }
-    
+
     // Density slider
     const densitySlider = document.getElementById('generativeDensity');
     if (densitySlider) {
@@ -5715,7 +5716,7 @@ function setupGenerativeControls() {
             updateGenerativeSettings();
         });
     }
-    
+
     // Variation slider
     const variationSlider = document.getElementById('generativeVariation');
     if (variationSlider) {
@@ -5726,7 +5727,7 @@ function setupGenerativeControls() {
             updateGenerativeSettings();
         });
     }
-    
+
     // Evolution slider
     const evolutionSlider = document.getElementById('generativeEvolution');
     if (evolutionSlider) {
@@ -5737,7 +5738,7 @@ function setupGenerativeControls() {
             updateGenerativeSettings();
         });
     }
-    
+
     // Layer toggle switches
     setupLayerToggles();
 }
@@ -5752,7 +5753,7 @@ function setupLayerToggles() {
             updateGenerativeSettings();
         });
     }
-    
+
     // Drone toggle
     const droneToggle = document.getElementById('generativeDroneToggle');
     if (droneToggle) {
@@ -5761,7 +5762,7 @@ function setupLayerToggles() {
             updateGenerativeSettings();
         });
     }
-    
+
     // Rhythm toggle
     const rhythmToggle = document.getElementById('generativeRhythmToggle');
     if (rhythmToggle) {
@@ -5798,25 +5799,25 @@ function toggleGenerativeMode() {
 // Start generative mode
 function startGenerativeMode() {
     if (isGenerativePlaying) return;
-    
+
     console.log('Starting Generative Music Mode...');
-    
+
     try {
         // Get button element
         const generativeButton = document.getElementById('generativeButton');
-        
+
         // If synth is not created or disposed, recreate it
         if (!synth || synth.disposed) {
             console.log('Creating new synth for generative mode');
             synth = createSynth();
         }
-        
+
         // Ensure Audio Context is running
         if (Tone.context.state !== 'running') {
             console.log('Starting Tone.js audio context');
             Tone.start();
         }
-        
+
         // Start the generative engine
         if (generativeEngine) {
             // Explicitly check what features are enabled
@@ -5824,39 +5825,45 @@ function startGenerativeMode() {
             const droneEnabled = document.getElementById('generativeDroneToggle').checked;
             const rhythmEnabled = document.getElementById('generativeRhythmToggle').checked;
             const ambienceEnabled = document.getElementById('generativeAmbienceToggle').checked;
-            
+
             console.log("Starting generative engine with:", {
-                melodyEnabled, droneEnabled, rhythmEnabled, ambienceEnabled
+                melodyEnabled,
+                droneEnabled,
+                rhythmEnabled,
+                ambienceEnabled
             });
-            
+
             // Update settings before starting
             generativeEngine.updateConfig({
-                melodyEnabled, droneEnabled, rhythmEnabled, ambienceEnabled
+                melodyEnabled,
+                droneEnabled,
+                rhythmEnabled,
+                ambienceEnabled
             });
-            
+
             // Start the engine
             generativeEngine.start(synth, filter);
-            
+
             // Update UI
             if (generativeButton) {
                 generativeButton.innerHTML = '<i class="fas fa-stop"></i><span>Stop Generative Mode</span>';
                 generativeButton.classList.add('active');
             }
-            
+
             // Activate visualization
             const generativeWave = document.getElementById('generativeWave');
             if (generativeWave) {
                 generativeWave.classList.add('active');
             }
-            
+
             isGenerativePlaying = true;
-            
+
             // Ensure visualizations are running
             ensureVisualizersConnected();
             if (animations && !animations.isRunning) {
                 startAnimations();
             }
-            
+
             // Provide feedback that we've started
             updateVUMeter(0.8);
         }
@@ -5868,28 +5875,28 @@ function startGenerativeMode() {
 // Stop generative mode
 function stopGenerativeMode() {
     if (!isGenerativePlaying) return;
-    
+
     console.log('Stopping Generative Music Mode...');
-    
+
     try {
         // Stop the generative engine
         if (generativeEngine) {
             generativeEngine.stop();
         }
-        
+
         // Update UI
         const generativeButton = document.getElementById('generativeButton');
         if (generativeButton) {
             generativeButton.innerHTML = '<i class="fas fa-play"></i><span>Start Generative Mode</span>';
             generativeButton.classList.remove('active');
         }
-        
+
         // Deactivate visualization
         const generativeWave = document.getElementById('generativeWave');
         if (generativeWave) {
             generativeWave.classList.remove('active');
         }
-        
+
         isGenerativePlaying = false;
     } catch (error) {
         console.error('Error stopping generative mode:', error);
@@ -5899,7 +5906,7 @@ function stopGenerativeMode() {
 // Update generative engine with current UI settings
 function updateGenerativeSettings() {
     if (!generativeEngine) return;
-    
+
     try {
         // Get values from UI controls
         const scale = document.getElementById('generativeScale').value;
@@ -5908,13 +5915,13 @@ function updateGenerativeSettings() {
         const density = parseInt(document.getElementById('generativeDensity').value);
         const variation = parseInt(document.getElementById('generativeVariation').value);
         const evolution = parseInt(document.getElementById('generativeEvolution').value);
-        
+
         // Get toggle states
         const melodyEnabled = document.getElementById('generativeMelodyToggle').checked;
         const droneEnabled = document.getElementById('generativeDroneToggle').checked;
         const rhythmEnabled = document.getElementById('generativeRhythmToggle').checked;
         const ambienceEnabled = document.getElementById('generativeAmbienceToggle').checked;
-        
+
         // Update generative engine configuration
         generativeEngine.updateConfig({
             scale,
@@ -5940,16 +5947,16 @@ function updateGenerativeKnobs() {
         const densityValue = parseInt(document.getElementById('generativeDensity').value);
         const variationValue = parseInt(document.getElementById('generativeVariation').value);
         const evolutionValue = parseInt(document.getElementById('generativeEvolution').value);
-        
+
         // Update knob rotations
         if (knobUpdaters.generativeDensity) {
             knobUpdaters.generativeDensity(densityValue);
         }
-        
+
         if (knobUpdaters.generativeVariation) {
             knobUpdaters.generativeVariation(variationValue);
         }
-        
+
         if (knobUpdaters.generativeEvolution) {
             knobUpdaters.generativeEvolution(evolutionValue);
         }
@@ -5966,11 +5973,10 @@ function registerGenerativeKnobUpdaters() {
         knobs.push(['generativeDensityKnob', 'generativeDensity']);
         knobs.push(['generativeVariationKnob', 'generativeVariation']);
         knobs.push(['generativeEvolutionKnob', 'generativeEvolution']);
-        
+
         // Apply setupKnob to each of our knobs
         knobUpdaters.generativeDensity = setupKnob('generativeDensityKnob', 'generativeDensity');
         knobUpdaters.generativeVariation = setupKnob('generativeVariationKnob', 'generativeVariation');
         knobUpdaters.generativeEvolution = setupKnob('generativeEvolutionKnob', 'generativeEvolution');
     }
 }
-
