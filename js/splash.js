@@ -107,6 +107,9 @@ function createSynthModules() {
     basePlate.receiveShadow = true;
     scene.add(basePlate);
     
+    // Add the Synth XR logo to the bottom right
+    addSynthXRLogo(40, 0.01, 20);
+
     createOscillatorModule(-35, 0, -15);
     createFilterModule(-35, 0, 15);
     createLFOModule(-10, 0, -15);
@@ -115,6 +118,62 @@ function createSynthModules() {
     createEffectsModule(15, 0, 15);
     createMasterModule(40, 0, 0);
     createCables();
+}
+
+function addSynthXRLogo(x, y, z) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    
+    // Create gradient background
+    const gradient = ctx.createLinearGradient(0, 0, 512, 128);
+    gradient.addColorStop(0, '#ff00ff');
+    gradient.addColorStop(0.5, '#00ffff');
+    gradient.addColorStop(1, '#ffaa00');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 512, 128);
+    
+    // Add glow effect
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 15;
+    
+    // Main text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 80px "Arial Black", Gadget, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SYNTH XR', 256, 64);
+    
+    // Add metallic stroke
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#111111';
+    ctx.strokeText('SYNTH XR', 256, 64);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const logoMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(20, 5),
+        new THREE.MeshBasicMaterial({ 
+            map: texture, 
+            transparent: true, 
+            opacity: 0.9,
+            side: THREE.DoubleSide
+        })
+    );
+    
+    logoMesh.position.set(x, y, z);
+    logoMesh.rotation.x = -Math.PI/2;
+    logoMesh.rotation.z = Math.PI/8; // Slight tilt for style
+    
+    // Add a subtle animation
+    const animate = () => {
+        logoMesh.material.opacity = 0.7 + Math.sin(clock.getElapsedTime() * 2) * 0.3;
+        requestAnimationFrame(animate);
+    };
+    animate();
+    
+    scene.add(logoMesh);
+    return logoMesh;
 }
 
 // Module creation functions
