@@ -374,6 +374,10 @@ class GenerativeEngine {
             const shouldPlay = Math.random() < (this.noteProbability - this.moodSettings.restProbability);
             
             if (shouldPlay) {
+                // Important: Use the provided time parameter correctly
+                // Add a small offset to ensure we're never scheduling in the past or at the same time
+                const safeTime = time + 0.01;
+                
                 // Decide whether to play a chord based on chordProbability
                 const playChord = Math.random() < this.moodSettings.chordProbability;
                 
@@ -395,19 +399,22 @@ class GenerativeEngine {
                     );
                     
                     // Random note length for varied rhythm
-                    const noteLength = this.getRandomInRange(
-                        this.moodSettings.noteLength.min,
-                        this.moodSettings.noteLength.max
-                    );
+                    // Important: Use simple note lengths like "4n", "8n" instead of computed values
+                    const noteLengthOptions = ["4n", "8n", "2n", "8n.", "4n."];
+                    const noteLength = noteLengthOptions[Math.floor(Math.random() * noteLengthOptions.length)];
                     
-                    // Play the chord
-                    this.synthRef.triggerAttackRelease(chordNoteNames, `${noteLength}n`, time, velocity);
-                    
-                    // Visualize the chord
-                    chordNoteNames.forEach(note => this.highlightKey(note, noteLength));
-                    
-                    // Add to current phrase
-                    currentPhrase = [...currentPhrase, ...chordNoteNames];
+                    try {
+                        // Play the chord with the safe time
+                        this.synthRef.triggerAttackRelease(chordNoteNames, noteLength, safeTime, velocity);
+                        
+                        // Visualize the chord
+                        chordNoteNames.forEach(note => this.highlightKey(note, Tone.Time(noteLength).toSeconds()));
+                        
+                        // Add to current phrase
+                        currentPhrase = [...currentPhrase, ...chordNoteNames];
+                    } catch (err) {
+                        console.warn("Error playing chord:", err);
+                    }
                 } 
                 else {
                     // Play a single note using Markov chain
@@ -416,26 +423,28 @@ class GenerativeEngine {
                         const midiNote = this.currentScale[noteIndex];
                         const noteName = this.midiToNoteName(midiNote);
                         
-                        // Get random velocity and note length
+                        // Get random velocity
                         const velocity = this.getRandomInRange(
                             this.moodSettings.velocityRange.min,
                             this.moodSettings.velocityRange.max
                         );
                         
-                        // Random note length for varied rhythm
-                        const noteLength = this.getRandomInRange(
-                            this.moodSettings.noteLength.min,
-                            this.moodSettings.noteLength.max
-                        );
+                        // Use standard note lengths instead of computed values
+                        const noteLengthOptions = ["8n", "4n", "2n", "16n", "8n."];
+                        const noteLength = noteLengthOptions[Math.floor(Math.random() * noteLengthOptions.length)];
                         
-                        // Play the note
-                        this.synthRef.triggerAttackRelease(noteName, `${noteLength}n`, time, velocity);
-                        
-                        // Highlight key
-                        this.highlightKey(noteName, noteLength);
-                        
-                        // Add to current phrase
-                        currentPhrase.push(noteName);
+                        try {
+                            // Play the note with the safe time
+                            this.synthRef.triggerAttackRelease(noteName, noteLength, safeTime, velocity);
+                            
+                            // Highlight key
+                            this.highlightKey(noteName, Tone.Time(noteLength).toSeconds());
+                            
+                            // Add to current phrase
+                            currentPhrase.push(noteName);
+                        } catch (err) {
+                            console.warn("Error playing note:", err);
+                        }
                     }
                 }
             }
@@ -447,11 +456,11 @@ class GenerativeEngine {
             if (this.phraseCounter === 0) {
                 if (Math.random() < (this.config.variation / 100)) {
                     // Create a variation in the music
-                    this.createVariation();
+                    setTimeout(() => this.createVariation(), 10); // Use setTimeout to avoid timing conflicts
+                    
+                    // Reset phrase
+                    currentPhrase = [];
                 }
-                
-                // Reset phrase
-                currentPhrase = [];
             }
         }, "8n").start(0); // Play every eighth note
         
@@ -681,43 +690,57 @@ class GenerativeEngine {
         const patterns = [
             // Pattern 1: Root + Fifth (stable)
             (time) => {
-                this.playDroneChord([rootNote, fifthNote], time);
+                // Add small offset to prevent scheduling conflicts
+                const safeTime = time + 0.02;
+                this.playDroneChord([rootNote, fifthNote], safeTime);
+                
                 // Add the deep root with the secondary layer for richness
                 if (this.droneSynthLayer) {
-                    this.droneSynthLayer.triggerAttack(deepRootNote, Tone.now() + 0.5, 0.4);
+                    // Use a different offset for the layer synth
+                    this.droneSynthLayer.triggerAttack(deepRootNote, safeTime + 0.5, 0.4);
                 }
             },
             // Pattern 2: Root + Third + Fifth (fuller harmony)
             (time) => {
-                this.playDroneChord([rootNote, thirdNote, fifthNote], time);
+                // Add small offset to prevent scheduling conflicts
+                const safeTime = time + 0.02;
+                this.playDroneChord([rootNote, thirdNote, fifthNote], safeTime);
             },
             // Pattern 3: Root octaves (powerful)
             (time) => {
-                this.playDroneChord([deepRootNote, rootNote], time);
+                // Add small offset to prevent scheduling conflicts
+                const safeTime = time + 0.02;
+                this.playDroneChord([deepRootNote, rootNote], safeTime);
+                
                 // Add fifth on the secondary layer
                 if (this.droneSynthLayer) {
-                    this.droneSynthLayer.triggerAttack(fifthNote, Tone.now() + 0.7, 0.3);
+                    // Use a different offset for the layer synth
+                    this.droneSynthLayer.triggerAttack(fifthNote, safeTime + 0.7, 0.3);
                 }
             },
             // Pattern 4: Subtle shift (movement)
             (time) => {
+                // Add small offset to prevent scheduling conflicts
+                const safeTime = time + 0.02;
+                
                 // Release previous notes gently
                 if (this.droneSynth) {
-                    this.droneSynth.triggerRelease([rootNote, fifthNote], Tone.now() + 0.5);
+                    this.droneSynth.triggerRelease([rootNote, fifthNote], safeTime + 0.5);
                 }
                 
                 // Schedule note changes using Tone.Transport for accurate timing
+                // Use increasing offsets to ensure proper ordering
                 const eventId1 = Tone.Transport.scheduleOnce((t) => {
                     if (this.droneSynth && this.config.droneEnabled) {
-                        this.playDroneChord([rootNote, thirdNote], t);
+                        this.playDroneChord([rootNote, thirdNote], t + 0.01);
                     }
-                }, "+1.5");
+                }, `+${1.5}`);
                 
                 const eventId2 = Tone.Transport.scheduleOnce((t) => {
                     if (this.droneSynth && this.config.droneEnabled) {
-                        this.droneSynth.triggerAttack(fifthNote, t, 0.4);
+                        this.droneSynth.triggerAttack(fifthNote, t + 0.01, 0.4);
                     }
-                }, "+3");
+                }, `+${3}`);
                 
                 // Store event IDs for cleanup
                 this.droneEvents.push(eventId1, eventId2);
@@ -727,7 +750,7 @@ class GenerativeEngine {
         // Create a part that cycles through patterns
         let patternIndex = 0;
         
-        // Use Tone.Loop for precise timing
+        // Use Tone.Loop with a long interval to avoid timing conflicts
         this.dronePart = new Tone.Loop((time) => {
             // Skip if drone is disabled
             if (!this.config.droneEnabled || !this.droneSynth) return;
@@ -737,9 +760,13 @@ class GenerativeEngine {
             patternIndex = (patternIndex + 1) % patterns.length;
             
             // Execute the pattern with the current time
-            currentPattern(time);
+            try {
+                currentPattern(time);
+            } catch (err) {
+                console.warn("Error executing drone pattern:", err);
+            }
             
-        }, "16m").start(0); // Change every 16 measures for long, evolving drones
+        }, "16m").start("+0.1"); // Start with small offset and change every 16 measures
     }
     
     // Helper method to play a chord on the drone synth
@@ -749,8 +776,8 @@ class GenerativeEngine {
         console.log("Playing drone chord:", notes.join(', '), time ? `at ${time}` : 'now');
         
         try {
-            // Use provided time or current time
-            const playTime = time || Tone.now();
+            // Use provided time or current time, ensuring it's never in the past
+            const playTime = time || (Tone.now() + 0.05); // Small offset to avoid "in the past" errors
             
             // Trigger the chord with a quieter velocity for a more subtle drone
             this.droneSynth.triggerAttack(notes, playTime, 0.6);
